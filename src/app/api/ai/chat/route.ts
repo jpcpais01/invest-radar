@@ -56,9 +56,14 @@ export async function POST(req: NextRequest) {
 
         const conversationMessages: ApiMessage[] = [...apiMessages];
         let iterations = 0;
+        let textSent = false;
+        const MAX_TOOL_ROUNDS = 4; // round 5 is always forced text
 
-        while (iterations < 5) {
+        while (iterations <= MAX_TOOL_ROUNDS) {
           iterations++;
+          // On the final allowed iteration force a text-only response so the
+          // model cannot call more tools and must produce an answer.
+          const forceFinal = iterations > MAX_TOOL_ROUNDS;
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const response = await getTogetherClient().chat.completions.create({
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
               ...conversationMessages,
             ] as any,
             tools: AI_TOOLS,
-            tool_choice: "auto",
+            tool_choice: forceFinal ? "none" : "auto",
             stream: true,
             max_tokens: 2000,
           });
@@ -101,7 +106,7 @@ export async function POST(req: NextRequest) {
           // Strip <think>...</think> reasoning tokens before showing anything
           const cleanContent = stripThinking(fullContent);
 
-          if (toolCalls.length > 0) {
+          if (toolCalls.length > 0 && !forceFinal) {
             conversationMessages.push({
               role: "assistant",
               content: cleanContent || null,
@@ -136,16 +141,39 @@ export async function POST(req: NextRequest) {
                 content: tr.content,
               });
             }
+            // continue to next iteration
           } else {
-            // Final answer — emit the clean content and stop
+            // Final answer — emit clean content and stop
             if (cleanContent) {
               send({ type: "text", content: cleanContent });
-            } else if (iterations > 1) {
-              // Tools ran but model gave no text — ask it to summarise
-              send({ type: "text", content: "I've retrieved the data above. Let me know if you'd like a specific analysis." });
+              textSent = true;
             }
             break;
           }
+        }
+
+        // Safety net: if somehow nothing was sent (e.g. all content was in
+        // <think> blocks), do one final forced call with no tools.
+        if (!textSent) {
+          const fallback = await getTogetherClient().chat.completions.create({
+            model: AI_MODEL,
+            messages: [
+              { role: "system", content: systemWithContext },
+              ...conversationMessages,
+              { role: "user", content: "Please summarise your findings in a few sentences." },
+            ] as any,
+            tool_choice: "none",
+            stream: false,
+            max_tokens: 800,
+          });
+          const fallbackText = stripThinking(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (fallback as any).choices?.[0]?.message?.content ?? ""
+          );
+          send({
+            type: "text",
+            content: fallbackText || "I retrieved the data above. What would you like to know?",
+          });
         }
 
         send({ type: "done" });
