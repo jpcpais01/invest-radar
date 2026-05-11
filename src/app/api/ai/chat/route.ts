@@ -65,17 +65,23 @@ export async function POST(req: NextRequest) {
           // model cannot call more tools and must produce an answer.
           const forceFinal = iterations > MAX_TOOL_ROUNDS;
 
+          // Cast the create fn to any so extra_body doesn't break the stream overload
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const response = await getTogetherClient().chat.completions.create({
+          const createFn = getTogetherClient().chat.completions.create.bind(getTogetherClient().chat.completions) as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const response = await createFn({
             model: AI_MODEL,
             messages: [
               { role: "system", content: systemWithContext },
               ...conversationMessages,
-            ] as any,
+            ],
             tools: AI_TOOLS,
             tool_choice: forceFinal ? "none" : "auto",
             stream: true,
             max_tokens: 2000,
+            // Disable Kimi's extended thinking — saves tokens, prevents the model
+            // from exhausting its token budget on reasoning instead of answering.
+            extra_body: { thinking: { type: "disabled" } },
           });
 
           // Buffer the full content — we only emit text to the client on the
@@ -155,16 +161,18 @@ export async function POST(req: NextRequest) {
         // Safety net: if somehow nothing was sent (e.g. all content was in
         // <think> blocks), do one final forced call with no tools.
         if (!textSent) {
-          const fallback = await getTogetherClient().chat.completions.create({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fallback = await (getTogetherClient().chat.completions.create as any)({
             model: AI_MODEL,
             messages: [
               { role: "system", content: systemWithContext },
               ...conversationMessages,
               { role: "user", content: "Please summarise your findings in a few sentences." },
-            ] as any,
+            ],
             tool_choice: "none",
             stream: false,
             max_tokens: 800,
+            extra_body: { thinking: { type: "disabled" } },
           });
           const fallbackText = stripThinking(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
