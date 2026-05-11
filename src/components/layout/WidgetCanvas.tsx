@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useRef, useState } from "react";
 import GridLayout from "react-grid-layout";
-import { Plus, X } from "lucide-react";
+import { Plus, X, RefreshCw, Lock, LockOpen, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLayoutStore } from "@/store/layoutStore";
 import { WidgetConfig, WidgetType } from "@/types/widgets";
 import { useTickerStore } from "@/store/tickerStore";
@@ -101,9 +102,14 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
 export default function WidgetCanvas() {
   const { widgets, setLayout, addWidget, removeWidget } = useLayoutStore();
   const { activeTicker } = useTickerStore();
+  const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(1000);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Skip the first onLayoutChange fired by react-grid-layout on mount —
   // it reflects the initial props, not a user action, and would overwrite
   // the persisted custom layout before Zustand has finished hydrating.
@@ -142,6 +148,23 @@ export default function WidgetCanvas() {
     [widgets, setLayout]
   );
 
+  const handleRefreshAll = () => {
+    setRefreshing(true);
+    queryClient.invalidateQueries();
+    setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  const handleClear = () => {
+    if (!clearConfirm) {
+      setClearConfirm(true);
+      clearTimerRef.current = setTimeout(() => setClearConfirm(false), 3000);
+      return;
+    }
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    setClearConfirm(false);
+    widgets.forEach((w) => removeWidget(w.id));
+  };
+
   const handleAddWidget = useCallback((entry: CatalogEntry) => {
     const nextY = widgets.reduce((max, w) => Math.max(max, w.y + w.h), 0);
     const id = `${entry.type}-${Date.now()}`;
@@ -167,51 +190,110 @@ export default function WidgetCanvas() {
 
   const GL = GridLayout as any;
 
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    if (!(e.target as HTMLElement).closest(".react-grid-item")) {
-      setPickerOpen(true);
-    }
-  };
-
   return (
-    <div
-      ref={containerRef}
-      className="flex-1 overflow-y-auto overflow-x-hidden bg-[#0d1117] p-2 relative [&:not(:has(.react-grid-item:hover))]:cursor-cell"
-      onClick={handleCanvasClick}
-    >
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#0d1117]">
       {pickerOpen && (
         <WidgetPicker onAdd={handleAddWidget} onClose={() => setPickerOpen(false)} />
       )}
 
-      {widgets.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none gap-3">
-          <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] flex items-center justify-center">
-            <Plus className="w-5 h-5 text-[#30363d]" />
-          </div>
-          <p className="text-xs text-[#30363d]">Click anywhere to add a widget</p>
-        </div>
-      )}
+      {/* Canvas toolbar */}
+      <div className="flex items-center h-8 px-2 gap-0.5 border-b border-[#21262d] shrink-0 bg-[#0d1117]">
+        {/* Left group */}
+        <button
+          onClick={() => setPickerOpen(true)}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[#8b949e] hover:text-white hover:bg-[#161b22] transition-colors"
+        >
+          <Plus className="w-3 h-3" />
+          Add Widget
+        </button>
 
-      <GL
-        className="react-grid-layout"
-        layout={layout}
-        cols={12}
-        rowHeight={60}
-        width={canvasWidth - 16}
-        onLayoutChange={handleLayoutChange}
-        draggableHandle=".widget-drag-handle"
-        draggableCancel=".widget-body"
-        margin={[8, 8]}
-        containerPadding={[0, 0]}
-        resizeHandles={["se", "s", "e", "sw", "w", "n", "ne", "nw"]}
-        useCSSTransforms={false}
+        <div className="w-px h-3.5 bg-[#21262d] mx-1" />
+
+        <button
+          onClick={handleRefreshAll}
+          title="Refresh all widgets"
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[#8b949e] hover:text-white hover:bg-[#161b22] transition-colors"
+        >
+          <RefreshCw className={cn("w-3 h-3", refreshing && "animate-spin")} />
+          Refresh
+        </button>
+
+        {/* Right group */}
+        <div className="ml-auto flex items-center gap-0.5">
+          <button
+            onClick={() => setLocked((v) => !v)}
+            title={locked ? "Unlock layout" : "Lock layout"}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
+              locked
+                ? "text-[#388bfd] bg-[#1f6feb15] hover:bg-[#1f6feb22]"
+                : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"
+            )}
+          >
+            {locked ? <Lock className="w-3 h-3" /> : <LockOpen className="w-3 h-3" />}
+            {locked ? "Locked" : "Lock"}
+          </button>
+
+          <div className="w-px h-3.5 bg-[#21262d] mx-1" />
+
+          <button
+            onClick={handleClear}
+            title={clearConfirm ? "Click again to confirm" : "Remove all widgets"}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
+              clearConfirm
+                ? "text-[#f85149] bg-[#f8514915] hover:bg-[#f8514922]"
+                : "text-[#8b949e] hover:text-[#f85149] hover:bg-[#161b22]"
+            )}
+          >
+            <Trash2 className="w-3 h-3" />
+            {clearConfirm ? "Confirm?" : "Clear"}
+          </button>
+        </div>
+      </div>
+
+      {/* Canvas content */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden p-2 relative"
       >
-        {widgets.map((w) => (
-          <div key={w.i} className="relative">
-            {renderWidget(w.type, activeTicker, w.id, removeWidget)}
+        {widgets.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center select-none gap-3">
+            <button
+              onClick={() => setPickerOpen(true)}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] group-hover:border-[#30363d] flex items-center justify-center transition-colors">
+                <Plus className="w-5 h-5 text-[#30363d] group-hover:text-[#484f58] transition-colors" />
+              </div>
+              <p className="text-xs text-[#30363d] group-hover:text-[#484f58] transition-colors">Add a widget to get started</p>
+            </button>
           </div>
-        ))}
-      </GL>
+        )}
+
+        <GL
+          className="react-grid-layout"
+          layout={layout}
+          cols={12}
+          rowHeight={60}
+          width={canvasWidth - 16}
+          onLayoutChange={handleLayoutChange}
+          draggableHandle=".widget-drag-handle"
+          draggableCancel=".widget-body"
+          isDraggable={!locked}
+          isResizable={!locked}
+          margin={[8, 8]}
+          containerPadding={[0, 0]}
+          resizeHandles={["se", "s", "e", "sw", "w", "n", "ne", "nw"]}
+          useCSSTransforms={false}
+        >
+          {widgets.map((w) => (
+            <div key={w.i} className="relative">
+              {renderWidget(w.type, activeTicker, w.id, removeWidget)}
+            </div>
+          ))}
+        </GL>
+      </div>
     </div>
   );
 }
