@@ -1,5 +1,5 @@
 "use client";
-import { X, Plus, LayoutGrid } from "lucide-react";
+import { X, Plus, LayoutGrid, Layers, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTickerStore } from "@/store/tickerStore";
 import { useLayoutStore, PRESET_LAYOUTS } from "@/store/layoutStore";
@@ -69,7 +69,11 @@ function WatchlistItem({ ticker, isActive, onSelect, onRemove }: {
 export default function LeftPanel() {
   const { watchlist, activeTicker, setActiveTicker, addToWatchlist, removeFromWatchlist } =
     useTickerStore();
-  const { applyPreset, activePreset } = useLayoutStore();
+  const {
+    applyPreset, activePreset,
+    customLayouts, activeCustomId,
+    addCustomLayout, applyCustomLayout, removeCustomLayout,
+  } = useLayoutStore();
   const router = useRouter();
   void PRESET_LAYOUTS;
 
@@ -81,6 +85,11 @@ export default function LeftPanel() {
   const handleAdd = () => {
     const ticker = prompt("Add ticker:")?.toUpperCase();
     if (ticker) addToWatchlist(ticker);
+  };
+
+  const handleAddLayout = () => {
+    const name = prompt("Layout name:")?.trim();
+    if (name) addCustomLayout(name);
   };
 
   return (
@@ -108,6 +117,51 @@ export default function LeftPanel() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Custom Layouts */}
+      <div className="p-3 border-b border-[#21262d]">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#484f58] uppercase tracking-widest">
+            <Layers className="w-3 h-3" />
+            Custom
+          </div>
+          <button
+            onClick={handleAddLayout}
+            title="Add layout"
+            className="text-[#484f58] hover:text-[#388bfd] transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {customLayouts.length === 0 ? (
+          <p className="text-[10px] text-[#30363d] leading-relaxed px-1">
+            No custom layouts yet. Click + to create one.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {customLayouts.map((cl) => (
+              <div
+                key={cl.id}
+                className={cn(
+                  "flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer group transition-colors",
+                  activeCustomId === cl.id
+                    ? "bg-[#1f6feb15] border border-[#1f6feb33] text-[#388bfd]"
+                    : "text-[#8b949e] hover:text-white hover:bg-[#161b22] border border-transparent"
+                )}
+                onClick={() => applyCustomLayout(cl.id)}
+              >
+                <span className="text-xs font-medium truncate">{cl.name}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeCustomLayout(cl.id); }}
+                  className="opacity-0 group-hover:opacity-100 text-[#484f58] hover:text-[#f85149] transition-all shrink-0 ml-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Watchlist */}
