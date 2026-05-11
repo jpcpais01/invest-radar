@@ -272,6 +272,7 @@ export default function WidgetCanvas() {
         )}
 
         <GL
+          key={locked ? "locked" : "unlocked"}
           className="react-grid-layout"
           layout={layout}
           cols={12}
