@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getHistory } from "@/lib/market/yahoo";
 import { computeIndicators } from "@/lib/market/indicators";
