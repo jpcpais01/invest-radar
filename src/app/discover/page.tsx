@@ -110,6 +110,38 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
     : <ChevronDown className="w-3 h-3 text-[#388bfd]" />;
 }
 
+const CACHE_TTL = 24 * 60 * 60 * 1000;
+
+function cacheKey(tf: string) {
+  return `discover-cache-${tf}`;
+}
+
+function readCache(tf: string): { results: ScanResult[]; scannedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(tf));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.scannedAt < CACHE_TTL) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(tf: string, results: ScanResult[]) {
+  try {
+    localStorage.setItem(cacheKey(tf), JSON.stringify({ results, scannedAt: Date.now() }));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function formatScannedAt(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return isToday ? `today at ${time}` : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} at ${time}`;
+}
+
 export default function DiscoverPage() {
   const router = useRouter();
   const [tf, setTf] = useState("3M");
@@ -121,6 +153,7 @@ export default function DiscoverPage() {
   const [customTickers, setCustomTickers] = useState<string[]>([]);
   const [addInput, setAddInput] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [scannedAt, setScannedAt] = useState<number | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("discover-custom-tickers");
@@ -139,15 +172,24 @@ export default function DiscoverPage() {
         body: JSON.stringify({ tickers, tf: timeframe }),
       });
       const data: ScanResult[] = await res.json();
-      setResults(data.filter((r) => !r.error && r.summary));
+      const valid = data.filter((r) => !r.error && r.summary);
+      setResults(valid);
+      setScannedAt(Date.now());
+      writeCache(timeframe, valid);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Auto-scan once localStorage is ready
+  // On hydration: use cache if fresh, otherwise scan
   useEffect(() => {
     if (!hydrated) return;
+    const cached = readCache(tf);
+    if (cached) {
+      setResults(cached.results);
+      setScannedAt(cached.scannedAt);
+      return;
+    }
     const all = [...new Set([...PRESET_TICKERS, ...customTickers])];
     scan(all, tf);
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -156,24 +198,26 @@ export default function DiscoverPage() {
     const t = addInput.trim().toUpperCase();
     if (!t) return;
     setAddInput("");
-    if (customTickers.includes(t) || PRESET_TICKERS.includes(t)) {
-      // already in list — just rescan so the ticker shows up if missing
-      const all = [...new Set([...PRESET_TICKERS, ...customTickers])];
+    const isAlreadyPresent = results.some((r) => r.ticker === t);
+    if (isAlreadyPresent) return;
+    if (!customTickers.includes(t) && !PRESET_TICKERS.includes(t)) {
+      const updated = [...customTickers, t];
+      setCustomTickers(updated);
+      localStorage.setItem("discover-custom-tickers", JSON.stringify(updated));
+      const all = [...new Set([...PRESET_TICKERS, ...updated])];
       scan(all, tf);
-      return;
     }
-    const updated = [...customTickers, t];
-    setCustomTickers(updated);
-    localStorage.setItem("discover-custom-tickers", JSON.stringify(updated));
-    const all = [...new Set([...PRESET_TICKERS, ...updated])];
-    scan(all, tf);
   };
 
   const removeCustomTicker = (t: string) => {
     const updated = customTickers.filter((x) => x !== t);
     setCustomTickers(updated);
     localStorage.setItem("discover-custom-tickers", JSON.stringify(updated));
-    setResults((prev) => prev.filter((r) => r.ticker !== t));
+    setResults((prev) => {
+      const next = prev.filter((r) => r.ticker !== t);
+      writeCache(tf, next);
+      return next;
+    });
   };
 
   const handleRescan = () => {
@@ -183,6 +227,12 @@ export default function DiscoverPage() {
 
   const handleTfChange = (newTf: string) => {
     setTf(newTf);
+    const cached = readCache(newTf);
+    if (cached) {
+      setResults(cached.results);
+      setScannedAt(cached.scannedAt);
+      return;
+    }
     const all = [...new Set([...PRESET_TICKERS, ...customTickers])];
     scan(all, newTf);
   };
@@ -497,7 +547,9 @@ export default function DiscoverPage() {
         {/* Footer */}
         {!loading && results.length > 0 && (
           <div className="text-[10px] text-[#484f58] shrink-0 text-center">
-            {results.length} stocks scanned · {tf} timeframe · Click any row to open full analysis
+            {results.length} stocks · {tf} timeframe
+            {scannedAt && <> · Last scanned {formatScannedAt(scannedAt)}</>}
+            {" · "}Click any row to open full analysis
           </div>
         )}
       </div>
