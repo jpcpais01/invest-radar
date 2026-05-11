@@ -9,6 +9,7 @@ interface TickerState {
   setActiveTicker: (ticker: string) => void;
   addToWatchlist: (ticker: string) => void;
   removeFromWatchlist: (ticker: string) => void;
+  reorderWatchlist: (fromIndex: number, toIndex: number) => void;
   setActiveTimeframe: (tf: string) => void;
 }
 
@@ -29,6 +30,13 @@ export const useTickerStore = create<TickerState>()(
         set((s) => ({
           watchlist: s.watchlist.filter((t) => t !== ticker.toUpperCase()),
         })),
+      reorderWatchlist: (fromIndex, toIndex) =>
+        set((s) => {
+          const list = [...s.watchlist];
+          const [item] = list.splice(fromIndex, 1);
+          list.splice(toIndex, 0, item);
+          return { watchlist: list };
+        }),
       setActiveTimeframe: (tf) => set({ activeTimeframe: tf }),
     }),
     { name: "investradar-tickers" }

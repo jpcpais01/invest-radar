@@ -6,6 +6,7 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
   const closes = bars.map((b) => b.close);
   const highs = bars.map((b) => b.high);
   const lows = bars.map((b) => b.low);
+  const volumes = bars.map((b) => b.volume);
 
   const rsiResult = ti.RSI.calculate({ period: 14, values: closes });
   const rsi = padLeft(rsiResult, bars.length);
@@ -52,6 +53,23 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
   const stochK = padLeft(stochInput.map((s) => s.k), bars.length);
   const stochD = padLeft(stochInput.map((s) => s.d), bars.length);
 
+  // ADX / DMI
+  const adxResult = ti.ADX.calculate({ close: closes, high: highs, low: lows, period: 14 }) as { adx: number; pdi: number; mdi: number }[];
+  const adx   = padLeft(adxResult.map((r) => r.adx), bars.length);
+  const pdi   = padLeft(adxResult.map((r) => r.pdi), bars.length);
+  const mdi   = padLeft(adxResult.map((r) => r.mdi), bars.length);
+
+  // Parabolic SAR
+  const psarResult = ti.PSAR.calculate({ high: highs, low: lows, step: 0.02, max: 0.2 }) as number[];
+  const psar = padLeft(psarResult, bars.length);
+
+  // CCI (20)
+  const cciResult = ti.CCI.calculate({ high: highs, low: lows, close: closes, period: 20 }) as number[];
+  const cci = padLeft(cciResult, bars.length);
+
+  // OBV — same length as input, no padding needed
+  const obv = ti.OBV.calculate({ close: closes, volume: volumes }) as number[];
+
   return {
     rsi,
     stochastic: { k: stochK, d: stochD },
@@ -61,6 +79,10 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
     ema21,
     ema50,
     ema200,
+    adx: { adx, pdi, mdi },
+    psar,
+    cci,
+    obv,
   };
 }
 
@@ -138,6 +160,50 @@ export function computeSignalSummary(indicators: TechnicalIndicators, currentPri
       name: "EMA 9/21",
       signal: ema9 > ema21 ? "buy" : "sell",
       value: `9: ${ema9.toFixed(2)} / 21: ${ema21.toFixed(2)}`,
+    });
+  }
+
+  // ADX / DMI
+  const adxVal = lastVal(indicators.adx?.adx);
+  const pdiVal = lastVal(indicators.adx?.pdi);
+  const mdiVal = lastVal(indicators.adx?.mdi);
+  if (adxVal != null && pdiVal != null && mdiVal != null) {
+    signals.push({
+      name: "ADX/DMI",
+      signal: adxVal < 20 ? "neutral" : pdiVal > mdiVal ? "buy" : "sell",
+      value: `ADX ${adxVal.toFixed(1)} +DI ${pdiVal.toFixed(1)} -DI ${mdiVal.toFixed(1)}`,
+    });
+  }
+
+  // Parabolic SAR
+  const psarVal = lastVal(indicators.psar);
+  if (psarVal != null) {
+    signals.push({
+      name: "PSAR",
+      signal: currentPrice > psarVal ? "buy" : "sell",
+      value: psarVal.toFixed(2),
+    });
+  }
+
+  // CCI (20)
+  const cciVal = lastVal(indicators.cci);
+  if (cciVal != null) {
+    signals.push({
+      name: "CCI(20)",
+      signal: cciVal > 100 ? "sell" : cciVal < -100 ? "buy" : "neutral",
+      value: cciVal.toFixed(1),
+    });
+  }
+
+  // OBV — rising if last value > value 5 bars ago
+  const obvVals = (indicators.obv ?? []).filter((v) => !isNaN(v));
+  if (obvVals.length >= 6) {
+    const last = obvVals[obvVals.length - 1];
+    const prev = obvVals[obvVals.length - 6];
+    signals.push({
+      name: "OBV",
+      signal: last > prev ? "buy" : last < prev ? "sell" : "neutral",
+      value: last >= 1e6 ? `${(last / 1e6).toFixed(1)}M` : last >= 1e3 ? `${(last / 1e3).toFixed(0)}K` : last.toFixed(0),
     });
   }
 

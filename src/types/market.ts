@@ -88,6 +88,10 @@ export interface TechnicalIndicators {
   ema21?: number[];
   ema50?: number[];
   ema200?: number[];
+  adx?: { adx: number[]; pdi: number[]; mdi: number[] };
+  psar?: number[];
+  cci?: number[];
+  obv?: number[];
 }
 
 export interface Timeframe {

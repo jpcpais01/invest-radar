@@ -19,6 +19,10 @@ import KeyMetrics from "@/components/widgets/fundamentals/KeyMetrics";
 import NewsFeed from "@/components/widgets/sentiment/NewsFeed";
 import EarningsWidget from "@/components/widgets/fundamentals/EarningsWidget";
 import SignalSummaryWidget from "@/components/widgets/technicals/SignalSummaryWidget";
+import ADXWidget from "@/components/widgets/technicals/ADXWidget";
+import CCIWidget from "@/components/widgets/technicals/CCIWidget";
+import PSARWidget from "@/components/widgets/technicals/PSARWidget";
+import OBVWidget from "@/components/widgets/technicals/OBVWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
 interface CatalogEntry {
@@ -37,6 +41,10 @@ const WIDGET_CATALOG: CatalogEntry[] = [
   { type: "bollinger",     label: "Bollinger Bands",  desc: "Volatility bands",               defaultW: 4, defaultH: 3 },
   { type: "ema",           label: "EMA Panel",        desc: "9/21/50/100/200 EMAs",           defaultW: 6, defaultH: 3 },
   { type: "signal-summary",label: "Signal Summary",   desc: "Aggregate buy/sell signals",     defaultW: 6, defaultH: 3 },
+  { type: "adx",           label: "ADX / DMI",        desc: "Trend strength & direction",      defaultW: 4, defaultH: 3 },
+  { type: "cci",           label: "CCI (20)",          desc: "Commodity Channel Index",         defaultW: 4, defaultH: 3 },
+  { type: "psar",          label: "Parabolic SAR",     desc: "Stop-and-reverse reversal dots",  defaultW: 4, defaultH: 3 },
+  { type: "obv",           label: "OBV",               desc: "On-Balance Volume trend",         defaultW: 4, defaultH: 3 },
   { type: "key-metrics",   label: "Key Metrics",      desc: "P/E, EV/EBITDA, market cap",    defaultW: 4, defaultH: 3 },
   { type: "earnings",      label: "Earnings",         desc: "EPS history & estimates",        defaultW: 4, defaultH: 3 },
   { type: "news-feed",     label: "News Feed",        desc: "Latest news with sentiment",     defaultW: 4, defaultH: 3 },
@@ -88,6 +96,10 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
     case "news-feed": return <NewsFeed ticker={ticker} id={id} />;
     case "earnings": return <EarningsWidget ticker={ticker} id={id} />;
     case "signal-summary": return <SignalSummaryWidget ticker={ticker} id={id} />;
+    case "adx":            return <ADXWidget ticker={ticker} id={id} />;
+    case "cci":            return <CCIWidget ticker={ticker} id={id} />;
+    case "psar":           return <PSARWidget ticker={ticker} id={id} />;
+    case "obv":            return <OBVWidget ticker={ticker} id={id} />;
     default:
       return (
         <WidgetShell title={type} id={id} onRemove={onRemove}>

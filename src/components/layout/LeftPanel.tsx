@@ -1,7 +1,8 @@
 "use client";
-import { X, Plus, LayoutGrid, Layers, Trash2 } from "lucide-react";
+import { X, Plus, LayoutGrid, Layers, Trash2, GripVertical } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+
 import { useTickerStore } from "@/store/tickerStore";
 import { useLayoutStore, PRESET_LAYOUTS } from "@/store/layoutStore";
 import { useRouter } from "next/navigation";
@@ -139,7 +140,7 @@ function WatchlistItem({ ticker, isActive, onSelect, onRemove }: {
 }
 
 export default function LeftPanel() {
-  const { watchlist, activeTicker, setActiveTicker, addToWatchlist, removeFromWatchlist } =
+  const { watchlist, activeTicker, setActiveTicker, addToWatchlist, removeFromWatchlist, reorderWatchlist } =
     useTickerStore();
   const {
     applyPreset, activePreset,
@@ -150,6 +151,8 @@ export default function LeftPanel() {
   void PRESET_LAYOUTS;
 
   const [modal, setModal] = useState<"ticker" | "layout" | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
 
   const handleSelect = (t: string) => {
     setActiveTicker(t);
@@ -259,14 +262,36 @@ export default function LeftPanel() {
           </button>
         </div>
         <div className="flex flex-col gap-1">
-          {watchlist.map((t) => (
-            <WatchlistItem
+          {watchlist.map((t, idx) => (
+            <div
               key={t}
-              ticker={t}
-              isActive={t === activeTicker}
-              onSelect={() => handleSelect(t)}
-              onRemove={() => removeFromWatchlist(t)}
-            />
+              draggable
+              onDragStart={() => { dragIndexRef.current = idx; }}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(idx); }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={() => {
+                if (dragIndexRef.current !== null && dragIndexRef.current !== idx) {
+                  reorderWatchlist(dragIndexRef.current, idx);
+                }
+                dragIndexRef.current = null;
+                setDragOver(null);
+              }}
+              onDragEnd={() => { dragIndexRef.current = null; setDragOver(null); }}
+              className={cn(
+                "rounded-lg transition-all",
+                dragOver === idx && dragIndexRef.current !== idx && "ring-1 ring-[#388bfd] ring-inset bg-[#1f6feb0a]"
+              )}
+            >
+              <div className="flex items-center gap-1 group/row">
+                <GripVertical className="w-3 h-3 text-[#30363d] group-hover/row:text-[#484f58] shrink-0 cursor-grab active:cursor-grabbing ml-0.5 transition-colors" />
+                <WatchlistItem
+                  ticker={t}
+                  isActive={t === activeTicker}
+                  onSelect={() => handleSelect(t)}
+                  onRemove={() => removeFromWatchlist(t)}
+                />
+              </div>
+            </div>
           ))}
         </div>
       </div>

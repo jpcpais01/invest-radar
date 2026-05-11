@@ -8,10 +8,24 @@ import CommandPalette from "@/components/search/CommandPalette";
 import { cn } from "@/lib/utils";
 
 export default function TopBar() {
-  const { activeTicker, watchlist, setActiveTicker } = useTickerStore();
+  const { activeTicker, watchlist, setActiveTicker, reorderWatchlist } = useTickerStore();
   const router = useRouter();
   const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const watchlistRef = useRef<HTMLDivElement>(null);
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = watchlistRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      el.scrollLeft += e.deltaY || e.deltaX;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   const { data: quote } = useQuery({
     queryKey: ["quote", activeTicker],
@@ -103,18 +117,35 @@ export default function TopBar() {
         )}
 
         {/* Watchlist tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto ml-2">
-          {watchlist.map((t) => {
+        <div ref={watchlistRef} className="flex items-center gap-1 overflow-x-auto ml-2 scrollbar-none">
+          {watchlist.map((t, idx) => {
             const name = watchlistNames?.[t];
             return (
               <button
                 key={t}
+                draggable
+                onDragStart={(e) => {
+                  dragIndexRef.current = idx;
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(idx); }}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragIndexRef.current !== null && dragIndexRef.current !== idx) {
+                    reorderWatchlist(dragIndexRef.current, idx);
+                  }
+                  dragIndexRef.current = null;
+                  setDragOver(null);
+                }}
+                onDragEnd={() => { dragIndexRef.current = null; setDragOver(null); }}
                 onClick={() => handleTickerSelect(t)}
                 className={cn(
-                  "flex flex-col items-start px-2.5 py-1 rounded-md whitespace-nowrap transition-colors",
+                  "flex flex-col items-start px-2.5 py-1 rounded-md whitespace-nowrap transition-all cursor-pointer select-none",
                   t === activeTicker
                     ? "bg-[#1f6feb22] text-[#388bfd] border border-[#1f6feb44]"
-                    : "text-[#8b949e] hover:text-white hover:bg-[#161b22] border border-transparent"
+                    : "text-[#8b949e] hover:text-white hover:bg-[#161b22] border border-transparent",
+                  dragOver === idx && dragIndexRef.current !== idx && "ring-1 ring-[#388bfd] ring-inset"
                 )}
               >
                 <span className="text-xs font-medium leading-tight">{t}</span>
