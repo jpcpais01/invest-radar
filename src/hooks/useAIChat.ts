@@ -5,7 +5,7 @@ import { useTickerStore } from "@/store/tickerStore";
 import { ChatMessage, ToolResult } from "@/types/ai";
 
 export function useAIChat() {
-  const { messages, addMessage, updateLastMessage, setStreaming, isStreaming } = useChatStore();
+  const { messages, addMessage, updateLastMessage, appendToLastMessage, setStreaming, isStreaming } = useChatStore();
   const { activeTicker } = useTickerStore();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -68,8 +68,13 @@ export function useAIChat() {
             try {
               const event = JSON.parse(line.slice(6));
 
-              if (event.type === "text") {
-                // Full clean answer arrives as a single event (thinking stripped server-side)
+              if (event.type === "text_chunk") {
+                appendToLastMessage(event.content);
+              } else if (event.type === "retract_text") {
+                // Model called tools after streaming some text — clear the partial content
+                updateLastMessage("");
+              } else if (event.type === "text") {
+                // Safety-net fallback: full content in one event
                 updateLastMessage(event.content);
               } else if (event.type === "tool_result") {
                 const tr: ToolResult = {
@@ -99,7 +104,7 @@ export function useAIChat() {
         setStreaming(false);
       }
     },
-    [messages, activeTicker, isStreaming, addMessage, updateLastMessage, setStreaming]
+    [messages, activeTicker, isStreaming, addMessage, updateLastMessage, appendToLastMessage, setStreaming]
   );
 
   const stop = useCallback(() => {

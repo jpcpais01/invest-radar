@@ -84,10 +84,11 @@ export async function POST(req: NextRequest) {
             extra_body: { thinking: { type: "disabled" } },
           });
 
-          // Buffer the full content — we only emit text to the client on the
-          // final (no-tool-call) iteration so intermediate reasoning and
-          // pre-tool commentary never appear in the UI.
+          // Stream text chunks to the client as they arrive.
+          // If the model ends up calling tools we retract them; otherwise
+          // the streamed content is already in the UI by the time we finish.
           let fullContent = "";
+          let chunksStreamed = false;
           const toolCallMap: Record<number, { id: string; name: string; arguments: string }> = {};
 
           for await (const chunk of response) {
@@ -95,7 +96,11 @@ export async function POST(req: NextRequest) {
             if (!choice) continue;
             const delta = choice.delta;
 
-            if (delta?.content) fullContent += delta.content;
+            if (delta?.content) {
+              fullContent += delta.content;
+              send({ type: "text_chunk", content: delta.content });
+              chunksStreamed = true;
+            }
 
             if (delta?.tool_calls) {
               for (const tc of delta.tool_calls) {
@@ -109,10 +114,13 @@ export async function POST(req: NextRequest) {
           }
 
           const toolCalls = Object.values(toolCallMap).filter((tc) => tc.name);
-          // Strip <think>...</think> reasoning tokens before showing anything
           const cleanContent = stripThinking(fullContent);
 
           if (toolCalls.length > 0 && !forceFinal) {
+            // Retract any text that was already streamed — this was pre-tool
+            // commentary, not the final answer.
+            if (chunksStreamed) send({ type: "retract_text" });
+
             conversationMessages.push({
               role: "assistant",
               content: cleanContent || null,
@@ -149,11 +157,9 @@ export async function POST(req: NextRequest) {
             }
             // continue to next iteration
           } else {
-            // Final answer — emit clean content and stop
-            if (cleanContent) {
-              send({ type: "text", content: cleanContent });
-              textSent = true;
-            }
+            // Final answer — already streamed chunk-by-chunk above.
+            // Just mark done (content is already in the client).
+            if (cleanContent) textSent = true;
             break;
           }
         }

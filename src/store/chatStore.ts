@@ -9,6 +9,7 @@ interface ChatState {
   isStreaming: boolean;
   addMessage: (msg: ChatMessage) => void;
   updateLastMessage: (content: string) => void;
+  appendToLastMessage: (chunk: string) => void;
   setStreaming: (v: boolean) => void;
   toggleOpen: () => void;
   clearHistory: () => void;
@@ -30,6 +31,15 @@ export const useChatStore = create<ChatState>()(
         set((s) => {
           const msgs = [...s.messages];
           if (msgs.length > 0) msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], content };
+          return { messages: msgs };
+        }),
+      appendToLastMessage: (chunk) =>
+        set((s) => {
+          const msgs = [...s.messages];
+          if (msgs.length > 0) {
+            const last = msgs[msgs.length - 1];
+            msgs[msgs.length - 1] = { ...last, content: (last.content ?? "") + chunk };
+          }
           return { messages: msgs };
         }),
       setStreaming: (v) => set({ isStreaming: v }),
