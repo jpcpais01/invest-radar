@@ -1,5 +1,6 @@
 export interface Quote {
   ticker: string;
+  name?: string;
   price: number;
   change: number;
   changePercent: number;

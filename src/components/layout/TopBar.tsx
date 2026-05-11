@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Search, TrendingUp, Radar } from "lucide-react";
+import { Search, TrendingUp, Radar, LayoutDashboard } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTickerStore } from "@/store/tickerStore";
 import { useRouter, usePathname } from "next/navigation";
@@ -23,6 +23,17 @@ export default function TopBar() {
     staleTime: 15000,
   });
 
+  const { data: watchlistNames } = useQuery<Record<string, string>>({
+    queryKey: ["ticker-names", watchlist.join(",")],
+    queryFn: async () => {
+      if (!watchlist.length) return {};
+      const res = await fetch(`/api/market/names?tickers=${watchlist.join(",")}`);
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 60,
+    enabled: watchlist.length > 0,
+  });
+
   const handleTickerSelect = (ticker: string) => {
     setActiveTicker(ticker);
     router.push(`/${ticker}`);
@@ -41,6 +52,20 @@ export default function TopBar() {
           <TrendingUp className="w-4 h-4 text-[#388bfd]" />
           <span className="font-semibold text-sm tracking-tight text-white">InvestRadar</span>
         </div>
+
+        {/* Desk link */}
+        <button
+          onClick={() => router.push(`/${activeTicker}`)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
+            pathname !== "/discover"
+              ? "bg-[#1f6feb22] text-[#388bfd] border border-[#1f6feb44]"
+              : "text-[#8b949e] hover:text-white hover:bg-[#161b22] border border-transparent"
+          )}
+        >
+          <LayoutDashboard className="w-3 h-3" />
+          Desk
+        </button>
 
         {/* Discover link */}
         <button
@@ -79,20 +104,28 @@ export default function TopBar() {
 
         {/* Watchlist tabs */}
         <div className="flex items-center gap-1 overflow-x-auto ml-2">
-          {watchlist.map((t) => (
-            <button
-              key={t}
-              onClick={() => handleTickerSelect(t)}
-              className={cn(
-                "px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
-                t === activeTicker
-                  ? "bg-[#1f6feb22] text-[#388bfd] border border-[#1f6feb44]"
-                  : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"
-              )}
-            >
-              {t}
-            </button>
-          ))}
+          {watchlist.map((t) => {
+            const name = watchlistNames?.[t];
+            return (
+              <button
+                key={t}
+                onClick={() => handleTickerSelect(t)}
+                className={cn(
+                  "flex flex-col items-start px-2.5 py-1 rounded-md whitespace-nowrap transition-colors",
+                  t === activeTicker
+                    ? "bg-[#1f6feb22] text-[#388bfd] border border-[#1f6feb44]"
+                    : "text-[#8b949e] hover:text-white hover:bg-[#161b22] border border-transparent"
+                )}
+              >
+                <span className="text-xs font-medium leading-tight">{t}</span>
+                {name && (
+                  <span className="text-[9px] leading-tight opacity-60 max-w-[80px] truncate">
+                    {name}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 

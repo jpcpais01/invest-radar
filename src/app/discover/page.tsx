@@ -31,6 +31,7 @@ interface ScanSummary {
 
 interface ScanResult {
   ticker: string;
+  name?: string;
   price?: number;
   change?: number;
   changePercent?: number;
@@ -421,13 +422,20 @@ export default function DiscoverPage() {
                     >
                       {/* Ticker */}
                       <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white group-hover:text-[#388bfd] transition-colors">
-                            {r.ticker}
-                          </span>
-                          {isCustom && (
-                            <span className="text-[9px] px-1 py-0.5 rounded border border-[#1f6feb33] text-[#388bfd] bg-[#1f6feb15]">
-                              custom
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white group-hover:text-[#388bfd] transition-colors">
+                              {r.ticker}
+                            </span>
+                            {isCustom && (
+                              <span className="text-[9px] px-1 py-0.5 rounded border border-[#1f6feb33] text-[#388bfd] bg-[#1f6feb15]">
+                                custom
+                              </span>
+                            )}
+                          </div>
+                          {r.name && (
+                            <span className="text-[10px] text-[#484f58] truncate max-w-[140px] leading-tight">
+                              {r.name}
                             </span>
                           )}
                         </div>

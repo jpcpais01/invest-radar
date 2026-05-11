@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
 
     return {
       ticker,
+      name: quote.name,
       price: quote.price,
       change: quote.change,
       changePercent: quote.changePercent,

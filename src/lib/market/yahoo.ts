@@ -9,6 +9,7 @@ export async function getQuote(ticker: string): Promise<Quote> {
   const q: any = await yf.quote(ticker);
   return {
     ticker,
+    name: q.longName ?? q.shortName ?? undefined,
     price: q.regularMarketPrice ?? 0,
     change: q.regularMarketChange ?? 0,
     changePercent: q.regularMarketChangePercent ?? 0,
