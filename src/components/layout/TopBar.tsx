@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, TrendingUp, Radar, LayoutDashboard } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTickerStore } from "@/store/tickerStore";
