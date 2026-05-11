@@ -17,6 +17,7 @@ import MACDWidget from "@/components/widgets/technicals/MACDWidget";
 import KeyMetrics from "@/components/widgets/fundamentals/KeyMetrics";
 import NewsFeed from "@/components/widgets/sentiment/NewsFeed";
 import EarningsWidget from "@/components/widgets/fundamentals/EarningsWidget";
+import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
 interface CatalogEntry {
   type: WidgetType;
@@ -75,7 +76,7 @@ function WidgetPicker({ onAdd, onClose }: { onAdd: (entry: CatalogEntry) => void
   );
 }
 
-function renderWidget(type: WidgetType, ticker: string, id: string) {
+function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (id: string) => void) {
   switch (type) {
     case "candlestick": return <CandlestickChart ticker={ticker} id={id} />;
     case "rsi": return <RSIWidget ticker={ticker} id={id} />;
@@ -86,19 +87,25 @@ function renderWidget(type: WidgetType, ticker: string, id: string) {
     case "earnings": return <EarningsWidget ticker={ticker} id={id} />;
     default:
       return (
-        <div className="h-full flex items-center justify-center bg-[#0d1117] border border-[#21262d] rounded-xl">
-          <span className="text-xs text-[#484f58]">{type} — coming soon</span>
-        </div>
+        <WidgetShell title={type} id={id} onRemove={onRemove}>
+          <div className="h-full flex items-center justify-center">
+            <span className="text-xs text-[#484f58]">{type} — coming soon</span>
+          </div>
+        </WidgetShell>
       );
   }
 }
 
 export default function WidgetCanvas() {
-  const { widgets, setLayout, addWidget } = useLayoutStore();
+  const { widgets, setLayout, addWidget, removeWidget } = useLayoutStore();
   const { activeTicker } = useTickerStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(1000);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Skip the first onLayoutChange fired by react-grid-layout on mount —
+  // it reflects the initial props, not a user action, and would overwrite
+  // the persisted custom layout before Zustand has finished hydrating.
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     const update = () => {
@@ -110,8 +117,19 @@ export default function WidgetCanvas() {
     return () => ro.disconnect();
   }, []);
 
+  // When the widget set changes (layout switch), allow the next onLayoutChange
+  // to be skipped again since it will just reflect the new props, not a user drag.
+  const widgetIds = widgets.map((w) => w.i).join(",");
+  useEffect(() => {
+    mountedRef.current = false;
+  }, [widgetIds]);
+
   const handleLayoutChange = useCallback(
     (newLayout: any[]) => {
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        return;
+      }
       const updated: WidgetConfig[] = widgets.map((w) => {
         const l = newLayout.find((nl: any) => nl.i === w.i);
         if (!l) return w;
@@ -182,7 +200,7 @@ export default function WidgetCanvas() {
       >
         {widgets.map((w) => (
           <div key={w.i} className="relative">
-            {renderWidget(w.type, activeTicker, w.id)}
+            {renderWidget(w.type, activeTicker, w.id, removeWidget)}
           </div>
         ))}
       </GL>

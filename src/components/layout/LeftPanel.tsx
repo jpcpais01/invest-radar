@@ -1,11 +1,83 @@
 "use client";
 import { X, Plus, LayoutGrid, Layers, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { useLayoutStore, PRESET_LAYOUTS } from "@/store/layoutStore";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { PresetLayout } from "@/types/widgets";
+
+function InputModal({
+  title,
+  placeholder,
+  onConfirm,
+  onClose,
+}: {
+  title: string;
+  placeholder: string;
+  onConfirm: (value: string) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleConfirm = () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    onConfirm(trimmed);
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative z-10 w-72 rounded-2xl border border-[#21262d] bg-[#0d1117] shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#21262d]">
+          <span className="text-sm font-semibold text-white">{title}</span>
+          <button onClick={onClose} className="text-[#484f58] hover:text-white transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4 flex flex-col gap-3">
+          <input
+            ref={inputRef}
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleConfirm();
+              if (e.key === "Escape") onClose();
+            }}
+            placeholder={placeholder}
+            className="w-full px-3 py-2 rounded-lg bg-[#161b22] border border-[#21262d] text-sm text-white placeholder-[#484f58] outline-none focus:border-[#1f6feb44] transition-colors"
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-lg text-xs text-[#8b949e] hover:text-white hover:bg-[#161b22] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!value.trim()}
+              className="px-3 py-1.5 rounded-lg text-xs bg-[#1f6feb] text-white hover:bg-[#388bfd] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const PRESETS: { id: PresetLayout; label: string; desc: string }[] = [
   { id: "overview",  label: "Overview",   desc: "Price + sentiment" },
@@ -77,23 +149,31 @@ export default function LeftPanel() {
   const router = useRouter();
   void PRESET_LAYOUTS;
 
+  const [modal, setModal] = useState<"ticker" | "layout" | null>(null);
+
   const handleSelect = (t: string) => {
     setActiveTicker(t);
     router.push(`/${t}`);
   };
 
-  const handleAdd = () => {
-    const ticker = prompt("Add ticker:")?.toUpperCase();
-    if (ticker) addToWatchlist(ticker);
-  };
-
-  const handleAddLayout = () => {
-    const name = prompt("Layout name:")?.trim();
-    if (name) addCustomLayout(name);
-  };
-
   return (
     <div className="w-[200px] shrink-0 flex flex-col border-r border-[#21262d] bg-[#0d1117] overflow-y-auto">
+      {modal === "ticker" && (
+        <InputModal
+          title="Add Ticker"
+          placeholder="e.g. AAPL"
+          onConfirm={(v) => addToWatchlist(v.toUpperCase())}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal === "layout" && (
+        <InputModal
+          title="New Layout"
+          placeholder="Layout name…"
+          onConfirm={(v) => addCustomLayout(v)}
+          onClose={() => setModal(null)}
+        />
+      )}
       {/* Layouts */}
       <div className="p-3 border-b border-[#21262d]">
         <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#484f58] uppercase tracking-widest mb-2">
@@ -127,7 +207,7 @@ export default function LeftPanel() {
             Custom
           </div>
           <button
-            onClick={handleAddLayout}
+            onClick={() => setModal("layout")}
             title="Add layout"
             className="text-[#484f58] hover:text-[#388bfd] transition-colors"
           >
@@ -171,7 +251,7 @@ export default function LeftPanel() {
             Watchlist
           </span>
           <button
-            onClick={handleAdd}
+            onClick={() => setModal("ticker")}
             title="Add ticker"
             className="text-[#484f58] hover:text-[#388bfd] transition-colors"
           >
