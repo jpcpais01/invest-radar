@@ -64,7 +64,7 @@ export default function CandlestickChart({ ticker, id }: Props) {
 
     const chart = createChart(el, {
       layout: {
-        background: { type: ColorType.Solid, color: "#161b22" },
+        background: { type: ColorType.Solid, color: "#0d1117" },
         textColor: "#8b949e",
       },
       grid: {
