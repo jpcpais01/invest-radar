@@ -4,7 +4,7 @@ import { AI_TOOLS } from "@/lib/ai/tools";
 import { executeTool } from "@/lib/ai/tool-executor";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const SYSTEM_PROMPT = `You are InvestRadar AI, an expert investment analyst assistant. You have access to real-time market data tools and can analyze stocks, options, technicals, fundamentals, and market sentiment.
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
             tools: AI_TOOLS,
             tool_choice: forceFinal ? "none" : "auto",
             stream: true,
-            max_tokens: 2000,
+            max_tokens: 4000,
             // Disable Kimi's extended thinking — saves tokens, prevents the model
             // from exhausting its token budget on reasoning instead of answering.
             extra_body: { thinking: { type: "disabled" } },
@@ -139,7 +139,14 @@ export async function POST(req: NextRequest) {
                   if (!args.ticker && ticker) args.ticker = ticker;
                   const result = await executeTool(tc.name, args);
                   send({ type: "tool_result", toolName: tc.name, toolCallId: tc.id, data: result });
-                  return { id: tc.id, content: JSON.stringify(result) };
+                  // Truncate what goes into conversation context so it doesn't
+                  // eat the model's output budget — the full data is already
+                  // sent to the UI via tool_result above.
+                  const resultStr = JSON.stringify(result);
+                  const contextContent = resultStr.length > 2500
+                    ? resultStr.slice(0, 2500) + "…[truncated]"
+                    : resultStr;
+                  return { id: tc.id, content: contextContent };
                 } catch (e) {
                   const err = String(e);
                   send({ type: "tool_error", toolName: tc.name, toolCallId: tc.id, error: err });
