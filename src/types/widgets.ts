@@ -1,6 +1,7 @@
 export type WidgetType =
   | "candlestick"
   | "rsi"
+  | "stochastic"
   | "macd"
   | "bollinger"
   | "ema"
@@ -36,7 +37,8 @@ export type PresetLayout = "overview" | "options" | "technical";
 
 export const WIDGET_CATALOG: { type: WidgetType; title: string; defaultW: number; defaultH: number }[] = [
   { type: "candlestick", title: "Price Chart", defaultW: 8, defaultH: 6 },
-  { type: "rsi", title: "RSI", defaultW: 4, defaultH: 3 },
+  { type: "rsi", title: "RSI (14)", defaultW: 4, defaultH: 3 },
+  { type: "stochastic", title: "Stochastic (14,3)", defaultW: 4, defaultH: 3 },
   { type: "macd", title: "MACD", defaultW: 4, defaultH: 3 },
   { type: "bollinger", title: "Bollinger Bands", defaultW: 4, defaultH: 3 },
   { type: "ema", title: "EMA Panel", defaultW: 4, defaultH: 3 },

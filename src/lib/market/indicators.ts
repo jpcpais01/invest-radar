@@ -42,11 +42,19 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
     bars.length
   );
 
-  void highs;
-  void lows;
+  const stochInput = ti.Stochastic.calculate({
+    high: highs,
+    low: lows,
+    close: closes,
+    period: 14,
+    signalPeriod: 3,
+  });
+  const stochK = padLeft(stochInput.map((s) => s.k), bars.length);
+  const stochD = padLeft(stochInput.map((s) => s.d), bars.length);
 
   return {
     rsi,
+    stochastic: { k: stochK, d: stochD },
     macd: { macd: macdLine, signal, histogram },
     bollinger: { upper, middle, lower },
     ema9,

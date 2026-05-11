@@ -10,6 +10,7 @@ import "react-resizable/css/styles.css";
 
 import CandlestickChart from "@/components/widgets/price/CandlestickChart";
 import RSIWidget from "@/components/widgets/technicals/RSIWidget";
+import StochasticWidget from "@/components/widgets/technicals/StochasticWidget";
 import MACDWidget from "@/components/widgets/technicals/MACDWidget";
 import KeyMetrics from "@/components/widgets/fundamentals/KeyMetrics";
 import NewsFeed from "@/components/widgets/sentiment/NewsFeed";
@@ -19,14 +20,15 @@ function renderWidget(type: WidgetType, ticker: string, id: string) {
   switch (type) {
     case "candlestick": return <CandlestickChart ticker={ticker} id={id} />;
     case "rsi": return <RSIWidget ticker={ticker} id={id} />;
+    case "stochastic": return <StochasticWidget ticker={ticker} id={id} />;
     case "macd": return <MACDWidget ticker={ticker} id={id} />;
     case "key-metrics": return <KeyMetrics ticker={ticker} id={id} />;
     case "news-feed": return <NewsFeed ticker={ticker} id={id} />;
     case "earnings": return <EarningsWidget ticker={ticker} id={id} />;
     default:
       return (
-        <div className="h-full flex items-center justify-center bg-[#161b22] border border-[#30363d] rounded-lg">
-          <span className="text-xs text-[#8b949e]">{type} — coming soon</span>
+        <div className="h-full flex items-center justify-center bg-[#0d1117] border border-[#21262d] rounded-xl">
+          <span className="text-xs text-[#484f58]">{type} — coming soon</span>
         </div>
       );
   }
@@ -61,8 +63,8 @@ export default function WidgetCanvas() {
   );
 
   const MIN_W: Partial<Record<WidgetType, number>> = {
-    candlestick:      5,
-    "options-chain":  5,
+    candlestick:     5,
+    "options-chain": 5,
   };
 
   const layout = widgets.map((w) => ({

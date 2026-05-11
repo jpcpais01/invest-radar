@@ -4,12 +4,12 @@ import { persist } from "zustand/middleware";
 import { WidgetConfig, PresetLayout } from "@/types/widgets";
 
 const OVERVIEW_LAYOUT: WidgetConfig[] = [
-  { id: "chart", type: "candlestick", title: "Price Chart", i: "chart", x: 0, y: 0, w: 8, h: 6, minW: 5, minH: 5 },
-  { id: "rsi", type: "rsi", title: "RSI", i: "rsi", x: 8, y: 0, w: 4, h: 3, minW: 3, minH: 4 },
-  { id: "macd", type: "macd", title: "MACD", i: "macd", x: 8, y: 3, w: 4, h: 3, minW: 3, minH: 4 },
-  { id: "metrics", type: "key-metrics", title: "Key Metrics", i: "metrics", x: 0, y: 6, w: 4, h: 4, minW: 3, minH: 4 },
-  { id: "news", type: "news-feed", title: "News Feed", i: "news", x: 4, y: 6, w: 4, h: 6, minW: 3, minH: 5 },
-  { id: "earnings", type: "earnings", title: "Earnings", i: "earnings", x: 8, y: 6, w: 4, h: 4, minW: 3, minH: 4 },
+  { id: "chart",       type: "candlestick", title: "Price Chart",        i: "chart",       x: 0, y: 0, w: 8, h: 5, minW: 5, minH: 4 },
+  { id: "rsi",         type: "rsi",         title: "RSI (14)",            i: "rsi",         x: 8, y: 0, w: 4, h: 3, minW: 3, minH: 2 },
+  { id: "stochastic",  type: "stochastic",  title: "Stochastic (14,3)",   i: "stochastic",  x: 8, y: 3, w: 4, h: 2, minW: 3, minH: 2 },
+  { id: "metrics",     type: "key-metrics", title: "Key Metrics",         i: "metrics",     x: 0, y: 5, w: 4, h: 3, minW: 3, minH: 2 },
+  { id: "news",        type: "news-feed",   title: "News Feed",           i: "news",        x: 4, y: 5, w: 4, h: 3, minW: 3, minH: 2 },
+  { id: "earnings",    type: "earnings",    title: "Earnings",            i: "earnings",    x: 8, y: 5, w: 4, h: 3, minW: 3, minH: 2 },
 ];
 
 const OPTIONS_LAYOUT: WidgetConfig[] = [

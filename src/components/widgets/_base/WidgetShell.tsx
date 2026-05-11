@@ -44,18 +44,18 @@ export default function WidgetShell({
   return (
     <div
       className={cn(
-        "flex flex-col h-full bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden group",
+        "flex flex-col h-full bg-[#0d1117] border border-[#21262d] rounded-xl overflow-hidden group",
         className
       )}
     >
       {/* Header — also acts as the drag handle for react-grid-layout */}
-      <div className="widget-drag-handle flex items-center justify-between px-3 py-2 border-b border-[#30363d] shrink-0 cursor-grab active:cursor-grabbing select-none">
+      <div className="widget-drag-handle flex items-center justify-between px-3 py-2 border-b border-[#161b22] shrink-0 cursor-grab active:cursor-grabbing select-none bg-[#0d1117]">
         <div className="flex items-center gap-2">
           <div className={cn(
             "w-1.5 h-1.5 rounded-full shrink-0",
-            loading ? "bg-yellow-500 animate-pulse" : error ? "bg-[#f85149]" : "bg-[#3fb950]"
+            loading ? "bg-yellow-400 animate-pulse" : error ? "bg-[#f85149]" : "bg-[#238636]"
           )} />
-          <span className="text-xs font-semibold text-[#e6edf3]">{title}</span>
+          <span className="text-[11px] font-medium text-[#8b949e] tracking-wide">{title}</span>
         </div>
         <div
           className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity"
