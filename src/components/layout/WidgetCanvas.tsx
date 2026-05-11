@@ -165,24 +165,30 @@ export default function WidgetCanvas() {
 
   const GL = GridLayout as any;
 
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (!(e.target as HTMLElement).closest(".react-grid-item")) {
+      setPickerOpen(true);
+    }
+  };
+
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-[#0d1117] p-2 relative">
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto overflow-x-hidden bg-[#0d1117] p-2 relative [&:not(:has(.react-grid-item:hover))]:cursor-cell"
+      onClick={handleCanvasClick}
+    >
       {pickerOpen && (
         <WidgetPicker onAdd={handleAddWidget} onClose={() => setPickerOpen(false)} />
       )}
 
-      {/* Add Widget FAB */}
-      <button
-        onClick={() => setPickerOpen(true)}
-        className={cn(
-          "fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full",
-          "bg-[#1f6feb] hover:bg-[#388bfd] text-white text-xs font-semibold shadow-xl shadow-[#1f6feb33]",
-          "transition-all duration-200 hover:scale-105 active:scale-95"
-        )}
-      >
-        <Plus className="w-3.5 h-3.5" />
-        Add Widget
-      </button>
+      {widgets.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none gap-3">
+          <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] flex items-center justify-center">
+            <Plus className="w-5 h-5 text-[#30363d]" />
+          </div>
+          <p className="text-xs text-[#30363d]">Click anywhere to add a widget</p>
+        </div>
+      )}
 
       <GL
         className="react-grid-layout"
