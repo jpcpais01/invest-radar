@@ -21,7 +21,7 @@ export default function TopBar() {
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      el.scrollLeft += e.deltaY || e.deltaX;
+      el.scrollLeft -= e.deltaY || e.deltaX;
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
