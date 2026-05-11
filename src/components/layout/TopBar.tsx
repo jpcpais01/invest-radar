@@ -1,15 +1,16 @@
 "use client";
 import { useState } from "react";
-import { Search, TrendingUp } from "lucide-react";
+import { Search, TrendingUp, Radar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTickerStore } from "@/store/tickerStore";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import CommandPalette from "@/components/search/CommandPalette";
 import { cn } from "@/lib/utils";
 
 export default function TopBar() {
   const { activeTicker, watchlist, setActiveTicker } = useTickerStore();
   const router = useRouter();
+  const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const { data: quote } = useQuery({
@@ -40,6 +41,20 @@ export default function TopBar() {
           <TrendingUp className="w-4 h-4 text-[#388bfd]" />
           <span className="font-semibold text-sm tracking-tight text-white">InvestRadar</span>
         </div>
+
+        {/* Discover link */}
+        <button
+          onClick={() => router.push("/discover")}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
+            pathname === "/discover"
+              ? "bg-[#1f6feb22] text-[#388bfd] border border-[#1f6feb44]"
+              : "text-[#8b949e] hover:text-white hover:bg-[#161b22] border border-transparent"
+          )}
+        >
+          <Radar className="w-3 h-3" />
+          Discover
+        </button>
 
         {/* Search */}
         <button
