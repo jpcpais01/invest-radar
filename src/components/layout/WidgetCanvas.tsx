@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useRef, useState } from "react";
 import GridLayout from "react-grid-layout";
-import { Plus, X, RefreshCw, Lock, LockOpen, Trash2 } from "lucide-react";
+import { Plus, X, RefreshCw, Lock, LockOpen, Trash2, Star } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLayoutStore } from "@/store/layoutStore";
 import { WidgetConfig, WidgetType } from "@/types/widgets";
@@ -113,7 +113,7 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
 
 export default function WidgetCanvas() {
   const { widgets, setLayout, addWidget, removeWidget } = useLayoutStore();
-  const { activeTicker } = useTickerStore();
+  const { activeTicker, watchlist, addToWatchlist, removeFromWatchlist } = useTickerStore();
   const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(1000);
@@ -230,6 +230,28 @@ export default function WidgetCanvas() {
           Refresh
         </button>
 
+        <div className="w-px h-3.5 bg-[#21262d] mx-1" />
+
+        {/* Watchlist star */}
+        {(() => {
+          const inWatchlist = watchlist.includes(activeTicker);
+          return (
+            <button
+              onClick={() => inWatchlist ? removeFromWatchlist(activeTicker) : addToWatchlist(activeTicker)}
+              title={inWatchlist ? `Remove ${activeTicker} from watchlist` : `Add ${activeTicker} to watchlist`}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
+                inWatchlist
+                  ? "text-[#d29922] hover:bg-[#161b22]"
+                  : "text-[#8b949e] hover:text-[#d29922] hover:bg-[#161b22]"
+              )}
+            >
+              <Star className={cn("w-3 h-3", inWatchlist && "fill-current")} />
+              {inWatchlist ? activeTicker : `Watch ${activeTicker}`}
+            </button>
+          );
+        })()}
+
         {/* Right group */}
         <div className="ml-auto flex items-center gap-0.5">
           <button
@@ -264,10 +286,13 @@ export default function WidgetCanvas() {
         </div>
       </div>
 
-      {/* Canvas content */}
+      {/* Canvas content — when locked, CSS blocks drag handles and hides resize handles */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden p-2 relative"
+        className={cn(
+          "flex-1 overflow-y-auto overflow-x-hidden p-2 relative",
+          locked && "[&_.widget-drag-handle]:!pointer-events-none [&_.widget-drag-handle]:!cursor-default [&_.react-resizable-handle]:!hidden"
+        )}
       >
         {widgets.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none gap-3">
@@ -284,7 +309,6 @@ export default function WidgetCanvas() {
         )}
 
         <GL
-          key={locked ? "locked" : "unlocked"}
           className="react-grid-layout"
           layout={layout}
           cols={12}
