@@ -118,6 +118,29 @@ export function computeSignalSummary(indicators: TechnicalIndicators, currentPri
     });
   }
 
+  const stoch = indicators.stochastic;
+  if (stoch) {
+    const k = lastVal(stoch.k);
+    const d = lastVal(stoch.d);
+    if (k != null) {
+      signals.push({
+        name: "Stochastic",
+        signal: k > 80 ? "sell" : k < 20 ? "buy" : "neutral",
+        value: `%K ${k.toFixed(1)}${d != null ? ` / %D ${d.toFixed(1)}` : ""}`,
+      });
+    }
+  }
+
+  const ema9 = lastVal(indicators.ema9);
+  const ema21 = lastVal(indicators.ema21);
+  if (ema9 != null && ema21 != null) {
+    signals.push({
+      name: "EMA 9/21",
+      signal: ema9 > ema21 ? "buy" : "sell",
+      value: `9: ${ema9.toFixed(2)} / 21: ${ema21.toFixed(2)}`,
+    });
+  }
+
   const buys = signals.filter((s) => s.signal === "buy").length;
   const sells = signals.filter((s) => s.signal === "sell").length;
   const overall: "buy" | "sell" | "neutral" =

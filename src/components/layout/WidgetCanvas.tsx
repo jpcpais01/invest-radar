@@ -17,6 +17,7 @@ import MACDWidget from "@/components/widgets/technicals/MACDWidget";
 import KeyMetrics from "@/components/widgets/fundamentals/KeyMetrics";
 import NewsFeed from "@/components/widgets/sentiment/NewsFeed";
 import EarningsWidget from "@/components/widgets/fundamentals/EarningsWidget";
+import SignalSummaryWidget from "@/components/widgets/technicals/SignalSummaryWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
 interface CatalogEntry {
@@ -85,6 +86,7 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
     case "key-metrics": return <KeyMetrics ticker={ticker} id={id} />;
     case "news-feed": return <NewsFeed ticker={ticker} id={id} />;
     case "earnings": return <EarningsWidget ticker={ticker} id={id} />;
+    case "signal-summary": return <SignalSummaryWidget ticker={ticker} id={id} />;
     default:
       return (
         <WidgetShell title={type} id={id} onRemove={onRemove}>
