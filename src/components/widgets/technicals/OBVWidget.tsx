@@ -63,7 +63,6 @@ export default function OBVWidget({ ticker, id }: Props) {
       rightPriceScale: {
         borderColor: "#30363d",
         scaleMargins: { top: 0.1, bottom: 0.1 },
-        formatPrice: (v) => fmtObv(v),
       },
       timeScale: { borderColor: "#30363d", timeVisible: false },
       width: w,
