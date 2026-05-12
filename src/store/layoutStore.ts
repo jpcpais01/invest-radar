@@ -3,36 +3,37 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { WidgetConfig, PresetLayout } from "@/types/widgets";
 
+// Grid: 40 cols × rowHeight 30px → each unit = 30×30px in both axes
 const OVERVIEW_LAYOUT: WidgetConfig[] = [
-  { id: "chart",       type: "candlestick", title: "Price Chart",        i: "chart",       x: 0, y: 0,  w: 8, h: 10, minW: 5, minH: 8 },
-  { id: "rsi",         type: "rsi",         title: "RSI (14)",            i: "rsi",         x: 8, y: 0,  w: 4, h: 6,  minW: 3, minH: 4 },
-  { id: "stochastic",  type: "stochastic",  title: "Stochastic (14,3)",   i: "stochastic",  x: 8, y: 6,  w: 4, h: 4,  minW: 3, minH: 4 },
-  { id: "metrics",     type: "key-metrics", title: "Key Metrics",         i: "metrics",     x: 0, y: 10, w: 4, h: 6,  minW: 3, minH: 4 },
-  { id: "news",        type: "news-feed",   title: "News Feed",           i: "news",        x: 4, y: 10, w: 4, h: 6,  minW: 3, minH: 4 },
-  { id: "earnings",    type: "earnings",    title: "Earnings",            i: "earnings",    x: 8, y: 10, w: 4, h: 6,  minW: 3, minH: 4 },
+  { id: "chart",      type: "candlestick", title: "Price Chart",      i: "chart",      x: 0,  y: 0,  w: 27, h: 10, minW: 7, minH: 4 },
+  { id: "rsi",        type: "rsi",         title: "RSI (14)",          i: "rsi",        x: 27, y: 0,  w: 13, h: 6,  minW: 2, minH: 2 },
+  { id: "stochastic", type: "stochastic",  title: "Stochastic (14,3)", i: "stochastic", x: 27, y: 6,  w: 13, h: 4,  minW: 2, minH: 2 },
+  { id: "metrics",    type: "key-metrics", title: "Key Metrics",       i: "metrics",    x: 0,  y: 10, w: 13, h: 6,  minW: 2, minH: 2 },
+  { id: "news",       type: "news-feed",   title: "News Feed",         i: "news",       x: 13, y: 10, w: 14, h: 6,  minW: 2, minH: 2 },
+  { id: "earnings",   type: "earnings",    title: "Earnings",          i: "earnings",   x: 27, y: 10, w: 13, h: 6,  minW: 2, minH: 2 },
 ];
 
 const OPTIONS_LAYOUT: WidgetConfig[] = [
-  { id: "chart",         type: "candlestick",    title: "Price Chart",      i: "chart",         x: 0, y: 0,  w: 8, h: 10, minW: 5, minH: 10 },
-  { id: "iv-rank",       type: "iv-rank",        title: "IV Rank",          i: "iv-rank",       x: 8, y: 0,  w: 4, h: 6,  minW: 3, minH: 6  },
-  { id: "pcr",           type: "put-call-ratio",  title: "Put/Call Ratio",   i: "pcr",           x: 8, y: 6,  w: 4, h: 4,  minW: 3, minH: 6  },
-  { id: "options-chain", type: "options-chain",  title: "Options Chain",    i: "options-chain", x: 0, y: 10, w: 8, h: 12, minW: 5, minH: 10 },
-  { id: "max-pain",      type: "max-pain",       title: "Max Pain",         i: "max-pain",      x: 8, y: 10, w: 4, h: 6,  minW: 3, minH: 6  },
-  { id: "prob-cone",     type: "prob-cone",      title: "Probability Cone", i: "prob-cone",     x: 8, y: 16, w: 4, h: 6,  minW: 3, minH: 6  },
+  { id: "chart",         type: "candlestick",   title: "Price Chart",      i: "chart",         x: 0,  y: 0,  w: 27, h: 10, minW: 7, minH: 4  },
+  { id: "iv-rank",       type: "iv-rank",       title: "IV Rank",          i: "iv-rank",       x: 27, y: 0,  w: 13, h: 6,  minW: 2, minH: 2  },
+  { id: "pcr",           type: "put-call-ratio", title: "Put/Call Ratio",   i: "pcr",           x: 27, y: 6,  w: 13, h: 4,  minW: 2, minH: 2  },
+  { id: "options-chain", type: "options-chain", title: "Options Chain",    i: "options-chain", x: 0,  y: 10, w: 27, h: 12, minW: 7, minH: 6  },
+  { id: "max-pain",      type: "max-pain",      title: "Max Pain",         i: "max-pain",      x: 27, y: 10, w: 13, h: 6,  minW: 2, minH: 2  },
+  { id: "prob-cone",     type: "prob-cone",     title: "Probability Cone", i: "prob-cone",     x: 27, y: 16, w: 13, h: 6,  minW: 2, minH: 2  },
 ];
 
 const TECHNICAL_LAYOUT: WidgetConfig[] = [
-  { id: "chart",     type: "candlestick",    title: "Price Chart",    i: "chart",     x: 0, y: 0,  w: 12, h: 12, minW: 5, minH: 10 },
-  { id: "rsi",       type: "rsi",            title: "RSI",            i: "rsi",       x: 0, y: 12, w: 4,  h: 6,  minW: 3, minH: 4  },
-  { id: "macd",      type: "macd",           title: "MACD",           i: "macd",      x: 4, y: 12, w: 4,  h: 6,  minW: 3, minH: 4  },
-  { id: "bollinger", type: "bollinger",      title: "Bollinger Bands",i: "bollinger", x: 8, y: 12, w: 4,  h: 6,  minW: 3, minH: 4  },
-  { id: "ema",       type: "ema",            title: "EMA Panel",      i: "ema",       x: 0, y: 18, w: 6,  h: 6,  minW: 3, minH: 4  },
-  { id: "signal",    type: "signal-summary", title: "Signal Summary", i: "signal",    x: 6, y: 18, w: 6,  h: 6,  minW: 3, minH: 4  },
+  { id: "chart",     type: "candlestick",    title: "Price Chart",     i: "chart",     x: 0,  y: 0,  w: 40, h: 12, minW: 7, minH: 4 },
+  { id: "rsi",       type: "rsi",            title: "RSI",             i: "rsi",       x: 0,  y: 12, w: 13, h: 6,  minW: 2, minH: 2 },
+  { id: "macd",      type: "macd",           title: "MACD",            i: "macd",      x: 13, y: 12, w: 14, h: 6,  minW: 2, minH: 2 },
+  { id: "bollinger", type: "bollinger",      title: "Bollinger Bands", i: "bollinger", x: 27, y: 12, w: 13, h: 6,  minW: 2, minH: 2 },
+  { id: "ema",       type: "ema",            title: "EMA Panel",       i: "ema",       x: 0,  y: 18, w: 20, h: 6,  minW: 2, minH: 2 },
+  { id: "signal",    type: "signal-summary", title: "Signal Summary",  i: "signal",    x: 20, y: 18, w: 20, h: 6,  minW: 2, minH: 2 },
 ];
 
 export const PRESET_LAYOUTS: Record<PresetLayout, WidgetConfig[]> = {
-  overview: OVERVIEW_LAYOUT,
-  options: OPTIONS_LAYOUT,
+  overview:  OVERVIEW_LAYOUT,
+  options:   OPTIONS_LAYOUT,
   technical: TECHNICAL_LAYOUT,
 };
 
@@ -77,7 +78,6 @@ export const useLayoutStore = create<LayoutState>()(
       activeCustomId: null,
       customLayouts: [],
 
-      // Called on every drag/resize — auto-saves to custom layout if one is active
       setLayout: (widgets) =>
         set((s) => ({
           widgets,
@@ -109,9 +109,8 @@ export const useLayoutStore = create<LayoutState>()(
       addCustomLayout: (name) =>
         set((s) => {
           const id = `custom-${Date.now()}`;
-          const newLayout: CustomLayout = { id, name, widgets: [] };
           return {
-            customLayouts: [...s.customLayouts, newLayout],
+            customLayouts: [...s.customLayouts, { id, name, widgets: [] }],
             widgets: [],
             activePreset: null,
             activeCustomId: id,
@@ -139,33 +138,6 @@ export const useLayoutStore = create<LayoutState>()(
           };
         }),
     }),
-    {
-      name: "investradar-layout",
-      version: 1,
-      migrate: (persisted: unknown, fromVersion: number) => {
-        const state = persisted as Record<string, unknown>;
-        // v0 → v1: rowHeight changed 60→30, so double all stored h/minH values
-        if (fromVersion === 0) {
-          const doubleH = (widgets: unknown[]) =>
-            (widgets ?? []).map((w: unknown) => {
-              const widget = w as Record<string, unknown>;
-              return {
-                ...widget,
-                h: Math.round(((widget.h as number) ?? 3) * 2),
-                minH: widget.minH != null ? Math.round(((widget.minH as number)) * 2) : undefined,
-              };
-            });
-          return {
-            ...state,
-            widgets: doubleH((state.widgets as unknown[]) ?? []),
-            customLayouts: ((state.customLayouts as unknown[]) ?? []).map((cl: unknown) => {
-              const layout = cl as Record<string, unknown>;
-              return { ...layout, widgets: doubleH((layout.widgets as unknown[]) ?? []) };
-            }),
-          };
-        }
-        return state;
-      },
-    }
+    { name: "investradar-layout-v3" }
   )
 );
