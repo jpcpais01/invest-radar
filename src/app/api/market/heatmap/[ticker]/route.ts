@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getHistory } from "@/lib/market/yahoo";
 import { computeIndicators } from "@/lib/market/indicators";
 
+// Same warmup constant as the history route — ensures EMA50/200 and MACD have enough bars
+const WARMUP_DAYS = 220;
+
 const TIMEFRAMES = [
   { label: "1M", days: 30,  interval: "1d"  as const },
   { label: "3M", days: 90,  interval: "1d"  as const },
@@ -19,45 +22,52 @@ function lastVal(arr?: number[]): number | null {
   return isNaN(v) ? null : v;
 }
 
-function analyzeTimeframe(ticker: string, days: number, interval: "1d" | "1wk") {
-  const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  return getHistory(ticker, interval, from).then((bars) => {
-    if (bars.length < 10) {
-      return { trend: "insufficient", momentum: "insufficient", macd: "insufficient", volume: "insufficient", position: "insufficient" } as Record<string, Cell>;
-    }
+async function analyzeTimeframe(ticker: string, days: number, interval: "1d" | "1wk") {
+  // Fetch warmup bars so all indicators (incl. EMA200, MACD) compute fully
+  const warmupFrom = new Date(Date.now() - (days + WARMUP_DAYS) * 24 * 60 * 60 * 1000);
+  const allBars = await getHistory(ticker, interval, warmupFrom);
 
-    const ind = computeIndicators(bars);
-    const price = bars[bars.length - 1].close;
-    const highs = bars.map((b) => b.high);
-    const lows  = bars.map((b) => b.low);
+  if (allBars.length < 30) {
+    return { trend: "insufficient", momentum: "insufficient", macd: "insufficient", volume: "insufficient", position: "insufficient" } as Record<string, Cell>;
+  }
 
-    // Trend: price vs EMA50
-    const ema50 = lastVal(ind.ema50);
-    const trend: Cell = ema50 == null ? "neutral" : price > ema50 ? "bullish" : "bearish";
+  // Compute indicators on full warmup set — only need last values
+  const ind = computeIndicators(allBars);
 
-    // Momentum: RSI
-    const rsi = lastVal(ind.rsi);
-    const momentum: Cell = rsi == null ? "neutral" : rsi > 60 ? "bullish" : rsi < 40 ? "bearish" : "neutral";
+  // Price range from the requested window only (not the warmup)
+  const displayFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).getTime() / 1000;
+  const displayBars = allBars.filter((b) => b.time >= displayFrom);
+  const barsForRange = displayBars.length >= 5 ? displayBars : allBars;
+  const price  = allBars[allBars.length - 1].close;
+  const highs  = barsForRange.map((b) => b.high);
+  const lows   = barsForRange.map((b) => b.low);
 
-    // MACD: macd line vs signal
-    const macdVal  = lastVal(ind.macd?.macd);
-    const sigVal   = lastVal(ind.macd?.signal);
-    const macdCell: Cell = macdVal == null || sigVal == null ? "neutral" : macdVal > sigVal ? "bullish" : "bearish";
+  // Trend: price vs EMA50
+  const ema50 = lastVal(ind.ema50);
+  const trend: Cell = ema50 == null ? "neutral" : price > ema50 ? "bullish" : "bearish";
 
-    // Volume: OBV direction
-    const obv = (ind.obv ?? []).filter((v) => !isNaN(v));
-    const obvCell: Cell = obv.length < 6 ? "neutral"
-      : obv[obv.length - 1] > obv[obv.length - 6] ? "bullish" : "bearish";
+  // Momentum: RSI
+  const rsi = lastVal(ind.rsi);
+  const momentum: Cell = rsi == null ? "neutral" : rsi > 60 ? "bullish" : rsi < 40 ? "bearish" : "neutral";
 
-    // Price position in range
-    const hi = Math.max(...highs);
-    const lo = Math.min(...lows);
-    const range = hi - lo;
-    const pos = range > 0 ? (price - lo) / range : 0.5;
-    const position: Cell = pos > 0.65 ? "bullish" : pos < 0.35 ? "bearish" : "neutral";
+  // MACD: macd line vs signal
+  const macdVal = lastVal(ind.macd?.macd);
+  const sigVal  = lastVal(ind.macd?.signal);
+  const macdCell: Cell = macdVal == null || sigVal == null ? "neutral" : macdVal > sigVal ? "bullish" : "bearish";
 
-    return { trend, momentum, macd: macdCell, volume: obvCell, position } as Record<string, Cell>;
-  });
+  // Volume: OBV direction over last 6 bars
+  const obv = (ind.obv ?? []).filter((v) => !isNaN(v));
+  const obvCell: Cell = obv.length < 6 ? "neutral"
+    : obv[obv.length - 1] > obv[obv.length - 6] ? "bullish" : "bearish";
+
+  // Price position within the display window range
+  const hi  = Math.max(...highs);
+  const lo  = Math.min(...lows);
+  const range = hi - lo;
+  const pos = range > 0 ? (price - lo) / range : 0.5;
+  const position: Cell = pos > 0.65 ? "bullish" : pos < 0.35 ? "bearish" : "neutral";
+
+  return { trend, momentum, macd: macdCell, volume: obvCell, position } as Record<string, Cell>;
 }
 
 export async function GET(

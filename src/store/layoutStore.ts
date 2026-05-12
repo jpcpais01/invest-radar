@@ -139,6 +139,33 @@ export const useLayoutStore = create<LayoutState>()(
           };
         }),
     }),
-    { name: "investradar-layout" }
+    {
+      name: "investradar-layout",
+      version: 1,
+      migrate: (persisted: unknown, fromVersion: number) => {
+        const state = persisted as Record<string, unknown>;
+        // v0 → v1: rowHeight changed 60→30, so double all stored h/minH values
+        if (fromVersion === 0) {
+          const doubleH = (widgets: unknown[]) =>
+            (widgets ?? []).map((w: unknown) => {
+              const widget = w as Record<string, unknown>;
+              return {
+                ...widget,
+                h: Math.round(((widget.h as number) ?? 3) * 2),
+                minH: widget.minH != null ? Math.round(((widget.minH as number)) * 2) : undefined,
+              };
+            });
+          return {
+            ...state,
+            widgets: doubleH((state.widgets as unknown[]) ?? []),
+            customLayouts: ((state.customLayouts as unknown[]) ?? []).map((cl: unknown) => {
+              const layout = cl as Record<string, unknown>;
+              return { ...layout, widgets: doubleH((layout.widgets as unknown[]) ?? []) };
+            }),
+          };
+        }
+        return state;
+      },
+    }
   )
 );

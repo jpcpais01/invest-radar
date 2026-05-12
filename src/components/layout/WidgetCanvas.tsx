@@ -207,7 +207,7 @@ export default function WidgetCanvas() {
       id, type: entry.type, title: entry.label, i: id,
       x: 0, y: nextY, w: entry.defaultW, h: entry.defaultH,
       minW: entry.type === "candlestick" || entry.type === "options-chain" ? 5 : 3,
-      minH: 2,
+      minH: 4,
     };
     addWidget(widget);
   }, [widgets, addWidget]);
