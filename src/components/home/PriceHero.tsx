@@ -10,7 +10,7 @@ interface Props { ticker: string }
 const SIGNAL_CONFIG = {
   "strong-buy":  { label: "Strong Buy",  cls: "text-[#7ab0cc] border-[#7ab0cc33] bg-[#7ab0cc0a]", dot: "#7ab0cc" },
   "buy":         { label: "Buy",          cls: "text-[#5a90b0] border-[#5a90b033] bg-[#5a90b00a]", dot: "#5a90b0" },
-  "neutral":     { label: "Neutral",      cls: "text-[#7890a8] border-[#243348]   bg-transparent",  dot: "#5a5570" },
+  "neutral":     { label: "Neutral",      cls: "text-[#8aa4be] border-[#243348]   bg-transparent",  dot: "#5a5570" },
   "sell":        { label: "Sell",         cls: "text-[#aa6060] border-[#aa606033] bg-[#aa60600a]", dot: "#aa6060" },
   "strong-sell": { label: "Strong Sell",  cls: "text-[#904848] border-[#90484844] bg-[#9048480a]", dot: "#904848" },
 };
@@ -55,7 +55,7 @@ export default function PriceHero({ ticker }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
         <div>
           <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-3xl sm:text-4xl font-bold tracking-tight text-[#d8e4f0] font-mono">{ticker}</span>
+            <span className="text-3xl sm:text-4xl font-bold tracking-tight text-[#edf2f8] font-mono">{ticker}</span>
             {sigCfg && (
               <span className={cn("text-[10px] font-semibold px-2.5 py-0.5 rounded-full border tracking-wide", sigCfg.cls)}>
                 {sigCfg.label}
@@ -63,7 +63,7 @@ export default function PriceHero({ ticker }: Props) {
             )}
           </div>
           {name !== ticker && (
-            <p className="text-sm text-[#7890a8]">{name}</p>
+            <p className="text-sm text-[#8aa4be]">{name}</p>
           )}
         </div>
 
@@ -81,7 +81,7 @@ export default function PriceHero({ ticker }: Props) {
                 <span className="font-mono">{isUp ? "+" : ""}{change?.toFixed(2)}</span>
                 <span className="opacity-70 font-mono">({isUp ? "+" : ""}{pct?.toFixed(2)}%)</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#384e68]">
+              <div className="flex items-center gap-1.5 text-[10px] text-[#4a6280]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#5a90b0] animate-pulse inline-block" />
                 Live quote
               </div>
@@ -114,7 +114,7 @@ export default function PriceHero({ ticker }: Props) {
             </div>
             <div className="flex items-center gap-4 text-[11px] shrink-0">
               <span className="text-[#5a90b0] font-medium">{s.strongBuys + s.buys} Buy</span>
-              <span className="text-[#384e68]">{s.neutrals} Neutral</span>
+              <span className="text-[#4a6280]">{s.neutrals} Neutral</span>
               <span className="text-[#aa6060] font-medium">{s.sells + s.strongSells} Sell</span>
             </div>
           </div>

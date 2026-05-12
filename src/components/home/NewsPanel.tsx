@@ -26,12 +26,12 @@ export default function NewsPanel({ ticker }: Props) {
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#182235]">
         <div className="flex items-center gap-2.5">
           <span className="text-[#5a90b0] text-[8px]">◆</span>
-          <span className="text-[11px] font-semibold text-[#d8e4f0] tracking-wide">News Feed</span>
+          <span className="text-[11px] font-semibold text-[#edf2f8] tracking-wide">News Feed</span>
         </div>
         {articles.length > 0 && (
           <div className="flex items-center gap-2.5 text-[10px]">
             <span className="text-[#5a90b0]">{pos} pos</span>
-            <span className="text-[#384e68]">{neu} neu</span>
+            <span className="text-[#4a6280]">{neu} neu</span>
             <span className="text-[#aa6060]">{neg} neg</span>
           </div>
         )}
@@ -48,7 +48,7 @@ export default function NewsPanel({ ticker }: Props) {
         </div>
       ) : articles.length === 0 ? (
         <div className="flex items-center justify-center py-8">
-          <p className="text-[11px] text-[#384e68]">No news available</p>
+          <p className="text-[11px] text-[#4a6280]">No news available</p>
         </div>
       ) : (
         <div className="flex flex-col divide-y divide-[#182235]">
@@ -63,13 +63,13 @@ export default function NewsPanel({ ticker }: Props) {
               <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", {
                 "bg-[#5a90b0]": a.sentiment === "positive",
                 "bg-[#aa6060]": a.sentiment === "negative",
-                "bg-[#384e68]": a.sentiment === "neutral",
+                "bg-[#4a6280]": a.sentiment === "neutral",
               })} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-[#d8e4f0] group-hover:text-white leading-snug line-clamp-2 transition-colors">
+                <p className="text-xs text-[#edf2f8] group-hover:text-white leading-snug line-clamp-2 transition-colors">
                   {a.title}
                 </p>
-                <div className="flex items-center gap-2 mt-1 text-[9px] text-[#384e68]">
+                <div className="flex items-center gap-2 mt-1 text-[9px] text-[#4a6280]">
                   {a.source && <span>{a.source}</span>}
                   {a.publishedAt && (
                     <><span>·</span><span>{new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>
@@ -77,11 +77,11 @@ export default function NewsPanel({ ticker }: Props) {
                   <span className={cn("ml-auto capitalize font-medium", {
                     "text-[#5a90b0]": a.sentiment === "positive",
                     "text-[#aa6060]": a.sentiment === "negative",
-                    "text-[#7890a8]": a.sentiment === "neutral",
+                    "text-[#8aa4be]": a.sentiment === "neutral",
                   })}>{a.sentiment}</span>
                 </div>
               </div>
-              <ExternalLink className="w-3 h-3 text-[#182235] group-hover:text-[#384e68] shrink-0 mt-1 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-[#182235] group-hover:text-[#4a6280] shrink-0 mt-1 transition-colors" />
             </a>
           ))}
         </div>
