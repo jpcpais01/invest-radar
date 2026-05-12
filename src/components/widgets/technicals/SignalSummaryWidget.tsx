@@ -52,9 +52,6 @@ export default function SignalSummaryWidget({ ticker, id }: Props) {
       : null;
 
   const overall = summary?.overall ?? "neutral";
-  // Weighted scores — strong signals count double, matching the overall calculation
-  const bullScore = summary ? summary.strongBuys * 2 + summary.buys : 0;
-  const bearScore = summary ? summary.strongSells * 2 + summary.sells : 0;
   const totalSignals = summary
     ? summary.strongBuys + summary.buys + summary.neutrals + summary.sells + summary.strongSells
     : 0;
@@ -87,19 +84,31 @@ export default function SignalSummaryWidget({ ticker, id }: Props) {
                   {c.label}
                 </div>
               </div>
-              <div className="flex gap-2.5 text-center">
+              <div className="flex gap-2 text-center">
+                {summary.strongBuys > 0 && (
+                  <div>
+                    <div className="text-sm font-bold text-[#3fb950]">{summary.strongBuys}</div>
+                    <div className="text-[9px] text-[#484f58] uppercase leading-tight">S.Buy<br/>×2</div>
+                  </div>
+                )}
                 <div>
-                  <div className="text-sm font-bold text-[#3fb950]">{bullScore}</div>
+                  <div className="text-sm font-bold text-[#56d364]">{summary.buys}</div>
                   <div className="text-[9px] text-[#484f58] uppercase">Buy</div>
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-[#f85149]">{bearScore}</div>
-                  <div className="text-[9px] text-[#484f58] uppercase">Sell</div>
+                  <div className="text-sm font-bold text-[#8b949e]">{summary.neutrals}</div>
+                  <div className="text-[9px] text-[#484f58] uppercase">Neut</div>
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-[#8b949e]">{summary.neutrals}</div>
-                  <div className="text-[9px] text-[#484f58] uppercase">Neutral</div>
+                  <div className="text-sm font-bold text-[#ff7b72]">{summary.sells}</div>
+                  <div className="text-[9px] text-[#484f58] uppercase">Sell</div>
                 </div>
+                {summary.strongSells > 0 && (
+                  <div>
+                    <div className="text-sm font-bold text-[#f85149]">{summary.strongSells}</div>
+                    <div className="text-[9px] text-[#484f58] uppercase leading-tight">S.Sell<br/>×2</div>
+                  </div>
+                )}
               </div>
             </div>
 
