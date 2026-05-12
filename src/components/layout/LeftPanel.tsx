@@ -5,7 +5,6 @@ import { useRef, useState } from "react";
 
 import { useTickerStore } from "@/store/tickerStore";
 import { useLayoutStore, PRESET_LAYOUTS } from "@/store/layoutStore";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { PresetLayout } from "@/types/widgets";
 
@@ -147,7 +146,6 @@ export default function LeftPanel() {
     customLayouts, activeCustomId,
     addCustomLayout, applyCustomLayout, removeCustomLayout,
   } = useLayoutStore();
-  const router = useRouter();
   void PRESET_LAYOUTS;
 
   const [modal, setModal] = useState<"ticker" | "layout" | null>(null);
@@ -156,7 +154,7 @@ export default function LeftPanel() {
 
   const handleSelect = (t: string) => {
     setActiveTicker(t);
-    router.push(`/${t}`);
+    window.history.pushState({}, '', `/${t}`);
   };
 
   return (
