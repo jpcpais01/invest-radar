@@ -1,15 +1,12 @@
-import OpenAI from "openai";
+import Together from "together-ai";
 
-export const AI_MODEL = "moonshotai/Kimi-K2.6";
+export const AI_MODEL = "deepseek-ai/DeepSeek-V4-Pro";
 
-let _client: OpenAI | null = null;
+let _client: Together | null = null;
 
-export function getTogetherClient(): OpenAI {
+export function getTogetherClient(): Together {
   if (!_client) {
-    _client = new OpenAI({
-      apiKey: process.env.TOGETHER_API_KEY ?? "placeholder",
-      baseURL: "https://api.together.xyz/v1",
-    });
+    _client = new Together({ apiKey: process.env.TOGETHER_API_KEY ?? "placeholder" });
   }
   return _client;
 }

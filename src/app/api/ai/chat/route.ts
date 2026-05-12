@@ -27,11 +27,6 @@ interface ToolCallSpec {
   function: { name: string; arguments: string };
 }
 
-function stripThinking(text: string): string {
-  // Remove <think>...</think> blocks emitted by Kimi K2.6
-  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-}
-
 export async function POST(req: NextRequest) {
   const { messages, ticker, viewContext } = await req.json();
 
@@ -55,38 +50,26 @@ export async function POST(req: NextRequest) {
         );
 
         const conversationMessages: ApiMessage[] = [...apiMessages];
-        let iterations = 0;
+        const MAX_TOOL_ROUNDS = 3;
         let textSent = false;
-        const MAX_TOOL_ROUNDS = 4; // round 5 is always forced text
 
-        while (iterations <= MAX_TOOL_ROUNDS) {
-          iterations++;
-          // On the final allowed iteration force a text-only response so the
-          // model cannot call more tools and must produce an answer.
-          const forceFinal = iterations > MAX_TOOL_ROUNDS;
+        for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+          const forceFinal = round === MAX_TOOL_ROUNDS;
 
-          // Cast the create fn to any so extra_body doesn't break the stream overload
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const createFn = getTogetherClient().chat.completions.create.bind(getTogetherClient().chat.completions) as any;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const response = await createFn({
+          const response = await (getTogetherClient().chat.completions.create as any)({
             model: AI_MODEL,
             messages: [
               { role: "system", content: systemWithContext },
               ...conversationMessages,
             ],
-            tools: AI_TOOLS,
-            tool_choice: forceFinal ? "none" : "auto",
+            tools: forceFinal ? undefined : AI_TOOLS,
+            tool_choice: forceFinal ? undefined : "auto",
             stream: true,
             max_tokens: 4000,
-            // Disable Kimi's extended thinking — saves tokens, prevents the model
-            // from exhausting its token budget on reasoning instead of answering.
-            extra_body: { thinking: { type: "disabled" } },
+            reasoning: { enabled: false },
           });
 
-          // Stream text chunks to the client as they arrive.
-          // If the model ends up calling tools we retract them; otherwise
-          // the streamed content is already in the UI by the time we finish.
           let fullContent = "";
           let chunksStreamed = false;
           const toolCallMap: Record<number, { id: string; name: string; arguments: string }> = {};
@@ -114,16 +97,13 @@ export async function POST(req: NextRequest) {
           }
 
           const toolCalls = Object.values(toolCallMap).filter((tc) => tc.name);
-          const cleanContent = stripThinking(fullContent);
 
           if (toolCalls.length > 0 && !forceFinal) {
-            // Retract any text that was already streamed — this was pre-tool
-            // commentary, not the final answer.
             if (chunksStreamed) send({ type: "retract_text" });
 
             conversationMessages.push({
               role: "assistant",
-              content: cleanContent || null,
+              content: fullContent || null,
               tool_calls: toolCalls.map((tc) => ({
                 id: tc.id,
                 type: "function" as const,
@@ -139,9 +119,6 @@ export async function POST(req: NextRequest) {
                   if (!args.ticker && ticker) args.ticker = ticker;
                   const result = await executeTool(tc.name, args);
                   send({ type: "tool_result", toolName: tc.name, toolCallId: tc.id, data: result });
-                  // Truncate what goes into conversation context so it doesn't
-                  // eat the model's output budget — the full data is already
-                  // sent to the UI via tool_result above.
                   const resultStr = JSON.stringify(result);
                   const contextContent = resultStr.length > 2500
                     ? resultStr.slice(0, 2500) + "…[truncated]"
@@ -162,17 +139,12 @@ export async function POST(req: NextRequest) {
                 content: tr.content,
               });
             }
-            // continue to next iteration
           } else {
-            // Final answer — already streamed chunk-by-chunk above.
-            // Just mark done (content is already in the client).
-            if (cleanContent) textSent = true;
+            if (fullContent) textSent = true;
             break;
           }
         }
 
-        // Safety net: if somehow nothing was sent (e.g. all content was in
-        // <think> blocks), do one final forced call with no tools.
         if (!textSent) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const fallback = await (getTogetherClient().chat.completions.create as any)({
@@ -180,21 +152,15 @@ export async function POST(req: NextRequest) {
             messages: [
               { role: "system", content: systemWithContext },
               ...conversationMessages,
-              { role: "user", content: "Please summarise your findings in a few sentences." },
+              { role: "user", content: "Summarise your findings briefly." },
             ],
-            tool_choice: "none",
             stream: false,
             max_tokens: 800,
-            extra_body: { thinking: { type: "disabled" } },
+            reasoning: { enabled: false },
           });
-          const fallbackText = stripThinking(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (fallback as any).choices?.[0]?.message?.content ?? ""
-          );
-          send({
-            type: "text",
-            content: fallbackText || "I retrieved the data above. What would you like to know?",
-          });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fallbackText = (fallback as any).choices?.[0]?.message?.content ?? "";
+          send({ type: "text", content: fallbackText || "I retrieved the data above. What would you like to know?" });
         }
 
         send({ type: "done" });
