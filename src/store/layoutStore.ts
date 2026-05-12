@@ -3,32 +3,32 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { WidgetConfig, PresetLayout } from "@/types/widgets";
 
-// Grid: 40 cols × rowHeight 30px → each unit = 30×30px in both axes
+// cols=30, rowHeight=30 → each unit ≈ 32×30px at 1200px canvas (essentially equal)
 const OVERVIEW_LAYOUT: WidgetConfig[] = [
-  { id: "chart",      type: "candlestick", title: "Price Chart",      i: "chart",      x: 0,  y: 0,  w: 27, h: 10, minW: 7, minH: 4 },
-  { id: "rsi",        type: "rsi",         title: "RSI (14)",          i: "rsi",        x: 27, y: 0,  w: 13, h: 6,  minW: 2, minH: 2 },
-  { id: "stochastic", type: "stochastic",  title: "Stochastic (14,3)", i: "stochastic", x: 27, y: 6,  w: 13, h: 4,  minW: 2, minH: 2 },
-  { id: "metrics",    type: "key-metrics", title: "Key Metrics",       i: "metrics",    x: 0,  y: 10, w: 13, h: 6,  minW: 2, minH: 2 },
-  { id: "news",       type: "news-feed",   title: "News Feed",         i: "news",       x: 13, y: 10, w: 14, h: 6,  minW: 2, minH: 2 },
-  { id: "earnings",   type: "earnings",    title: "Earnings",          i: "earnings",   x: 27, y: 10, w: 13, h: 6,  minW: 2, minH: 2 },
+  { id: "chart",      type: "candlestick", title: "Price Chart",      i: "chart",      x: 0,  y: 0,  w: 20, h: 10, minW: 5, minH: 2 },
+  { id: "rsi",        type: "rsi",         title: "RSI (14)",          i: "rsi",        x: 20, y: 0,  w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "stochastic", type: "stochastic",  title: "Stochastic (14,3)", i: "stochastic", x: 20, y: 6,  w: 10, h: 4,  minW: 2, minH: 2 },
+  { id: "metrics",    type: "key-metrics", title: "Key Metrics",       i: "metrics",    x: 0,  y: 10, w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "news",       type: "news-feed",   title: "News Feed",         i: "news",       x: 10, y: 10, w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "earnings",   type: "earnings",    title: "Earnings",          i: "earnings",   x: 20, y: 10, w: 10, h: 6,  minW: 2, minH: 2 },
 ];
 
 const OPTIONS_LAYOUT: WidgetConfig[] = [
-  { id: "chart",         type: "candlestick",   title: "Price Chart",      i: "chart",         x: 0,  y: 0,  w: 27, h: 10, minW: 7, minH: 4  },
-  { id: "iv-rank",       type: "iv-rank",       title: "IV Rank",          i: "iv-rank",       x: 27, y: 0,  w: 13, h: 6,  minW: 2, minH: 2  },
-  { id: "pcr",           type: "put-call-ratio", title: "Put/Call Ratio",   i: "pcr",           x: 27, y: 6,  w: 13, h: 4,  minW: 2, minH: 2  },
-  { id: "options-chain", type: "options-chain", title: "Options Chain",    i: "options-chain", x: 0,  y: 10, w: 27, h: 12, minW: 7, minH: 6  },
-  { id: "max-pain",      type: "max-pain",      title: "Max Pain",         i: "max-pain",      x: 27, y: 10, w: 13, h: 6,  minW: 2, minH: 2  },
-  { id: "prob-cone",     type: "prob-cone",     title: "Probability Cone", i: "prob-cone",     x: 27, y: 16, w: 13, h: 6,  minW: 2, minH: 2  },
+  { id: "chart",         type: "candlestick",    title: "Price Chart",      i: "chart",         x: 0,  y: 0,  w: 20, h: 10, minW: 5, minH: 2 },
+  { id: "iv-rank",       type: "iv-rank",        title: "IV Rank",          i: "iv-rank",       x: 20, y: 0,  w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "pcr",           type: "put-call-ratio",  title: "Put/Call Ratio",   i: "pcr",           x: 20, y: 6,  w: 10, h: 4,  minW: 2, minH: 2 },
+  { id: "options-chain", type: "options-chain",  title: "Options Chain",    i: "options-chain", x: 0,  y: 10, w: 20, h: 12, minW: 5, minH: 2 },
+  { id: "max-pain",      type: "max-pain",       title: "Max Pain",         i: "max-pain",      x: 20, y: 10, w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "prob-cone",     type: "prob-cone",      title: "Probability Cone", i: "prob-cone",     x: 20, y: 16, w: 10, h: 6,  minW: 2, minH: 2 },
 ];
 
 const TECHNICAL_LAYOUT: WidgetConfig[] = [
-  { id: "chart",     type: "candlestick",    title: "Price Chart",     i: "chart",     x: 0,  y: 0,  w: 40, h: 12, minW: 7, minH: 4 },
-  { id: "rsi",       type: "rsi",            title: "RSI",             i: "rsi",       x: 0,  y: 12, w: 13, h: 6,  minW: 2, minH: 2 },
-  { id: "macd",      type: "macd",           title: "MACD",            i: "macd",      x: 13, y: 12, w: 14, h: 6,  minW: 2, minH: 2 },
-  { id: "bollinger", type: "bollinger",      title: "Bollinger Bands", i: "bollinger", x: 27, y: 12, w: 13, h: 6,  minW: 2, minH: 2 },
-  { id: "ema",       type: "ema",            title: "EMA Panel",       i: "ema",       x: 0,  y: 18, w: 20, h: 6,  minW: 2, minH: 2 },
-  { id: "signal",    type: "signal-summary", title: "Signal Summary",  i: "signal",    x: 20, y: 18, w: 20, h: 6,  minW: 2, minH: 2 },
+  { id: "chart",     type: "candlestick",    title: "Price Chart",     i: "chart",     x: 0,  y: 0,  w: 30, h: 12, minW: 5, minH: 2 },
+  { id: "rsi",       type: "rsi",            title: "RSI",             i: "rsi",       x: 0,  y: 12, w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "macd",      type: "macd",           title: "MACD",            i: "macd",      x: 10, y: 12, w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "bollinger", type: "bollinger",      title: "Bollinger Bands", i: "bollinger", x: 20, y: 12, w: 10, h: 6,  minW: 2, minH: 2 },
+  { id: "ema",       type: "ema",            title: "EMA Panel",       i: "ema",       x: 0,  y: 18, w: 15, h: 6,  minW: 2, minH: 2 },
+  { id: "signal",    type: "signal-summary", title: "Signal Summary",  i: "signal",    x: 15, y: 18, w: 15, h: 6,  minW: 2, minH: 2 },
 ];
 
 export const PRESET_LAYOUTS: Record<PresetLayout, WidgetConfig[]> = {
@@ -91,19 +91,13 @@ export const useLayoutStore = create<LayoutState>()(
       addWidget: (widget) =>
         set((s) => {
           const widgets = [...s.widgets, widget];
-          return {
-            widgets,
-            customLayouts: saveToCustom(s.customLayouts, s.activeCustomId, widgets),
-          };
+          return { widgets, customLayouts: saveToCustom(s.customLayouts, s.activeCustomId, widgets) };
         }),
 
       removeWidget: (id) =>
         set((s) => {
           const widgets = s.widgets.filter((w) => w.id !== id);
-          return {
-            widgets,
-            customLayouts: saveToCustom(s.customLayouts, s.activeCustomId, widgets),
-          };
+          return { widgets, customLayouts: saveToCustom(s.customLayouts, s.activeCustomId, widgets) };
         }),
 
       addCustomLayout: (name) =>
@@ -130,14 +124,10 @@ export const useLayoutStore = create<LayoutState>()(
           const wasActive = s.activeCustomId === id;
           return {
             customLayouts,
-            ...(wasActive && {
-              widgets: OVERVIEW_LAYOUT,
-              activePreset: "overview",
-              activeCustomId: null,
-            }),
+            ...(wasActive && { widgets: OVERVIEW_LAYOUT, activePreset: "overview", activeCustomId: null }),
           };
         }),
     }),
-    { name: "investradar-layout-v3" }
+    { name: "investradar-layout-v4" }
   )
 );
