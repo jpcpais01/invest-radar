@@ -29,72 +29,73 @@ import ConvictionTrackerWidget from "@/components/widgets/investment/ConvictionT
 import NarrativeIndexWidget from "@/components/widgets/investment/NarrativeIndexWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
-// Grid: 24 columns, 36px row height
-// At ~1720px canvas this gives ~63px column width — close to equal steps in both axes
+// ─── Grid constants ───────────────────────────────────────────────────────────
+// 24 columns, 6px gap between cells.
+// rowHeight is set equal to colWidth so both resize axes snap by the same
+// number of pixels — the grid is a perfect square at every screen size.
+//
+// colWidth  = (canvasWidth - GAP * (COLS - 1)) / COLS
+// rowHeight = colWidth  (computed below from live canvasWidth)
 const COLS = 24;
-const ROW_H = 36;
+const GAP  = 6;   // margin between cells (both axes)
 
-// Minimum column widths for wide widgets
-const MIN_W: Partial<Record<WidgetType, number>> = {
-  candlestick:        10,
-  "options-chain":    10,
-  "timeframe-heatmap": 12,
-};
-
+// ─── Widget catalogue ─────────────────────────────────────────────────────────
 interface CatalogEntry {
   type: WidgetType;
   label: string;
   desc: string;
   defaultW: number;
   defaultH: number;
+  minW: number;
 }
 
-const WIDGET_CATALOG: CatalogEntry[] = [
-  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",             defaultW: 16, defaultH: 8  },
-  { type: "rsi",                label: "RSI",                   desc: "Relative Strength Index",             defaultW: 8,  defaultH: 6  },
-  { type: "macd",               label: "MACD",                  desc: "Moving Average Convergence",          defaultW: 8,  defaultH: 6  },
-  { type: "stochastic",         label: "Stochastic",            desc: "Stochastic oscillator %K/%D",         defaultW: 8,  defaultH: 6  },
-  { type: "bollinger",          label: "Bollinger Bands",       desc: "Volatility bands",                    defaultW: 8,  defaultH: 6  },
-  { type: "ema",                label: "EMA Panel",             desc: "9/21/50/100/200 EMAs",                defaultW: 12, defaultH: 6  },
-  { type: "signal-summary",     label: "Signal Summary",        desc: "Aggregate buy/sell signals",          defaultW: 12, defaultH: 6  },
-  { type: "adx",                label: "ADX / DMI",             desc: "Trend strength & direction",          defaultW: 8,  defaultH: 6  },
-  { type: "cci",                label: "CCI (20)",              desc: "Commodity Channel Index",             defaultW: 8,  defaultH: 6  },
-  { type: "psar",               label: "Parabolic SAR",         desc: "Stop-and-reverse reversal dots",      defaultW: 8,  defaultH: 6  },
-  { type: "obv",                label: "OBV",                   desc: "On-Balance Volume trend",             defaultW: 8,  defaultH: 6  },
-  { type: "key-metrics",        label: "Key Metrics",           desc: "P/E, EV/EBITDA, market cap",         defaultW: 8,  defaultH: 6  },
-  { type: "earnings",           label: "Earnings",              desc: "EPS history & estimates",             defaultW: 8,  defaultH: 6  },
-  { type: "news-feed",          label: "News Feed",             desc: "Latest news with sentiment",          defaultW: 8,  defaultH: 8  },
-  { type: "iv-rank",            label: "IV Rank",               desc: "Implied volatility rank",             defaultW: 8,  defaultH: 6  },
-  { type: "put-call-ratio",     label: "Put/Call Ratio",        desc: "Options sentiment ratio",             defaultW: 8,  defaultH: 6  },
-  { type: "options-chain",      label: "Options Chain",         desc: "Full calls/puts table",               defaultW: 16, defaultH: 10 },
-  { type: "max-pain",           label: "Max Pain",              desc: "Max pain strike calculator",          defaultW: 8,  defaultH: 6  },
-  { type: "prob-cone",          label: "Probability Cone",      desc: "1σ/2σ price range at expiry",        defaultW: 8,  defaultH: 6  },
-  { type: "quality-score",      label: "Quality Score",         desc: "Business quality: margins, ROE, FCF", defaultW: 8,  defaultH: 8  },
-  { type: "valuation-context",  label: "Valuation Context",     desc: "Multiples vs own 1Y history",         defaultW: 8,  defaultH: 8  },
-  { type: "timeframe-heatmap",  label: "Timeframe Heatmap",     desc: "1M–2Y agreement grid",                defaultW: 16, defaultH: 8  },
-  { type: "conviction-tracker", label: "Management Conviction", desc: "Insider buy/sell trend",              defaultW: 8,  defaultH: 10 },
-  { type: "narrative-index",    label: "Narrative Index",       desc: "News narrative lifecycle stage",      defaultW: 8,  defaultH: 8  },
+const CATALOG: CatalogEntry[] = [
+  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",              defaultW: 16, defaultH: 5, minW: 8  },
+  { type: "rsi",                label: "RSI",                   desc: "Relative Strength Index",              defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "macd",               label: "MACD",                  desc: "Moving Average Convergence",           defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "stochastic",         label: "Stochastic",            desc: "Stochastic oscillator %K/%D",          defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "bollinger",          label: "Bollinger Bands",       desc: "Volatility bands",                     defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "ema",                label: "EMA Panel",             desc: "9 / 21 / 50 / 100 / 200 EMAs",        defaultW: 12, defaultH: 4, minW: 4  },
+  { type: "signal-summary",     label: "Signal Summary",        desc: "Aggregate buy / sell signals",         defaultW: 12, defaultH: 4, minW: 4  },
+  { type: "adx",                label: "ADX / DMI",             desc: "Trend strength & direction",           defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "cci",                label: "CCI (20)",              desc: "Commodity Channel Index",              defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "psar",               label: "Parabolic SAR",         desc: "Stop-and-reverse reversal dots",       defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "obv",                label: "OBV",                   desc: "On-Balance Volume trend",              defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "key-metrics",        label: "Key Metrics",           desc: "P/E, EV/EBITDA, market cap",          defaultW: 8,  defaultH: 3, minW: 4  },
+  { type: "earnings",           label: "Earnings",              desc: "EPS history & estimates",              defaultW: 8,  defaultH: 3, minW: 4  },
+  { type: "news-feed",          label: "News Feed",             desc: "Latest news with sentiment",           defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "iv-rank",            label: "IV Rank",               desc: "Implied volatility rank",              defaultW: 8,  defaultH: 3, minW: 4  },
+  { type: "put-call-ratio",     label: "Put / Call Ratio",      desc: "Options sentiment ratio",              defaultW: 8,  defaultH: 3, minW: 4  },
+  { type: "options-chain",      label: "Options Chain",         desc: "Full calls / puts table",              defaultW: 16, defaultH: 7, minW: 8  },
+  { type: "max-pain",           label: "Max Pain",              desc: "Max pain strike calculator",           defaultW: 8,  defaultH: 3, minW: 4  },
+  { type: "prob-cone",          label: "Probability Cone",      desc: "1σ / 2σ price range at expiry",       defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "quality-score",      label: "Quality Score",         desc: "Business quality: margins, ROE, FCF", defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "valuation-context",  label: "Valuation Context",     desc: "Multiples vs own 1Y history",         defaultW: 8,  defaultH: 4, minW: 4  },
+  { type: "timeframe-heatmap",  label: "Timeframe Heatmap",     desc: "1M – 2Y agreement grid",              defaultW: 16, defaultH: 5, minW: 8  },
+  { type: "conviction-tracker", label: "Management Conviction", desc: "Insider buy / sell trend",            defaultW: 8,  defaultH: 5, minW: 4  },
+  { type: "narrative-index",    label: "Narrative Index",       desc: "News narrative lifecycle stage",      defaultW: 8,  defaultH: 4, minW: 4  },
 ];
 
+// ─── Widget renderer ──────────────────────────────────────────────────────────
 function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (id: string) => void) {
   switch (type) {
-    case "candlestick":         return <CandlestickChart ticker={ticker} id={id} />;
-    case "rsi":                 return <RSIWidget ticker={ticker} id={id} />;
-    case "stochastic":          return <StochasticWidget ticker={ticker} id={id} />;
-    case "macd":                return <MACDWidget ticker={ticker} id={id} />;
-    case "key-metrics":         return <KeyMetrics ticker={ticker} id={id} />;
-    case "news-feed":           return <NewsFeed ticker={ticker} id={id} />;
-    case "earnings":            return <EarningsWidget ticker={ticker} id={id} />;
+    case "candlestick":         return <CandlestickChart   ticker={ticker} id={id} />;
+    case "rsi":                 return <RSIWidget           ticker={ticker} id={id} />;
+    case "stochastic":          return <StochasticWidget    ticker={ticker} id={id} />;
+    case "macd":                return <MACDWidget          ticker={ticker} id={id} />;
+    case "key-metrics":         return <KeyMetrics          ticker={ticker} id={id} />;
+    case "news-feed":           return <NewsFeed            ticker={ticker} id={id} />;
+    case "earnings":            return <EarningsWidget      ticker={ticker} id={id} />;
     case "signal-summary":      return <SignalSummaryWidget ticker={ticker} id={id} />;
-    case "adx":                 return <ADXWidget ticker={ticker} id={id} />;
-    case "cci":                 return <CCIWidget ticker={ticker} id={id} />;
-    case "psar":                return <PSARWidget ticker={ticker} id={id} />;
-    case "obv":                 return <OBVWidget ticker={ticker} id={id} />;
-    case "quality-score":       return <QualityScoreWidget ticker={ticker} id={id} />;
-    case "valuation-context":   return <ValuationContextWidget ticker={ticker} id={id} />;
-    case "timeframe-heatmap":   return <HeatmapWidget ticker={ticker} id={id} />;
-    case "conviction-tracker":  return <ConvictionTrackerWidget ticker={ticker} id={id} />;
-    case "narrative-index":     return <NarrativeIndexWidget ticker={ticker} id={id} />;
+    case "adx":                 return <ADXWidget           ticker={ticker} id={id} />;
+    case "cci":                 return <CCIWidget           ticker={ticker} id={id} />;
+    case "psar":                return <PSARWidget          ticker={ticker} id={id} />;
+    case "obv":                 return <OBVWidget           ticker={ticker} id={id} />;
+    case "quality-score":       return <QualityScoreWidget      ticker={ticker} id={id} />;
+    case "valuation-context":   return <ValuationContextWidget   ticker={ticker} id={id} />;
+    case "timeframe-heatmap":   return <HeatmapWidget            ticker={ticker} id={id} />;
+    case "conviction-tracker":  return <ConvictionTrackerWidget  ticker={ticker} id={id} />;
+    case "narrative-index":     return <NarrativeIndexWidget     ticker={ticker} id={id} />;
     default:
       return (
         <WidgetShell title={type} id={id} onRemove={onRemove}>
@@ -106,7 +107,14 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
   }
 }
 
-function WidgetPicker({ onAdd, onClose }: { onAdd: (entry: CatalogEntry) => void; onClose: () => void }) {
+// ─── Widget picker modal ──────────────────────────────────────────────────────
+function WidgetPicker({
+  onAdd,
+  onClose,
+}: {
+  onAdd: (entry: CatalogEntry) => void;
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -121,13 +129,15 @@ function WidgetPicker({ onAdd, onClose }: { onAdd: (entry: CatalogEntry) => void
           </button>
         </div>
         <div className="overflow-y-auto p-3 grid grid-cols-2 gap-2">
-          {WIDGET_CATALOG.map((entry) => (
+          {CATALOG.map((entry) => (
             <button
               key={entry.type}
               onClick={() => { onAdd(entry); onClose(); }}
               className="text-left px-3 py-2.5 rounded-xl border border-[#21262d] bg-[#161b22] hover:border-[#1f6feb44] hover:bg-[#1f6feb08] transition-all group"
             >
-              <div className="text-xs font-semibold text-white group-hover:text-[#388bfd] transition-colors">{entry.label}</div>
+              <div className="text-xs font-semibold text-white group-hover:text-[#388bfd] transition-colors">
+                {entry.label}
+              </div>
               <div className="text-[10px] text-[#484f58] mt-0.5 leading-relaxed">{entry.desc}</div>
             </button>
           ))}
@@ -137,6 +147,7 @@ function WidgetPicker({ onAdd, onClose }: { onAdd: (entry: CatalogEntry) => void
   );
 }
 
+// ─── Main canvas ──────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const GL = GridLayout as any;
 
@@ -145,61 +156,64 @@ export default function WidgetCanvas() {
   const { activeTicker, watchlist, addToWatchlist, removeFromWatchlist } = useTickerStore();
   const queryClient = useQueryClient();
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // canvasWidth tracks the inner width of the scrollable container.
+  // We put the ref on an inner div that has no padding so clientWidth == usable width.
+  const innerRef  = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(1200);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [locked, setLocked] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [clearConfirm, setClearConfirm] = useState(false);
-  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // react-grid-layout fires onLayoutChange once on mount reflecting the initial props.
-  // We skip that first call so it doesn't overwrite the persisted store before hydration.
-  const skipNextLayout = useRef(true);
+  const [pickerOpen,    setPickerOpen]    = useState(false);
+  const [locked,        setLocked]        = useState(false);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [clearConfirm,  setClearConfirm]  = useState(false);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Changing lock forces a GL remount (key flip). That mount also fires onLayoutChange,
-  // so we need to skip it again.
-  const prevLocked = useRef(locked);
-  if (prevLocked.current !== locked) {
-    prevLocked.current = locked;
-    skipNextLayout.current = true;
-  }
+  // ── Square-cell row height ──
+  // rowHeight = colWidth  →  both resize axes snap by identical pixels
+  // colWidth formula (matches react-grid-layout internals):
+  //   colWidth = (width - GAP * (COLS - 1)) / COLS
+  const rowHeight = Math.max(20, Math.round((canvasWidth - GAP * (COLS - 1)) / COLS));
 
-  // Also skip when the widget set changes (preset / layout switch).
-  const widgetKey = widgets.map((w) => w.i).join(",");
-  const prevWidgetKey = useRef(widgetKey);
-  if (prevWidgetKey.current !== widgetKey) {
-    prevWidgetKey.current = widgetKey;
-    skipNextLayout.current = true;
-  }
-
+  // Track live canvas width via ResizeObserver on the padded inner div
   useEffect(() => {
-    const update = () => {
-      if (containerRef.current) setCanvasWidth(containerRef.current.clientWidth);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    if (containerRef.current) ro.observe(containerRef.current);
+    const el = innerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setCanvasWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    setCanvasWidth(el.clientWidth);
     return () => ro.disconnect();
   }, []);
 
-  const handleLayoutChange = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (newLayout: any[]) => {
-      if (skipNextLayout.current) {
-        skipNextLayout.current = false;
-        return;
-      }
-      const updated: WidgetConfig[] = widgets.map((w) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const l = newLayout.find((nl: any) => nl.i === w.i);
-        if (!l) return w;
-        return { ...w, x: l.x, y: l.y, w: l.w, h: l.h };
-      });
-      setLayout(updated);
-    },
-    [widgets, setLayout]
-  );
+  // ── Skip the spurious onLayoutChange that RGL fires on every mount ──
+  // We don't want to overwrite the persisted store with the initial prop layout.
+  const skipLayout = useRef(true);
+
+  // Lock toggle forces a key-based remount → skip that mount's layout event too.
+  const prevLocked = useRef(locked);
+  if (prevLocked.current !== locked) {
+    prevLocked.current = locked;
+    skipLayout.current = true;
+  }
+
+  // Preset / widget-set change also triggers a prop-driven re-render → skip.
+  const widgetSig = widgets.map((w) => w.i).join(",");
+  const prevSig   = useRef(widgetSig);
+  if (prevSig.current !== widgetSig) {
+    prevSig.current   = widgetSig;
+    skipLayout.current = true;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleLayoutChange = useCallback((next: any[]) => {
+    if (skipLayout.current) { skipLayout.current = false; return; }
+    const updated: WidgetConfig[] = widgets.map((w) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const l = next.find((n: any) => n.i === w.i);
+      return l ? { ...w, x: l.x, y: l.y, w: l.w, h: l.h } : w;
+    });
+    setLayout(updated);
+  }, [widgets, setLayout]);
 
   const handleRefreshAll = () => {
     setRefreshing(true);
@@ -210,34 +224,33 @@ export default function WidgetCanvas() {
   const handleClear = () => {
     if (!clearConfirm) {
       setClearConfirm(true);
-      clearTimerRef.current = setTimeout(() => setClearConfirm(false), 3000);
+      clearTimer.current = setTimeout(() => setClearConfirm(false), 3000);
       return;
     }
-    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    if (clearTimer.current) clearTimeout(clearTimer.current);
     setClearConfirm(false);
     widgets.forEach((w) => removeWidget(w.id));
   };
 
-  const handleAddWidget = useCallback(
-    (entry: CatalogEntry) => {
-      const nextY = widgets.reduce((max, w) => Math.max(max, w.y + w.h), 0);
-      const id = `${entry.type}-${Date.now()}`;
-      addWidget({
-        id, type: entry.type, title: entry.label, i: id,
-        x: 0, y: nextY,
-        w: entry.defaultW, h: entry.defaultH,
-        minW: MIN_W[entry.type] ?? 6,
-        minH: 3,
-      });
-    },
-    [widgets, addWidget]
-  );
+  const handleAddWidget = useCallback((entry: CatalogEntry) => {
+    const nextY = widgets.reduce((max, w) => Math.max(max, w.y + w.h), 0);
+    const id = `${entry.type}-${Date.now()}`;
+    addWidget({
+      id, type: entry.type, title: entry.label, i: id,
+      x: 0, y: nextY,
+      w: entry.defaultW, h: entry.defaultH,
+      minW: entry.minW, minH: 2,
+    });
+  }, [widgets, addWidget]);
 
-  const layout = widgets.map((w) => ({
-    i: w.i, x: w.x, y: w.y, w: w.w, h: w.h,
-    minW: MIN_W[w.type] ?? 6,
-    minH: 3,
-  }));
+  const glLayout = widgets.map((w) => {
+    const cat = CATALOG.find((c) => c.type === w.type);
+    return {
+      i: w.i, x: w.x, y: w.y, w: w.w, h: w.h,
+      minW: cat?.minW ?? 4,
+      minH: 2,
+    };
+  });
 
   const inWatchlist = watchlist.includes(activeTicker);
 
@@ -245,14 +258,13 @@ export default function WidgetCanvas() {
     <div className="flex-1 flex flex-col overflow-hidden bg-[#0d1117]">
       {pickerOpen && <WidgetPicker onAdd={handleAddWidget} onClose={() => setPickerOpen(false)} />}
 
-      {/* Toolbar */}
-      <div className="flex items-center h-8 px-2 gap-0.5 border-b border-[#21262d] shrink-0 bg-[#0d1117]">
+      {/* ── Toolbar ── */}
+      <div className="flex items-center h-8 px-2 gap-0.5 border-b border-[#21262d] shrink-0">
         <button
           onClick={() => setPickerOpen(true)}
           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[#8b949e] hover:text-white hover:bg-[#161b22] transition-colors"
         >
-          <Plus className="w-3 h-3" />
-          Add Widget
+          <Plus className="w-3 h-3" /> Add Widget
         </button>
 
         <div className="w-px h-3.5 bg-[#21262d] mx-1" />
@@ -261,8 +273,7 @@ export default function WidgetCanvas() {
           onClick={handleRefreshAll}
           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[#8b949e] hover:text-white hover:bg-[#161b22] transition-colors"
         >
-          <RefreshCw className={cn("w-3 h-3", refreshing && "animate-spin")} />
-          Refresh
+          <RefreshCw className={cn("w-3 h-3", refreshing && "animate-spin")} /> Refresh
         </button>
 
         <div className="w-px h-3.5 bg-[#21262d] mx-1" />
@@ -271,7 +282,9 @@ export default function WidgetCanvas() {
           onClick={() => inWatchlist ? removeFromWatchlist(activeTicker) : addToWatchlist(activeTicker)}
           className={cn(
             "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
-            inWatchlist ? "text-[#d29922] hover:bg-[#161b22]" : "text-[#8b949e] hover:text-[#d29922] hover:bg-[#161b22]"
+            inWatchlist
+              ? "text-[#d29922] hover:bg-[#161b22]"
+              : "text-[#8b949e] hover:text-[#d29922] hover:bg-[#161b22]"
           )}
         >
           <Star className={cn("w-3 h-3", inWatchlist && "fill-current")} />
@@ -283,7 +296,9 @@ export default function WidgetCanvas() {
             onClick={() => setLocked((v) => !v)}
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
-              locked ? "text-[#388bfd] bg-[#1f6feb15] hover:bg-[#1f6feb22]" : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"
+              locked
+                ? "text-[#388bfd] bg-[#1f6feb15] hover:bg-[#1f6feb22]"
+                : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"
             )}
           >
             {locked ? <Lock className="w-3 h-3" /> : <LockOpen className="w-3 h-3" />}
@@ -296,7 +311,9 @@ export default function WidgetCanvas() {
             onClick={handleClear}
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
-              clearConfirm ? "text-[#f85149] bg-[#f8514915] hover:bg-[#f8514922]" : "text-[#8b949e] hover:text-[#f85149] hover:bg-[#161b22]"
+              clearConfirm
+                ? "text-[#f85149] bg-[#f8514915] hover:bg-[#f8514922]"
+                : "text-[#8b949e] hover:text-[#f85149] hover:bg-[#161b22]"
             )}
           >
             <Trash2 className="w-3 h-3" />
@@ -305,53 +322,58 @@ export default function WidgetCanvas() {
         </div>
       </div>
 
-      {/* Canvas */}
+      {/* ── Canvas ── */}
+      {/* Outer div: scroll container, no horizontal overflow, slight padding */}
       <div
-        ref={containerRef}
+        className={cn(
+          "flex-1 overflow-y-auto overflow-x-hidden relative",
+          locked && "[&_.react-resizable-handle]:!hidden [&_.widget-drag-handle]:!cursor-default"
+        )}
         onMouseDownCapture={locked ? (e: React.MouseEvent) => {
           if ((e.target as HTMLElement).closest(".widget-drag-handle")) {
             e.stopPropagation();
             e.preventDefault();
           }
         } : undefined}
-        className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden p-2 relative",
-          locked && "[&_.react-resizable-handle]:!hidden [&_.widget-drag-handle]:!cursor-default"
-        )}
       >
-        {widgets.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
-            <button onClick={() => setPickerOpen(true)} className="flex flex-col items-center gap-2 group">
-              <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] group-hover:border-[#30363d] flex items-center justify-center transition-colors">
-                <Plus className="w-5 h-5 text-[#30363d] group-hover:text-[#484f58] transition-colors" />
-              </div>
-              <p className="text-xs text-[#30363d] group-hover:text-[#484f58] transition-colors">Add a widget to get started</p>
-            </button>
-          </div>
-        )}
-
-        <GL
-          layout={layout}
-          cols={COLS}
-          rowHeight={ROW_H}
-          width={canvasWidth}
-          margin={[6, 6]}
-          containerPadding={[0, 0]}
-          onLayoutChange={handleLayoutChange}
-          key={locked ? "locked" : "unlocked"}
-          draggableHandle=".widget-drag-handle"
-          draggableCancel=".widget-body"
-          isDraggable={!locked}
-          isResizable={!locked}
-          resizeHandles={["se", "s", "e", "sw", "w", "n", "ne", "nw"]}
-          useCSSTransforms={false}
-        >
-          {widgets.map((w) => (
-            <div key={w.i} className="relative">
-              {renderWidget(w.type, activeTicker, w.id, removeWidget)}
+        {/* Inner div: no padding — its clientWidth is exactly what we feed to GL */}
+        <div ref={innerRef} className="w-full">
+          {widgets.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
+              <button onClick={() => setPickerOpen(true)} className="flex flex-col items-center gap-2 group">
+                <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] group-hover:border-[#30363d] flex items-center justify-center transition-colors">
+                  <Plus className="w-5 h-5 text-[#30363d] group-hover:text-[#484f58] transition-colors" />
+                </div>
+                <p className="text-xs text-[#30363d] group-hover:text-[#484f58] transition-colors">
+                  Add a widget to get started
+                </p>
+              </button>
             </div>
-          ))}
-        </GL>
+          )}
+
+          <GL
+            layout={glLayout}
+            cols={COLS}
+            rowHeight={rowHeight}
+            width={canvasWidth}
+            margin={[GAP, GAP]}
+            containerPadding={[GAP, GAP]}
+            onLayoutChange={handleLayoutChange}
+            key={locked ? "locked" : "unlocked"}
+            draggableHandle=".widget-drag-handle"
+            draggableCancel=".widget-body"
+            isDraggable={!locked}
+            isResizable={!locked}
+            resizeHandles={["se", "s", "e", "sw", "w", "n", "ne", "nw"]}
+            useCSSTransforms={false}
+          >
+            {widgets.map((w) => (
+              <div key={w.i} className="relative">
+                {renderWidget(w.type, activeTicker, w.id, removeWidget)}
+              </div>
+            ))}
+          </GL>
+        </div>
       </div>
     </div>
   );
