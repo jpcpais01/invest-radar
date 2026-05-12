@@ -284,12 +284,14 @@ export default function LeftPanel() {
             >
               <div className="flex items-center gap-1 group/row">
                 <GripVertical className="w-3 h-3 text-[#30363d] group-hover/row:text-[#484f58] shrink-0 cursor-grab active:cursor-grabbing ml-0.5 transition-colors" />
+                <div className="flex-1 min-w-0">
                 <WatchlistItem
                   ticker={t}
                   isActive={t === activeTicker}
                   onSelect={() => handleSelect(t)}
                   onRemove={() => removeFromWatchlist(t)}
                 />
+                </div>
               </div>
             </div>
           ))}
