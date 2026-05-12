@@ -52,6 +52,9 @@ export default function SignalSummaryWidget({ ticker, id }: Props) {
       : null;
 
   const overall = summary?.overall ?? "neutral";
+  // Weighted scores — strong signals count double, matching the overall calculation
+  const bullScore = summary ? summary.strongBuys * 2 + summary.buys : 0;
+  const bearScore = summary ? summary.strongSells * 2 + summary.sells : 0;
   const totalSignals = summary
     ? summary.strongBuys + summary.buys + summary.neutrals + summary.sells + summary.strongSells
     : 0;
@@ -86,11 +89,11 @@ export default function SignalSummaryWidget({ ticker, id }: Props) {
               </div>
               <div className="flex gap-2.5 text-center">
                 <div>
-                  <div className="text-sm font-bold text-[#3fb950]">{summary.strongBuys + summary.buys}</div>
+                  <div className="text-sm font-bold text-[#3fb950]">{bullScore}</div>
                   <div className="text-[9px] text-[#484f58] uppercase">Buy</div>
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-[#f85149]">{summary.sells + summary.strongSells}</div>
+                  <div className="text-sm font-bold text-[#f85149]">{bearScore}</div>
                   <div className="text-[9px] text-[#484f58] uppercase">Sell</div>
                 </div>
                 <div>
