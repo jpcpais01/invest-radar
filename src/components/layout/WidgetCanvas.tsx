@@ -286,12 +286,12 @@ export default function WidgetCanvas() {
         </div>
       </div>
 
-      {/* Canvas content — when locked, CSS blocks drag handles and hides resize handles */}
+      {/* Canvas content — when locked, CSS hides resize handles */}
       <div
         ref={containerRef}
         className={cn(
           "flex-1 overflow-y-auto overflow-x-hidden p-2 relative",
-          locked && "[&_.widget-drag-handle]:!pointer-events-none [&_.widget-drag-handle]:!cursor-default [&_.react-resizable-handle]:!hidden"
+          locked && "[&_.react-resizable-handle]:!hidden [&_.widget-drag-handle]:!cursor-default"
         )}
       >
         {widgets.length === 0 && (
@@ -315,7 +315,7 @@ export default function WidgetCanvas() {
           rowHeight={60}
           width={canvasWidth - 16}
           onLayoutChange={handleLayoutChange}
-          draggableHandle=".widget-drag-handle"
+          draggableHandle={locked ? ".widget-drag-handle-locked-disabled" : ".widget-drag-handle"}
           draggableCancel=".widget-body"
           isDraggable={!locked}
           isResizable={!locked}
