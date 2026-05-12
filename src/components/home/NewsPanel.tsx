@@ -25,14 +25,14 @@ export default function NewsPanel({ ticker }: Props) {
     <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a1a28]">
         <div className="flex items-center gap-2.5">
-          <span className="text-[#5a9e85] text-[8px]">◆</span>
+          <span className="text-[#2ec898] text-[8px]">◆</span>
           <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">News Feed</span>
         </div>
         {articles.length > 0 && (
           <div className="flex items-center gap-2.5 text-[10px]">
-            <span className="text-[#5a9e85]">{pos} pos</span>
+            <span className="text-[#2ec898]">{pos} pos</span>
             <span className="text-[#3a3748]">{neu} neu</span>
-            <span className="text-[#bf6464]">{neg} neg</span>
+            <span className="text-[#e05252]">{neg} neg</span>
           </div>
         )}
       </div>
@@ -61,8 +61,8 @@ export default function NewsPanel({ ticker }: Props) {
               className="group flex items-start gap-3 px-4 py-3 hover:bg-[#12121c] transition-colors"
             >
               <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", {
-                "bg-[#5a9e85]": a.sentiment === "positive",
-                "bg-[#bf6464]": a.sentiment === "negative",
+                "bg-[#2ec898]": a.sentiment === "positive",
+                "bg-[#e05252]": a.sentiment === "negative",
                 "bg-[#3a3748]": a.sentiment === "neutral",
               })} />
               <div className="flex-1 min-w-0">
@@ -75,8 +75,8 @@ export default function NewsPanel({ ticker }: Props) {
                     <><span>·</span><span>{new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>
                   )}
                   <span className={cn("ml-auto capitalize font-medium", {
-                    "text-[#5a9e85]": a.sentiment === "positive",
-                    "text-[#bf6464]": a.sentiment === "negative",
+                    "text-[#2ec898]": a.sentiment === "positive",
+                    "text-[#e05252]": a.sentiment === "negative",
                     "text-[#7c7890]": a.sentiment === "neutral",
                   })}>{a.sentiment}</span>
                 </div>

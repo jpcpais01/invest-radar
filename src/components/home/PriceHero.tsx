@@ -8,11 +8,11 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 interface Props { ticker: string }
 
 const SIGNAL_CONFIG = {
-  "strong-buy":  { label: "Strong Buy",  cls: "text-[#7ab8a4] border-[#7ab8a433] bg-[#7ab8a40a]", dot: "#7ab8a4" },
-  "buy":         { label: "Buy",          cls: "text-[#5a9e85] border-[#5a9e8533] bg-[#5a9e850a]", dot: "#5a9e85" },
+  "strong-buy":  { label: "Strong Buy",  cls: "text-[#5edbb8] border-[#5edbb833] bg-[#5edbb80a]", dot: "#5edbb8" },
+  "buy":         { label: "Buy",          cls: "text-[#2ec898] border-[#2ec89833] bg-[#2ec8980a]", dot: "#2ec898" },
   "neutral":     { label: "Neutral",      cls: "text-[#7c7890] border-[#272738]   bg-transparent",  dot: "#5a5570" },
-  "sell":        { label: "Sell",         cls: "text-[#bf6464] border-[#bf646433] bg-[#bf64640a]", dot: "#bf6464" },
-  "strong-sell": { label: "Strong Sell",  cls: "text-[#b05050] border-[#b0505044] bg-[#b050500a]", dot: "#b05050" },
+  "sell":        { label: "Sell",         cls: "text-[#e05252] border-[#e0525233] bg-[#e052520a]", dot: "#e05252" },
+  "strong-sell": { label: "Strong Sell",  cls: "text-[#d04444] border-[#d0444444] bg-[#d044440a]", dot: "#d04444" },
 };
 
 export default function PriceHero({ ticker }: Props) {
@@ -51,8 +51,6 @@ export default function PriceHero({ ticker }: Props) {
         boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset",
       }}
     >
-      {/* Subtle top-edge gold line */}
-      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(90,158,133,0.25) 40%, rgba(90,158,133,0.25) 60%, transparent 100%)" }} />
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
         <div>
@@ -74,20 +72,17 @@ export default function PriceHero({ ticker }: Props) {
             <>
               <span
                 className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight font-mono"
-                style={{
-                  color: isUp ? "#5a9e85" : "#bf6464",
-                  textShadow: isUp ? "0 0 24px rgba(90,158,133,0.12)" : "0 0 24px rgba(191,100,100,0.12)",
-                }}
+                style={{ color: isUp ? "#2ec898" : "#e05252" }}
               >
                 ${price.toFixed(2)}
               </span>
-              <div className={cn("flex items-center gap-1.5 text-sm font-medium", isUp ? "text-[#5a9e85]" : "text-[#bf6464]")}>
+              <div className={cn("flex items-center gap-1.5 text-sm font-medium", isUp ? "text-[#2ec898]" : "text-[#e05252]")}>
                 {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 <span className="font-mono">{isUp ? "+" : ""}{change?.toFixed(2)}</span>
                 <span className="opacity-70 font-mono">({isUp ? "+" : ""}{pct?.toFixed(2)}%)</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-[#3a3748]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5a9e85] animate-pulse inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2ec898] animate-pulse inline-block" />
                 Live quote
               </div>
             </>
@@ -111,16 +106,16 @@ export default function PriceHero({ ticker }: Props) {
           <div className="mt-5 pt-4 border-t border-[#1a1a28] flex items-center gap-4">
             <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#12121c]">
               <div className="h-full flex">
-                <div className="bg-[#7ab8a4]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#5a9e85]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#5edbb8]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#2ec898]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
                 <div className="bg-[#2a2a3e]" style={{ width: `${pctNeu}%` }} />
-                <div className="bg-[#bf6464]" style={{ width: `${pctSel}%` }} />
+                <div className="bg-[#e05252]" style={{ width: `${pctSel}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-4 text-[11px] shrink-0">
-              <span className="text-[#5a9e85] font-medium">{s.strongBuys + s.buys} Buy</span>
+              <span className="text-[#2ec898] font-medium">{s.strongBuys + s.buys} Buy</span>
               <span className="text-[#3a3748]">{s.neutrals} Neutral</span>
-              <span className="text-[#bf6464] font-medium">{s.sells + s.strongSells} Sell</span>
+              <span className="text-[#e05252] font-medium">{s.sells + s.strongSells} Sell</span>
             </div>
           </div>
         );
