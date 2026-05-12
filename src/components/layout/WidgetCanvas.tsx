@@ -371,7 +371,7 @@ export default function WidgetCanvas() {
       </div>
 
       {/* ── Grid canvas ── */}
-      <div className="flex-1 overflow-hidden relative p-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden relative p-2">
         {widgets.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
             <button onClick={() => setPickerOpen(true)} className="flex flex-col items-center gap-2 group">
