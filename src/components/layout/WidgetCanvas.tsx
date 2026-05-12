@@ -62,30 +62,30 @@ interface CatalogEntry {
 }
 
 const CATALOG: CatalogEntry[] = [
-  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "rsi",                label: "RSI",                   desc: "Relative Strength Index",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "macd",               label: "MACD",                  desc: "Moving Average Convergence",           defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "stochastic",         label: "Stochastic",            desc: "Stochastic oscillator %K/%D",          defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "bollinger",          label: "Bollinger Bands",       desc: "Volatility bands",                     defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "ema",                label: "EMA Panel",             desc: "9 / 21 / 50 / 100 / 200 EMAs",        defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "signal-summary",     label: "Signal Summary",        desc: "Aggregate buy / sell signals",         defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "adx",                label: "ADX / DMI",             desc: "Trend strength & direction",           defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "cci",                label: "CCI (20)",              desc: "Commodity Channel Index",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "psar",               label: "Parabolic SAR",         desc: "Stop-and-reverse reversal dots",       defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "obv",                label: "OBV",                   desc: "On-Balance Volume trend",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "key-metrics",        label: "Key Metrics",           desc: "P/E, EV/EBITDA, market cap",          defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "earnings",           label: "Earnings",              desc: "EPS history & estimates",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "news-feed",          label: "News Feed",             desc: "Latest news with sentiment",           defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "iv-rank",            label: "IV Rank",               desc: "Implied volatility rank",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "put-call-ratio",     label: "Put / Call Ratio",      desc: "Options sentiment ratio",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "options-chain",      label: "Options Chain",         desc: "Full calls / puts table",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "max-pain",           label: "Max Pain",              desc: "Max pain strike calculator",           defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "prob-cone",          label: "Probability Cone",      desc: "1σ / 2σ price range at expiry",       defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "quality-score",      label: "Quality Score",         desc: "Business quality: margins, ROE, FCF", defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "valuation-context",  label: "Valuation Context",     desc: "Multiples vs own 1Y history",         defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "timeframe-heatmap",  label: "Timeframe Heatmap",     desc: "1M – 2Y agreement grid",              defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "conviction-tracker", label: "Management Conviction", desc: "Insider buy / sell trend",            defaultW: 8, defaultH: 2, minW: 4 },
-  { type: "narrative-index",    label: "Narrative Index",       desc: "News narrative lifecycle stage",      defaultW: 8, defaultH: 2, minW: 4 },
+  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "rsi",                label: "RSI",                   desc: "Relative Strength Index",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "macd",               label: "MACD",                  desc: "Moving Average Convergence",           defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "stochastic",         label: "Stochastic",            desc: "Stochastic oscillator %K/%D",          defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "bollinger",          label: "Bollinger Bands",       desc: "Volatility bands",                     defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "ema",                label: "EMA Panel",             desc: "9 / 21 / 50 / 100 / 200 EMAs",        defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "signal-summary",     label: "Signal Summary",        desc: "Aggregate buy / sell signals",         defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "adx",                label: "ADX / DMI",             desc: "Trend strength & direction",           defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "cci",                label: "CCI (20)",              desc: "Commodity Channel Index",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "psar",               label: "Parabolic SAR",         desc: "Stop-and-reverse reversal dots",       defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "obv",                label: "OBV",                   desc: "On-Balance Volume trend",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "key-metrics",        label: "Key Metrics",           desc: "P/E, EV/EBITDA, market cap",          defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "earnings",           label: "Earnings",              desc: "EPS history & estimates",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "news-feed",          label: "News Feed",             desc: "Latest news with sentiment",           defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "iv-rank",            label: "IV Rank",               desc: "Implied volatility rank",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "put-call-ratio",     label: "Put / Call Ratio",      desc: "Options sentiment ratio",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "options-chain",      label: "Options Chain",         desc: "Full calls / puts table",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "max-pain",           label: "Max Pain",              desc: "Max pain strike calculator",           defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "prob-cone",          label: "Probability Cone",      desc: "1σ / 2σ price range at expiry",       defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "quality-score",      label: "Quality Score",         desc: "Business quality: margins, ROE, FCF", defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "valuation-context",  label: "Valuation Context",     desc: "Multiples vs own 1Y history",         defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "timeframe-heatmap",  label: "Timeframe Heatmap",     desc: "1M – 2Y agreement grid",              defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "conviction-tracker", label: "Management Conviction", desc: "Insider buy / sell trend",            defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "narrative-index",    label: "Narrative Index",       desc: "News narrative lifecycle stage",      defaultW: 8, defaultH: 2, minW: 1 },
 ];
 
 // ─── Widget renderer ──────────────────────────────────────────────────────────
@@ -250,7 +250,7 @@ export default function WidgetCanvas() {
 
   const glLayout = widgets.map((w) => {
     const cat = CATALOG.find((c) => c.type === w.type);
-    return { i: w.i, x: w.x, y: w.y, w: w.w, h: w.h, minW: cat?.minW ?? 4, minH: 2 };
+    return { i: w.i, x: w.x, y: w.y, w: w.w, h: w.h, minW: cat?.minW ?? 1, minH: 1 };
   });
 
   const inWatchlist = watchlist.includes(activeTicker);
