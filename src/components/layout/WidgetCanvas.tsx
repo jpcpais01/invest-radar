@@ -126,6 +126,14 @@ export default function WidgetCanvas() {
   // it reflects the initial props, not a user action, and would overwrite
   // the persisted custom layout before Zustand has finished hydrating.
   const mountedRef = useRef(false);
+  // When locked flips we force a GL remount (via key). GL fires onLayoutChange
+  // immediately on mount — reset mountedRef synchronously during render so
+  // that spurious first call is skipped, not written back to the store.
+  const prevLockedRef = useRef(locked);
+  if (prevLockedRef.current !== locked) {
+    prevLockedRef.current = locked;
+    mountedRef.current = false;
+  }
 
   useEffect(() => {
     const update = () => {
@@ -315,7 +323,8 @@ export default function WidgetCanvas() {
           rowHeight={60}
           width={canvasWidth - 16}
           onLayoutChange={handleLayoutChange}
-          draggableHandle={locked ? ".widget-drag-handle-locked-disabled" : ".widget-drag-handle"}
+          key={locked ? "locked" : "unlocked"}
+          draggableHandle=".widget-drag-handle"
           draggableCancel=".widget-body"
           isDraggable={!locked}
           isResizable={!locked}
