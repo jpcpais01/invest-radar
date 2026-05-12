@@ -54,6 +54,8 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
   useEffect(() => { localStorage.setItem(`pp-days-${id}`, String(nDays)); }, [id, nDays]);
   useEffect(() => { localStorage.setItem(`pp-runs-${id}`, String(nRuns)); }, [id, nRuns]);
 
+  const cacheKey = `pp-result-${id}-${ticker}`;
+
   const predict = useCallback(async (days: number, runs: number) => {
     setLoading(true);
     setError(null);
@@ -62,18 +64,23 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
       const json = await res.json();
       if (json.error) throw new Error(json.details?.[0] ?? json.error);
       setData(json);
+      try { localStorage.setItem(cacheKey, JSON.stringify(json)); } catch { /* quota */ }
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
-  }, [ticker]);
+  }, [ticker, cacheKey]);
 
-  // Auto-run on mount / ticker change with default params
+  // On ticker change: restore cached result or auto-run
   useEffect(() => {
-    predict(7, 5);
-    setNDays(7);
-    setNRuns(5);
+    setData(null);
+    setError(null);
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) { setData(JSON.parse(cached)); return; }
+    } catch { /* ignore */ }
+    predict(nDays, nRuns);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
