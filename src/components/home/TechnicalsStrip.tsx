@@ -4,19 +4,14 @@ import { OHLCVBar, TechnicalIndicators } from "@/types/market";
 import { cn } from "@/lib/utils";
 
 interface Props { ticker: string }
-
 type Sig = "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell";
 
 const SIG_CLS: Record<Sig, string> = {
-  "strong-buy":  "text-[#00ff8a] bg-[#00ff8a0e] border-[#00ff8a33]",
-  "buy":         "text-[#00e87c] bg-[#00e87c0a] border-[#00e87c28]",
-  "neutral":     "text-[#5a9e7a] bg-transparent border-[#152b1e]",
-  "sell":        "text-[#ff4545] bg-[#ff45450a] border-[#ff454530]",
-  "strong-sell": "text-[#ff2020] bg-[#ff20200e] border-[#ff202040]",
-};
-const SIG_DOT: Record<Sig, string> = {
-  "strong-buy": "bg-[#00ff8a]", "buy": "bg-[#00e87c]", "neutral": "bg-[#2d5040]",
-  "sell": "bg-[#ff4545]", "strong-sell": "bg-[#ff2020]",
+  "strong-buy":  "text-[#e8c76a] bg-[#e8c76a0a] border-[#e8c76a2a]",
+  "buy":         "text-[#c9a84c] bg-[#c9a84c08] border-[#c9a84c22]",
+  "neutral":     "text-[#7c7890] bg-transparent border-[#1a1a28]",
+  "sell":        "text-[#e05252] bg-[#e052520a] border-[#e0525228]",
+  "strong-sell": "text-[#f04040] bg-[#f040400a] border-[#f0404038]",
 };
 
 function lastValidNum(arr?: number[]) {
@@ -29,17 +24,15 @@ function lastValidNum(arr?: number[]) {
 
 function TechCard({ name, value, signal, sub }: { name: string; value: string; signal: Sig; sub?: string }) {
   return (
-    <div className="flex-shrink-0 flex flex-col gap-2 rounded border border-[#152b1e] bg-[#0a1610] px-4 py-3 min-w-[130px] hover:border-[#1e4030] transition-colors"
-         style={{ boxShadow: signal === "strong-buy" || signal === "buy" ? "inset 0 0 12px rgba(0,232,124,0.04)" : signal === "sell" || signal === "strong-sell" ? "inset 0 0 12px rgba(255,69,69,0.04)" : "none" }}>
+    <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-[#1a1a28] bg-[#0d0d15] px-4 py-3 min-w-[130px] hover:border-[#272738] transition-colors">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[9px] font-bold text-[#2d5040] uppercase tracking-widest">{name}</span>
-        <span className={cn("flex items-center gap-1 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wide", SIG_CLS[signal])}>
-          <span className={cn("w-1.5 h-1.5 rounded-full", SIG_DOT[signal])} />
-          {signal.replace("-", " ")}
+        <span className="text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest">{name}</span>
+        <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full border", SIG_CLS[signal])}>
+          {signal === "strong-buy" ? "S.Buy" : signal === "strong-sell" ? "S.Sell" : signal.charAt(0).toUpperCase() + signal.slice(1)}
         </span>
       </div>
-      <div className="font-mono text-lg font-black text-[#c8edd8] leading-none tabular-nums">{value}</div>
-      {sub && <div className="font-mono text-[9px] text-[#2d5040]">{sub}</div>}
+      <div className="font-mono text-lg font-bold text-[#ede8e0] leading-none tabular-nums">{value}</div>
+      {sub && <div className="text-[9px] text-[#3a3748]">{sub}</div>}
     </div>
   );
 }
@@ -62,70 +55,58 @@ export default function TechnicalsStrip({ ticker }: Props) {
     const out: { name: string; value: string; signal: Sig; sub?: string }[] = [];
 
     const rsi = lastValidNum(ind.rsi);
-    if (rsi != null) {
-      out.push({ name: "RSI 14", value: rsi.toFixed(1),
-        signal: rsi < 20 ? "strong-buy" : rsi < 30 ? "buy" : rsi > 80 ? "strong-sell" : rsi > 70 ? "sell" : "neutral",
-        sub: rsi > 70 ? "OVERBOUGHT" : rsi < 30 ? "OVERSOLD" : "NEUTRAL ZONE" });
-    }
+    if (rsi != null) out.push({ name: "RSI (14)", value: rsi.toFixed(1),
+      signal: rsi < 20 ? "strong-buy" : rsi < 30 ? "buy" : rsi > 80 ? "strong-sell" : rsi > 70 ? "sell" : "neutral",
+      sub: rsi > 70 ? "Overbought" : rsi < 30 ? "Oversold" : "Neutral zone" });
 
     const macdV = lastValidNum(ind.macd?.macd);
     const sigV  = lastValidNum(ind.macd?.signal);
     const hist  = lastValidNum(ind.macd?.histogram);
-    if (macdV != null && sigV != null) {
-      out.push({ name: "MACD", value: macdV.toFixed(3),
-        signal: macdV > sigV ? "buy" : macdV < sigV ? "sell" : "neutral",
-        sub: hist != null ? `HIST ${hist > 0 ? "+" : ""}${hist.toFixed(3)}` : undefined });
-    }
+    if (macdV != null && sigV != null) out.push({ name: "MACD", value: macdV.toFixed(3),
+      signal: macdV > sigV ? "buy" : macdV < sigV ? "sell" : "neutral",
+      sub: hist != null ? `Hist ${hist > 0 ? "+" : ""}${hist.toFixed(3)}` : undefined });
 
     const upper = lastValidNum(ind.bollinger?.upper);
     const lower = lastValidNum(ind.bollinger?.lower);
     const mid   = lastValidNum(ind.bollinger?.middle);
     if (upper != null && lower != null && mid != null) {
       const bw = ((upper - lower) / mid * 100).toFixed(1);
-      const sig: Sig = close > upper ? "sell" : close < lower ? "strong-buy" : "neutral";
-      out.push({ name: "BOLL", value: close > upper ? "ABOVE" : close < lower ? "BELOW" : "INSIDE",
-        signal: sig, sub: `BW ${bw}%` });
+      out.push({ name: "Bollinger", value: close > upper ? "Above" : close < lower ? "Below" : "Inside",
+        signal: close > upper ? "sell" : close < lower ? "strong-buy" : "neutral", sub: `BW ${bw}%` });
     }
 
     const stochK = lastValidNum(ind.stochastic?.k);
     const stochD = lastValidNum(ind.stochastic?.d);
-    if (stochK != null) {
-      out.push({ name: "STOCH", value: stochK.toFixed(1),
-        signal: stochK > 80 ? "sell" : stochK < 20 ? "buy" : "neutral",
-        sub: stochD != null ? `%D ${stochD.toFixed(1)}` : undefined });
-    }
+    if (stochK != null) out.push({ name: "Stochastic", value: stochK.toFixed(1),
+      signal: stochK > 80 ? "sell" : stochK < 20 ? "buy" : "neutral",
+      sub: stochD != null ? `%D ${stochD.toFixed(1)}` : undefined });
 
     const adx = lastValidNum(ind.adx?.adx);
     const pdi = lastValidNum(ind.adx?.pdi);
     const mdi = lastValidNum(ind.adx?.mdi);
-    if (adx != null && pdi != null && mdi != null) {
-      out.push({ name: "ADX/DMI", value: adx.toFixed(1),
-        signal: pdi > mdi ? "buy" : pdi < mdi ? "sell" : "neutral",
-        sub: adx >= 25 ? "STRONG TREND" : "WEAK TREND" });
-    }
+    if (adx != null && pdi != null && mdi != null) out.push({ name: "ADX / DMI", value: adx.toFixed(1),
+      signal: pdi > mdi ? "buy" : pdi < mdi ? "sell" : "neutral",
+      sub: adx >= 25 ? "Strong trend" : "Weak trend" });
 
     const cci = lastValidNum(ind.cci);
-    if (cci != null) {
-      out.push({ name: "CCI 20", value: cci.toFixed(0),
-        signal: cci > 200 ? "strong-sell" : cci > 100 ? "sell" : cci < -200 ? "strong-buy" : cci < -100 ? "buy" : "neutral",
-        sub: cci > 100 ? "OVERBOUGHT" : cci < -100 ? "OVERSOLD" : "NORMAL RANGE" });
-    }
+    if (cci != null) out.push({ name: "CCI (20)", value: cci.toFixed(0),
+      signal: cci > 200 ? "strong-sell" : cci > 100 ? "sell" : cci < -200 ? "strong-buy" : cci < -100 ? "buy" : "neutral",
+      sub: cci > 100 ? "Overbought" : cci < -100 ? "Oversold" : "Normal range" });
 
     return out;
   })();
 
   return (
-    <div className="rounded border border-[#152b1e] bg-[#0a1610] p-4">
+    <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <span className="font-mono text-[10px] text-[#00e87c] tracking-widest">// </span>
-        <span className="font-mono text-xs font-bold text-[#c8edd8] tracking-wider">INDICATORS</span>
-        <span className="font-mono text-[9px] text-[#2d5040] ml-1">3M</span>
+        <span className="text-[#c9a84c] text-[8px]">◆</span>
+        <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">Technical Indicators</span>
+        <span className="text-[9px] text-[#3a3748] ml-1">3M</span>
       </div>
-
       {isLoading ? (
         <div className="flex gap-3 overflow-x-auto pb-1">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex-shrink-0 min-w-[130px] h-[76px] rounded border border-[#152b1e] bg-[#0f2218] animate-pulse" />
+            <div key={i} className="flex-shrink-0 min-w-[130px] h-[76px] rounded-lg bg-[#12121c] animate-pulse" />
           ))}
         </div>
       ) : (

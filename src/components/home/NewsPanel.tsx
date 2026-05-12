@@ -22,69 +22,66 @@ export default function NewsPanel({ ticker }: Props) {
   const neu = articles.length - pos - neg;
 
   return (
-    <div className="rounded border border-[#152b1e] bg-[#0a1610] overflow-hidden hover:border-[#1e4030] transition-colors">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#152b1e]">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-[#00e87c] tracking-widest">// </span>
-          <span className="font-mono text-[11px] font-bold text-[#c8edd8] tracking-wider">NEWS FEED</span>
+    <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a1a28]">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[#c9a84c] text-[8px]">◆</span>
+          <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">News Feed</span>
         </div>
         {articles.length > 0 && (
-          <div className="flex items-center gap-2 font-mono text-[9px]">
-            <span className="text-[#00e87c]">{pos}↑</span>
-            <span className="text-[#2d5040]">{neu}→</span>
-            <span className="text-[#ff4545]">{neg}↓</span>
+          <div className="flex items-center gap-2.5 text-[10px]">
+            <span className="text-[#c9a84c]">{pos} pos</span>
+            <span className="text-[#3a3748]">{neu} neu</span>
+            <span className="text-[#e05252]">{neg} neg</span>
           </div>
         )}
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col divide-y divide-[#152b1e] animate-pulse">
+        <div className="flex flex-col divide-y divide-[#1a1a28] animate-pulse">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="px-4 py-3 flex flex-col gap-1.5">
-              <div className="h-2.5 w-3/4 rounded bg-[#152b1e]" />
-              <div className="h-2 w-1/2 rounded bg-[#152b1e]" />
+              <div className="h-2.5 w-3/4 rounded bg-[#1a1a28]" />
+              <div className="h-2 w-1/2 rounded bg-[#1a1a28]" />
             </div>
           ))}
         </div>
       ) : articles.length === 0 ? (
         <div className="flex items-center justify-center py-8">
-          <p className="font-mono text-[10px] text-[#2d5040]">NO FEED DATA</p>
+          <p className="text-[11px] text-[#3a3748]">No news available</p>
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-[#152b1e]">
+        <div className="flex flex-col divide-y divide-[#1a1a28]">
           {articles.slice(0, 8).map((a, i) => (
             <a
               key={i}
               href={a.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-start gap-3 px-4 py-3 hover:bg-[#0f2218] transition-colors"
+              className="group flex items-start gap-3 px-4 py-3 hover:bg-[#12121c] transition-colors"
             >
-              <span className={cn("mt-1 w-1.5 h-1.5 rounded-sm shrink-0", {
-                "bg-[#00e87c]": a.sentiment === "positive",
-                "bg-[#ff4545]": a.sentiment === "negative",
-                "bg-[#2d5040]": a.sentiment === "neutral",
+              <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", {
+                "bg-[#c9a84c]": a.sentiment === "positive",
+                "bg-[#e05252]": a.sentiment === "negative",
+                "bg-[#3a3748]": a.sentiment === "neutral",
               })} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-[#c8edd8] group-hover:text-white leading-snug line-clamp-2 transition-colors">
+                <p className="text-xs text-[#ede8e0] group-hover:text-white leading-snug line-clamp-2 transition-colors">
                   {a.title}
                 </p>
-                <div className="flex items-center gap-2 mt-1 font-mono text-[9px] text-[#2d5040]">
+                <div className="flex items-center gap-2 mt-1 text-[9px] text-[#3a3748]">
                   {a.source && <span>{a.source}</span>}
                   {a.publishedAt && (
-                    <>
-                      <span>·</span>
-                      <span>{new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                    </>
+                    <><span>·</span><span>{new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>
                   )}
-                  <span className={cn("ml-auto uppercase font-bold tracking-wide", {
-                    "text-[#00e87c]": a.sentiment === "positive",
-                    "text-[#ff4545]": a.sentiment === "negative",
-                    "text-[#5a9e7a]": a.sentiment === "neutral",
+                  <span className={cn("ml-auto capitalize font-medium", {
+                    "text-[#c9a84c]": a.sentiment === "positive",
+                    "text-[#e05252]": a.sentiment === "negative",
+                    "text-[#7c7890]": a.sentiment === "neutral",
                   })}>{a.sentiment}</span>
                 </div>
               </div>
-              <ExternalLink className="w-3 h-3 text-[#152b1e] group-hover:text-[#2d5040] shrink-0 mt-0.5 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-[#1a1a28] group-hover:text-[#3a3748] shrink-0 mt-1 transition-colors" />
             </a>
           ))}
         </div>

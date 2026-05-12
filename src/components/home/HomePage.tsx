@@ -12,7 +12,6 @@ import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
 
 const POPULAR = ["AAPL","NVDA","MSFT","TSLA","AMZN","META","GOOGL","AMD","NFLX","JPM","SPY","QQQ"];
-
 type Tab = "overview" | "discover";
 
 export default function HomePage() {
@@ -39,55 +38,54 @@ export default function HomePage() {
 
   return (
     <div
-      className="h-screen overflow-y-auto text-[#c8edd8]"
+      className="h-screen overflow-y-auto text-[#ede8e0]"
       style={{
-        background: "#060d09",
-        backgroundImage: "radial-gradient(rgba(0,232,124,0.055) 1px, transparent 1px)",
-        backgroundSize: "28px 28px",
+        background: "radial-gradient(ellipse 100% 50% at 50% -5%, rgba(201,168,76,0.05) 0%, transparent 65%), #09090e",
         scrollbarWidth: "thin",
-        scrollbarColor: "#152b1e transparent",
+        scrollbarColor: "#1a1a28 transparent",
       }}
     >
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-[#152b1e] backdrop-blur-md" style={{ background: "rgba(6,13,9,0.92)" }}>
+      <header className="sticky top-0 z-40 border-b border-[#1a1a28]" style={{ background: "rgba(9,9,14,0.92)", backdropFilter: "blur(12px)" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
 
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-7 h-7 rounded border border-[#00e87c44] bg-[#00e87c12] flex items-center justify-center group-hover:border-[#00e87c88] transition-colors">
-              <span className="font-mono text-[10px] font-bold text-[#00e87c]">&gt;_</span>
+          <a href="/" className="flex items-center gap-2.5 shrink-0 group">
+            <div className="w-7 h-7 rounded-md border border-[#c9a84c33] bg-[#c9a84c08] flex items-center justify-center group-hover:border-[#c9a84c66] transition-colors">
+              <span className="text-[#c9a84c] text-[10px] font-bold">◆</span>
             </div>
-            <span className="font-mono font-bold text-sm text-[#c8edd8] hidden sm:block tracking-tight">
-              OPEN <span className="text-[#00e87c]">TERMINAL</span>
-            </span>
+            <div className="hidden sm:flex flex-col leading-none">
+              <span className="text-xs font-semibold text-[#ede8e0] tracking-wide">Open Terminal</span>
+              <span className="text-[8px] text-[#3a3748] tracking-widest uppercase">by open source</span>
+            </div>
           </a>
 
           {/* Ticker search */}
           <div className="relative flex-1 min-w-0">
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 w-full px-3 py-1.5 rounded border border-[#152b1e] bg-[#0a1610] hover:border-[#1e4030] transition-colors text-left"
+              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md border border-[#1a1a28] bg-[#0d0d15] hover:border-[#272738] transition-colors text-left"
             >
-              <span className="font-mono text-[10px] text-[#00e87c] shrink-0">$</span>
-              <span className="font-mono text-sm font-bold text-[#c8edd8] truncate">{activeTicker}</span>
-              <span className="text-[10px] text-[#2d5040] ml-auto hidden sm:block font-mono whitespace-nowrap">search ticker_</span>
+              <Search className="w-3.5 h-3.5 text-[#3a3748] shrink-0" />
+              <span className="text-sm font-semibold text-[#ede8e0] truncate font-mono">{activeTicker}</span>
+              <span className="text-[10px] text-[#3a3748] ml-auto hidden sm:block">Search ticker</span>
             </button>
 
             {searchOpen && (
-              <div className="absolute top-full left-0 mt-1 rounded border border-[#1e4030] bg-[#0a1610] shadow-2xl shadow-black/70 overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
-                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,232,124,0.1)" }}>
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#152b1e]">
-                  <span className="font-mono text-[10px] text-[#00e87c] shrink-0">$</span>
+              <div className="absolute top-full left-0 mt-1 rounded-md border border-[#272738] bg-[#0d0d15] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
+                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(201,168,76,0.08)" }}>
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1a1a28]">
+                  <Search className="w-3.5 h-3.5 text-[#3a3748] shrink-0" />
                   <input
                     autoFocus
                     value={query}
                     onChange={e => setQuery(e.target.value.toUpperCase())}
                     onKeyDown={handleSearchKey}
-                    placeholder="TYPE TICKER…"
-                    className="flex-1 bg-transparent font-mono text-sm text-[#c8edd8] placeholder-[#2d5040] outline-none min-w-0 uppercase"
+                    placeholder="Type ticker…"
+                    className="flex-1 bg-transparent text-sm font-mono text-[#ede8e0] placeholder-[#3a3748] outline-none min-w-0"
                   />
                   <button onClick={() => { setSearchOpen(false); setQuery(""); }}>
-                    <X className="w-3.5 h-3.5 text-[#2d5040] hover:text-[#c8edd8]" />
+                    <X className="w-3.5 h-3.5 text-[#3a3748] hover:text-[#ede8e0] transition-colors" />
                   </button>
                 </div>
                 <div className="py-1 max-h-64 overflow-y-auto">
@@ -96,13 +94,12 @@ export default function HomePage() {
                       key={t}
                       onClick={() => selectTicker(t)}
                       className={cn(
-                        "w-full text-left px-3 py-2 font-mono text-sm hover:bg-[#0f2218] transition-colors flex items-center gap-2",
-                        t === activeTicker ? "text-[#00e87c]" : "text-[#c8edd8]"
+                        "w-full text-left px-4 py-2 text-sm hover:bg-[#12121c] transition-colors flex items-center gap-2",
+                        t === activeTicker ? "text-[#c9a84c]" : "text-[#ede8e0]"
                       )}
                     >
-                      <span className="text-[#2d5040] text-xs">›</span>
-                      <span className="font-medium">{t}</span>
-                      {watchlist.includes(t) && <span className="text-[9px] text-[#2d5040] font-mono ml-auto">watchlist</span>}
+                      <span className="font-mono font-medium">{t}</span>
+                      {watchlist.includes(t) && <span className="text-[9px] text-[#3a3748] ml-auto">watchlist</span>}
                     </button>
                   ))}
                 </div>
@@ -111,37 +108,26 @@ export default function HomePage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center border border-[#152b1e] rounded p-0.5 shrink-0 bg-[#0a1610]">
+          <div className="flex items-center border border-[#1a1a28] rounded-md p-0.5 shrink-0 bg-[#0d0d15]">
             <button
               onClick={() => setActiveTab("overview")}
-              className={cn(
-                "px-2.5 sm:px-3 py-1 rounded-sm font-mono text-[11px] font-semibold tracking-wider transition-colors",
-                activeTab === "overview"
-                  ? "bg-[#00e87c18] text-[#00e87c] border border-[#00e87c33]"
-                  : "text-[#5a9e7a] hover:text-[#c8edd8]"
-              )}
-            >OVERVIEW</button>
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#c9a84c15] text-[#c9a84c] border border-[#c9a84c28]" : "text-[#7c7890] hover:text-[#ede8e0]")}
+            >Overview</button>
             <button
               onClick={() => setActiveTab("discover")}
-              className={cn(
-                "px-2.5 sm:px-3 py-1 rounded-sm font-mono text-[11px] font-semibold tracking-wider transition-colors flex items-center gap-1",
-                activeTab === "discover"
-                  ? "bg-[#00e87c18] text-[#00e87c] border border-[#00e87c33]"
-                  : "text-[#5a9e7a] hover:text-[#c8edd8]"
-              )}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#c9a84c15] text-[#c9a84c] border border-[#c9a84c28]" : "text-[#7c7890] hover:text-[#ede8e0]")}
             >
-              <Compass className="w-3 h-3" />
-              <span className="hidden sm:inline">SCAN</span>
+              <Compass className="w-3 h-3" /><span className="hidden sm:inline">Discover</span>
             </button>
           </div>
 
           {/* Terminal button */}
           <a
             href={`/terminal/${activeTicker}`}
-            className="shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded border border-[#00e87c33] bg-[#00e87c0a] text-[#00e87c] font-mono text-[11px] font-semibold tracking-wider hover:bg-[#00e87c18] hover:border-[#00e87c66] transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c9a84c28] bg-[#c9a84c08] text-[#c9a84c] text-xs font-medium hover:bg-[#c9a84c15] hover:border-[#c9a84c44] transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:block whitespace-nowrap">ADVANCED</span>
+            <span className="hidden sm:block whitespace-nowrap">Terminal</span>
           </a>
         </div>
       </header>
@@ -150,9 +136,8 @@ export default function HomePage() {
       {activeTab === "overview" ? (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-16">
           <PriceHero ticker={activeTicker} />
-
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5">
               <AIPredPanel ticker={activeTicker} />
               <SignalCard ticker={activeTicker} />
               <NewsPanel ticker={activeTicker} />

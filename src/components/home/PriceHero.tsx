@@ -8,11 +8,11 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 interface Props { ticker: string }
 
 const SIGNAL_CONFIG = {
-  "strong-buy":  { label: "STRONG BUY",  cls: "text-[#00ff8a] border-[#00ff8a44] bg-[#00ff8a0e]", dot: "#00ff8a" },
-  "buy":         { label: "BUY",          cls: "text-[#00e87c] border-[#00e87c44] bg-[#00e87c0e]", dot: "#00e87c" },
-  "neutral":     { label: "NEUTRAL",      cls: "text-[#5a9e7a] border-[#5a9e7a44] bg-transparent",  dot: "#5a9e7a" },
-  "sell":        { label: "SELL",         cls: "text-[#ff4545] border-[#ff454544] bg-[#ff45450e]", dot: "#ff4545" },
-  "strong-sell": { label: "STRONG SELL",  cls: "text-[#ff2020] border-[#ff202055] bg-[#ff20200e]", dot: "#ff2020" },
+  "strong-buy":  { label: "Strong Buy",  cls: "text-[#e8c76a] border-[#e8c76a33] bg-[#e8c76a0a]", dot: "#e8c76a" },
+  "buy":         { label: "Buy",          cls: "text-[#c9a84c] border-[#c9a84c33] bg-[#c9a84c0a]", dot: "#c9a84c" },
+  "neutral":     { label: "Neutral",      cls: "text-[#7c7890] border-[#272738]   bg-transparent",  dot: "#5a5570" },
+  "sell":        { label: "Sell",         cls: "text-[#e05252] border-[#e0525233] bg-[#e052520a]", dot: "#e05252" },
+  "strong-sell": { label: "Strong Sell",  cls: "text-[#f04040] border-[#f0404044] bg-[#f040400a]", dot: "#f04040" },
 };
 
 export default function PriceHero({ ticker }: Props) {
@@ -41,106 +41,90 @@ export default function PriceHero({ ticker }: Props) {
     if (!indData?.indicators || !price) return null;
     return computeSignalSummary(indData.indicators, price).overall;
   })();
-
   const sigCfg = signal ? SIGNAL_CONFIG[signal] : null;
 
   return (
     <div
-      className="relative rounded border border-[#152b1e] overflow-hidden"
+      className="relative rounded-lg border border-[#1a1a28] overflow-hidden px-6 py-6"
       style={{
-        background: "linear-gradient(135deg, #0a1610 0%, #060d09 100%)",
-        boxShadow: isUp
-          ? "0 0 40px rgba(0,232,124,0.06), inset 0 1px 0 rgba(0,232,124,0.08)"
-          : "0 0 40px rgba(255,69,69,0.06), inset 0 1px 0 rgba(255,69,69,0.08)",
+        background: "linear-gradient(135deg, #0d0d15 0%, #09090e 100%)",
+        boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset",
       }}
     >
-      {/* Scanline overlay */}
-      <div className="absolute inset-0 pointer-events-none opacity-30"
-           style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,232,124,0.012) 3px, rgba(0,232,124,0.012) 4px)" }} />
+      {/* Subtle top-edge gold line */}
+      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(201,168,76,0.25) 40%, rgba(201,168,76,0.25) 60%, transparent 100%)" }} />
 
-      {/* Corner decorations */}
-      <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#00e87c33]" />
-      <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#00e87c33]" />
-      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#00e87c33]" />
-      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#00e87c33]" />
-
-      <div className="relative px-6 py-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            {/* Header row */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-[10px] text-[#00e87c] tracking-widest">// MARKET_DATA</span>
-            </div>
-            <div className="flex items-center gap-3 mb-1">
-              <span className="font-mono text-3xl sm:text-4xl font-black tracking-tight text-[#c8edd8]">{ticker}</span>
-              {sigCfg && (
-                <span className={cn("font-mono text-[10px] font-bold px-2 py-0.5 rounded border tracking-widest", sigCfg.cls)}>
-                  {sigCfg.label}
-                </span>
-              )}
-            </div>
-            {name !== ticker && (
-              <p className="font-mono text-[11px] text-[#5a9e7a] truncate max-w-xs">{name}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+        <div>
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-3xl sm:text-4xl font-bold tracking-tight text-[#ede8e0] font-mono">{ticker}</span>
+            {sigCfg && (
+              <span className={cn("text-[10px] font-semibold px-2.5 py-0.5 rounded-full border tracking-wide", sigCfg.cls)}>
+                {sigCfg.label}
+              </span>
             )}
           </div>
-
-          <div className="flex flex-col items-start sm:items-end gap-1">
-            {price != null ? (
-              <>
-                <span
-                  className="font-mono text-4xl sm:text-5xl font-black tabular-nums tracking-tight"
-                  style={{
-                    color: isUp ? "#00e87c" : "#ff4545",
-                    textShadow: isUp
-                      ? "0 0 20px rgba(0,232,124,0.4), 0 0 40px rgba(0,232,124,0.15)"
-                      : "0 0 20px rgba(255,69,69,0.4), 0 0 40px rgba(255,69,69,0.15)",
-                  }}
-                >
-                  ${price.toFixed(2)}
-                </span>
-                <div className={cn("flex items-center gap-1.5 font-mono text-sm font-semibold", isUp ? "text-[#00e87c]" : "text-[#ff4545]")}>
-                  {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                  <span>{isUp ? "+" : ""}{change?.toFixed(2)}</span>
-                  <span className="opacity-75">({isUp ? "+" : ""}{pct?.toFixed(2)}%)</span>
-                </div>
-                <div className="flex items-center gap-1.5 font-mono text-[10px] text-[#2d5040]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#00e87c] animate-pulse inline-block" />
-                  LIVE FEED
-                </div>
-              </>
-            ) : (
-              <div className="animate-pulse space-y-2">
-                <div className="h-10 w-36 rounded bg-[#152b1e]" />
-                <div className="h-4 w-24 rounded bg-[#152b1e]" />
-              </div>
-            )}
-          </div>
+          {name !== ticker && (
+            <p className="text-sm text-[#7c7890]">{name}</p>
+          )}
         </div>
 
-        {/* Signal strip */}
-        {indData?.indicators && price && (() => {
-          const s = computeSignalSummary(indData.indicators, price);
-          const total = s.strongBuys + s.buys + s.neutrals + s.sells + s.strongSells;
-          const pctBuy = total ? ((s.strongBuys + s.buys) / total) * 100 : 0;
-          const pctNeu = total ? (s.neutrals / total) * 100 : 0;
-          const pctSel = total ? ((s.sells + s.strongSells) / total) * 100 : 0;
-          return (
-            <div className="mt-5 pt-4 border-t border-[#152b1e] flex items-center gap-3">
-              <div className="flex-1 h-1.5 rounded-sm overflow-hidden flex" style={{ background: "#0f2218" }}>
-                <div className="bg-[#00ff8a] transition-all" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#00e87c] transition-all" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#2d5040] transition-all" style={{ width: `${pctNeu}%` }} />
-                <div className="bg-[#ff4545] transition-all" style={{ width: `${pctSel}%` }} />
+        <div className="flex flex-col items-start sm:items-end gap-1.5">
+          {price != null ? (
+            <>
+              <span
+                className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight font-mono"
+                style={{
+                  color: isUp ? "#c9a84c" : "#e05252",
+                  textShadow: isUp ? "0 0 32px rgba(201,168,76,0.3)" : "0 0 32px rgba(224,82,82,0.3)",
+                }}
+              >
+                ${price.toFixed(2)}
+              </span>
+              <div className={cn("flex items-center gap-1.5 text-sm font-medium", isUp ? "text-[#c9a84c]" : "text-[#e05252]")}>
+                {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                <span className="font-mono">{isUp ? "+" : ""}{change?.toFixed(2)}</span>
+                <span className="opacity-70 font-mono">({isUp ? "+" : ""}{pct?.toFixed(2)}%)</span>
               </div>
-              <div className="flex items-center gap-3 font-mono text-[10px] shrink-0">
-                <span className="text-[#00e87c]">{s.strongBuys + s.buys} BUY</span>
-                <span className="text-[#2d5040]">{s.neutrals} NEU</span>
-                <span className="text-[#ff4545]">{s.sells + s.strongSells} SELL</span>
+              <div className="flex items-center gap-1.5 text-[10px] text-[#3a3748]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#c9a84c] animate-pulse inline-block" />
+                Live quote
+              </div>
+            </>
+          ) : (
+            <div className="animate-pulse space-y-2">
+              <div className="h-10 w-36 rounded-md bg-[#1a1a28]" />
+              <div className="h-4 w-24 rounded bg-[#1a1a28]" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Signal strip */}
+      {indData?.indicators && price && (() => {
+        const s = computeSignalSummary(indData.indicators, price);
+        const total = s.strongBuys + s.buys + s.neutrals + s.sells + s.strongSells;
+        const pctBuy = total ? ((s.strongBuys + s.buys) / total) * 100 : 0;
+        const pctNeu = total ? (s.neutrals / total) * 100 : 0;
+        const pctSel = total ? ((s.sells + s.strongSells) / total) * 100 : 0;
+        return (
+          <div className="mt-5 pt-4 border-t border-[#1a1a28] flex items-center gap-4">
+            <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#12121c]">
+              <div className="h-full flex">
+                <div className="bg-[#e8c76a]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#c9a84c]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#2a2a3e]" style={{ width: `${pctNeu}%` }} />
+                <div className="bg-[#e05252]" style={{ width: `${pctSel}%` }} />
               </div>
             </div>
-          );
-        })()}
-      </div>
+            <div className="flex items-center gap-4 text-[11px] shrink-0">
+              <span className="text-[#c9a84c] font-medium">{s.strongBuys + s.buys} Buy</span>
+              <span className="text-[#3a3748]">{s.neutrals} Neutral</span>
+              <span className="text-[#e05252] font-medium">{s.sells + s.strongSells} Sell</span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

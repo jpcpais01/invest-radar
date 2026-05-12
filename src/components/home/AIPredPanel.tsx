@@ -76,17 +76,17 @@ export default function AIPredPanel({ ticker }: Props) {
     const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
     const chart = createChart(el, {
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#5a9e7a", fontSize: 10 },
-      grid: { vertLines: { color: "#152b1e" }, horzLines: { color: "#152b1e" } },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#7c7890", fontSize: 10 },
+      grid: { vertLines: { color: "#1a1a28" }, horzLines: { color: "#1a1a28" } },
       crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: "#152b1e" },
-      timeScale: { borderColor: "#152b1e", timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: "#1a1a28" },
+      timeScale: { borderColor: "#1a1a28", timeVisible: true, secondsVisible: false },
       width: w, height: h,
     });
-    histRef.current  = chart.addSeries(LineSeries, { color: "#5a9e7a", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    upperRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "rgba(184,125,255,0.15)", bottomColor: "rgba(184,125,255,0.03)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    histRef.current  = chart.addSeries(LineSeries, { color: "#3a3748", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    upperRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "rgba(201,168,76,0.12)", bottomColor: "rgba(201,168,76,0.02)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
     lowerRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "transparent", bottomColor: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    meanRef.current  = chart.addSeries(LineSeries, { color: "#b87dff", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
+    meanRef.current  = chart.addSeries(LineSeries, { color: "#c9a84c", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
     chartRef.current = chart;
     const ro = new ResizeObserver(() => { const nw = el.clientWidth, nh = el.clientHeight; if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh }); });
     ro.observe(el);
@@ -114,26 +114,25 @@ export default function AIPredPanel({ ticker }: Props) {
   const isUp       = (predChange ?? 0) >= 0;
 
   return (
-    <div className="rounded border border-[#b87dff33] bg-[#0a1610] overflow-hidden"
-         style={{ boxShadow: "0 0 40px rgba(184,125,255,0.06), inset 0 1px 0 rgba(184,125,255,0.06)" }}>
+    <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 sm:px-5 pt-4 pb-3 border-b border-[#152b1e]">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 pt-3 pb-3 border-b border-[#1a1a28]">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[#c9a84c] text-[8px]">◆</span>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-[#b87dff] tracking-widest">// </span>
-              <span className="font-mono text-xs font-bold text-[#c8edd8] tracking-wider">AI PRICE FORECAST</span>
-            </div>
-            <div className="font-mono text-[9px] text-[#2d5040] tracking-wide">LLM ENSEMBLE · MONTE CARLO</div>
+            <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">AI Price Forecast</span>
+            <p className="text-[9px] text-[#3a3748] mt-0.5">LLM Ensemble · Monte Carlo</p>
           </div>
         </div>
         {data && lastClose && predFinal && (
           <div className="text-right">
-            <div className={cn("font-mono text-xl font-black tabular-nums", isUp ? "text-[#00e87c]" : "text-[#ff4545]")}
-                 style={{ textShadow: isUp ? "0 0 16px rgba(0,232,124,0.4)" : "0 0 16px rgba(255,69,69,0.4)" }}>
+            <div
+              className={cn("text-xl font-bold tabular-nums font-mono", isUp ? "text-[#c9a84c]" : "text-[#e05252]")}
+              style={{ textShadow: isUp ? "0 0 20px rgba(201,168,76,0.3)" : "0 0 20px rgba(224,82,82,0.3)" }}
+            >
               ${predFinal.toFixed(2)}
             </div>
-            <div className={cn("font-mono text-[10px] font-bold flex items-center gap-1 justify-end", isUp ? "text-[#00e87c]" : "text-[#ff4545]")}>
+            <div className={cn("text-[10px] font-medium flex items-center gap-1 justify-end", isUp ? "text-[#c9a84c]" : "text-[#e05252]")}>
               {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {isUp ? "+" : ""}{predChange?.toFixed(2)}% · {data.n}D
             </div>
@@ -146,25 +145,25 @@ export default function AIPredPanel({ ticker }: Props) {
         {loading && !data && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full border-2 border-[#b87dff44] border-t-[#b87dff] animate-spin" />
-              <Sparkles className="w-4 h-4 text-[#b87dff] absolute inset-0 m-auto" />
+              <div className="w-10 h-10 rounded-full border-2 border-[#c9a84c22] border-t-[#c9a84c] animate-spin" />
+              <Sparkles className="w-4 h-4 text-[#c9a84c] absolute inset-0 m-auto" />
             </div>
-            <p className="font-mono text-[10px] text-[#2d5040] tracking-widest">RUNNING {nRuns} SCENARIOS…</p>
+            <p className="text-[10px] text-[#3a3748]">Running {nRuns} scenarios…</p>
           </div>
         )}
         {error && !data && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="font-mono text-[10px] text-[#ff4545]">{error}</p>
+            <p className="text-[10px] text-[#e05252]">{error}</p>
           </div>
         )}
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3 border-t border-[#152b1e]" style={{ background: "#060d09" }}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-t border-[#1a1a28]">
         {data && (
-          <div className="flex items-center gap-1.5 font-mono text-[9px] text-[#2d5040]">
-            <Sparkles className="w-3 h-3 text-[#b87dff]" />
-            <span>{data.successfulRuns}/{data.totalRuns} RUNS</span>
+          <div className="flex items-center gap-1.5 text-[9px] text-[#3a3748]">
+            <Sparkles className="w-3 h-3 text-[#c9a84c]" />
+            <span>{data.successfulRuns}/{data.totalRuns} runs</span>
           </div>
         )}
 
@@ -172,33 +171,33 @@ export default function AIPredPanel({ ticker }: Props) {
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1">
-            <span className="font-mono text-[9px] text-[#2d5040] uppercase tracking-widest">D</span>
+            <span className="text-[9px] text-[#3a3748] uppercase tracking-widest">Days</span>
             <div className="flex items-center gap-0.5">
-              <button onClick={() => setNDays((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Minus className="w-3 h-3" /></button>
-              <span className="font-mono text-xs text-[#c8edd8] w-5 text-center tabular-nums">{nDays}</span>
-              <button onClick={() => setNDays((v: number) => Math.min(30, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Plus className="w-3 h-3" /></button>
+              <button onClick={() => setNDays((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3748] hover:text-[#ede8e0] hover:bg-[#12121c]"><Minus className="w-3 h-3" /></button>
+              <span className="text-xs text-[#ede8e0] w-5 text-center tabular-nums font-mono">{nDays}</span>
+              <button onClick={() => setNDays((v: number) => Math.min(30, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3748] hover:text-[#ede8e0] hover:bg-[#12121c]"><Plus className="w-3 h-3" /></button>
             </div>
           </div>
-          <div className="w-px h-3 bg-[#152b1e]" />
+          <div className="w-px h-3 bg-[#1a1a28]" />
           <div className="flex items-center gap-1">
-            <span className="font-mono text-[9px] text-[#2d5040] uppercase tracking-widest">R</span>
+            <span className="text-[9px] text-[#3a3748] uppercase tracking-widest">Runs</span>
             <div className="flex items-center gap-0.5">
-              <button onClick={() => setNRuns((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Minus className="w-3 h-3" /></button>
-              <span className="font-mono text-xs text-[#c8edd8] w-5 text-center tabular-nums">{nRuns}</span>
-              <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Plus className="w-3 h-3" /></button>
+              <button onClick={() => setNRuns((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3748] hover:text-[#ede8e0] hover:bg-[#12121c]"><Minus className="w-3 h-3" /></button>
+              <span className="text-xs text-[#ede8e0] w-5 text-center tabular-nums font-mono">{nRuns}</span>
+              <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3748] hover:text-[#ede8e0] hover:bg-[#12121c]"><Plus className="w-3 h-3" /></button>
             </div>
           </div>
           <button
             onClick={() => predict(nDays, nRuns)}
             disabled={loading}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[10px] font-bold tracking-wider transition-all whitespace-nowrap",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
               loading
-                ? "text-[#2d5040] border-[#152b1e] cursor-not-allowed"
-                : "text-[#b87dff] bg-[#b87dff0a] border-[#b87dff33] hover:bg-[#b87dff18] hover:border-[#b87dff66]"
+                ? "text-[#3a3748] border-[#1a1a28] cursor-not-allowed"
+                : "text-[#c9a84c] bg-[#c9a84c0a] border-[#c9a84c33] hover:bg-[#c9a84c18] hover:border-[#c9a84c55]"
             )}
           >
-            {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />RUNNING…</> : <><Sparkles className="w-3 h-3" />PREDICT</>}
+            {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</> : <><Sparkles className="w-3 h-3" />Predict</>}
           </button>
         </div>
       </div>

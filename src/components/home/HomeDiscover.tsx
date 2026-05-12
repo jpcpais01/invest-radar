@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { RefreshCw, ChevronUp, ChevronDown, Compass } from "lucide-react";
+import { RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
 
 interface Props { onSelectTicker: (t: string) => void }
 
@@ -39,29 +39,29 @@ function scoreCategory(score: number): FilterTab {
 }
 
 const PILL: Record<SignalValue, string> = {
-  "strong-buy":  "text-[#00ff8a] bg-[#00ff8a0e] border-[#00ff8a33]",
-  "buy":         "text-[#00e87c] bg-[#00e87c0a] border-[#00e87c28]",
-  "neutral":     "text-[#5a9e7a] bg-transparent border-[#152b1e]",
-  "sell":        "text-[#ff4545] bg-[#ff45450a] border-[#ff454530]",
-  "strong-sell": "text-[#ff2020] bg-[#ff20200e] border-[#ff202040]",
+  "strong-buy":  "text-[#e8c76a] bg-[#e8c76a0a] border-[#e8c76a2a]",
+  "buy":         "text-[#c9a84c] bg-[#c9a84c08] border-[#c9a84c22]",
+  "neutral":     "text-[#7c7890] bg-transparent border-[#1a1a28]",
+  "sell":        "text-[#e05252] bg-[#e052520a] border-[#e0525228]",
+  "strong-sell": "text-[#f04040] bg-[#f040400a] border-[#f0404038]",
 };
 
 const FILTERS: { id: FilterTab; label: string }[] = [
-  { id: "all", label: "ALL" },
-  { id: "strong-buy", label: "S.BUY" },
-  { id: "buy", label: "BUY" },
-  { id: "neutral", label: "NEUTRAL" },
-  { id: "sell", label: "SELL" },
-  { id: "strong-sell", label: "S.SELL" },
+  { id: "all",         label: "All" },
+  { id: "strong-buy",  label: "Strong Buy" },
+  { id: "buy",         label: "Buy" },
+  { id: "neutral",     label: "Neutral" },
+  { id: "sell",        label: "Sell" },
+  { id: "strong-sell", label: "Strong Sell" },
 ];
 
 const FILTER_ACTIVE: Record<FilterTab, string> = {
-  all:           "text-[#c8edd8] border-[#00e87c44] bg-[#00e87c0a]",
-  "strong-buy":  "text-[#00ff8a] border-[#00ff8a44] bg-[#00ff8a0e]",
-  buy:           "text-[#00e87c] border-[#00e87c33] bg-[#00e87c0a]",
-  neutral:       "text-[#5a9e7a] border-[#5a9e7a44] bg-[#5a9e7a0a]",
-  sell:          "text-[#ff4545] border-[#ff454533] bg-[#ff45450a]",
-  "strong-sell": "text-[#ff2020] border-[#ff202044] bg-[#ff20200e]",
+  all:           "text-[#ede8e0] border-[#272738] bg-[#12121c]",
+  "strong-buy":  "text-[#e8c76a] border-[#e8c76a2a] bg-[#e8c76a0a]",
+  buy:           "text-[#c9a84c] border-[#c9a84c33] bg-[#c9a84c0a]",
+  neutral:       "text-[#7c7890] border-[#272738] bg-[#12121c]",
+  sell:          "text-[#e05252] border-[#e0525233] bg-[#e052520a]",
+  "strong-sell": "text-[#f04040] border-[#f0404044] bg-[#f040400a]",
 };
 
 const CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -83,8 +83,8 @@ function writeCache(tf: string, results: ScanResult[]) {
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
   if (col !== sortKey) return <ChevronUp className="w-3 h-3 opacity-20" />;
   return sortDir === "asc"
-    ? <ChevronUp className="w-3 h-3 text-[#388bfd]" />
-    : <ChevronDown className="w-3 h-3 text-[#388bfd]" />;
+    ? <ChevronUp className="w-3 h-3 text-[#c9a84c]" />
+    : <ChevronDown className="w-3 h-3 text-[#c9a84c]" />;
 }
 
 export default function HomeDiscover({ onSelectTicker }: Props) {
@@ -155,35 +155,36 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[#c9a84c] text-[8px]">◆</span>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-[#00e87c] tracking-widest">// </span>
-              <h2 className="font-mono text-sm font-bold text-[#c8edd8] tracking-wider">SIGNAL SCANNER</h2>
-            </div>
-            <p className="font-mono text-[9px] text-[#2d5040] tracking-wide">
-              {results.length > 0 ? `${results.length} STOCKS · TECHNICAL CONSENSUS` : "TECHNICAL INDICATOR SCREENING"}
+            <h2 className="text-sm font-semibold text-[#ede8e0] tracking-wide">Signal Scanner</h2>
+            <p className="text-[9px] text-[#3a3748] mt-0.5">
+              {results.length > 0 ? `${results.length} stocks · Technical consensus` : "Technical indicator screening"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Timeframe */}
-          <div className="flex items-center bg-[#0a1610] border border-[#152b1e] rounded overflow-hidden">
+          <div className="flex items-center border border-[#1a1a28] rounded-md overflow-hidden">
             {["1M","3M","6M","1Y"].map(t => (
               <button
                 key={t}
                 onClick={() => handleTf(t)}
-                className={cn("px-3 py-1.5 font-mono text-[10px] font-semibold tracking-wider transition-colors", t === tf ? "bg-[#00e87c0a] text-[#00e87c]" : "text-[#5a9e7a] hover:text-[#c8edd8]")}
+                className={cn(
+                  "px-3 py-1.5 text-[10px] font-semibold tracking-wide transition-colors",
+                  t === tf ? "bg-[#c9a84c0a] text-[#c9a84c]" : "text-[#7c7890] hover:text-[#ede8e0]"
+                )}
               >{t}</button>
             ))}
           </div>
           <button
             onClick={() => scan(PRESET_TICKERS, tf)}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] font-semibold tracking-wider rounded border border-[#152b1e] bg-[#0a1610] text-[#5a9e7a] hover:text-[#c8edd8] hover:border-[#1e4030] disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold tracking-wide rounded-md border border-[#1a1a28] text-[#7c7890] hover:text-[#ede8e0] hover:border-[#272738] disabled:opacity-40 transition-colors"
           >
             <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-            {loading ? "SCANNING…" : "RESCAN"}
+            {loading ? "Scanning…" : "Rescan"}
           </button>
         </div>
       </div>
@@ -195,8 +196,8 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
             key={tab.id}
             onClick={() => setFilter(tab.id)}
             className={cn(
-              "px-2.5 py-1 rounded border font-mono text-[9px] font-bold tracking-widest transition-colors",
-              filter === tab.id ? FILTER_ACTIVE[tab.id] : "text-[#2d5040] border-[#152b1e] hover:border-[#1e4030] hover:text-[#5a9e7a] bg-transparent"
+              "px-2.5 py-1 rounded-full border text-[9px] font-semibold tracking-wide transition-colors",
+              filter === tab.id ? FILTER_ACTIVE[tab.id] : "text-[#3a3748] border-[#1a1a28] hover:border-[#272738] hover:text-[#7c7890] bg-transparent"
             )}
           >
             {tab.label}
@@ -206,58 +207,58 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       </div>
 
       {/* Table */}
-      <div className="rounded border border-[#152b1e] bg-[#060d09] overflow-hidden">
+      <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] overflow-hidden">
         {loading && results.length === 0 ? (
           <div className="flex flex-col animate-pulse">
-            <div className="flex items-center px-4 py-2.5 border-b border-[#152b1e] bg-[#0a1610] gap-4">
+            <div className="flex items-center px-4 py-2.5 border-b border-[#1a1a28] bg-[#12121c] gap-4">
               {["Ticker","Price","Chg%","Score","Signals"].map(h => (
-                <div key={h} className="h-2 w-12 rounded bg-[#152b1e]" />
+                <div key={h} className="h-2 w-12 rounded bg-[#1a1a28]" />
               ))}
             </div>
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="flex items-center px-4 py-3 border-b border-[#0a1610] gap-4">
-                <div className="h-2.5 w-12 rounded bg-[#152b1e]" />
-                <div className="h-2.5 w-16 rounded bg-[#152b1e]" />
-                <div className="h-2.5 w-12 rounded bg-[#152b1e]" />
-                <div className="h-2.5 w-10 rounded bg-[#152b1e]" />
-                <div className="h-2.5 w-20 rounded bg-[#152b1e]" />
+              <div key={i} className="flex items-center px-4 py-3 border-b border-[#12121c] gap-4">
+                <div className="h-2.5 w-12 rounded bg-[#1a1a28]" />
+                <div className="h-2.5 w-16 rounded bg-[#1a1a28]" />
+                <div className="h-2.5 w-12 rounded bg-[#1a1a28]" />
+                <div className="h-2.5 w-10 rounded bg-[#1a1a28]" />
+                <div className="h-2.5 w-20 rounded bg-[#1a1a28]" />
               </div>
             ))}
           </div>
         ) : sorted.length === 0 ? (
           <div className="flex items-center justify-center py-12">
-            <p className="text-xs text-[#484f58]">No results for this filter</p>
+            <p className="text-xs text-[#3a3748]">No results for this filter</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="border-b border-[#152b1e] bg-[#0a1610]">
+                <tr className="border-b border-[#1a1a28] bg-[#12121c]">
                   <th className="px-4 py-2.5 text-left">
-                    <button onClick={() => handleSort("ticker")} className="flex items-center gap-1 font-mono text-[9px] font-bold text-[#2d5040] uppercase tracking-widest hover:text-[#5a9e7a] transition-colors">
-                      TICKER <SortIcon col="ticker" sortKey={sortKey} sortDir={sortDir} />
+                    <button onClick={() => handleSort("ticker")} className="flex items-center gap-1 text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest hover:text-[#7c7890] transition-colors">
+                      Ticker <SortIcon col="ticker" sortKey={sortKey} sortDir={sortDir} />
                     </button>
                   </th>
                   <th className="px-3 py-2.5 text-right">
-                    <button onClick={() => handleSort("price")} className="flex items-center gap-1 ml-auto font-mono text-[9px] font-bold text-[#2d5040] uppercase tracking-widest hover:text-[#5a9e7a] transition-colors">
-                      PRICE <SortIcon col="price" sortKey={sortKey} sortDir={sortDir} />
+                    <button onClick={() => handleSort("price")} className="flex items-center gap-1 ml-auto text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest hover:text-[#7c7890] transition-colors">
+                      Price <SortIcon col="price" sortKey={sortKey} sortDir={sortDir} />
                     </button>
                   </th>
                   <th className="px-3 py-2.5 text-right">
-                    <button onClick={() => handleSort("change")} className="flex items-center gap-1 ml-auto font-mono text-[9px] font-bold text-[#2d5040] uppercase tracking-widest hover:text-[#5a9e7a] transition-colors">
-                      CHG% <SortIcon col="change" sortKey={sortKey} sortDir={sortDir} />
+                    <button onClick={() => handleSort("change")} className="flex items-center gap-1 ml-auto text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest hover:text-[#7c7890] transition-colors">
+                      Chg% <SortIcon col="change" sortKey={sortKey} sortDir={sortDir} />
                     </button>
                   </th>
                   <th className="px-3 py-2.5 text-center">
-                    <button onClick={() => handleSort("score")} className="flex items-center gap-1 mx-auto font-mono text-[9px] font-bold text-[#2d5040] uppercase tracking-widest hover:text-[#5a9e7a] transition-colors">
-                      SCORE <SortIcon col="score" sortKey={sortKey} sortDir={sortDir} />
+                    <button onClick={() => handleSort("score")} className="flex items-center gap-1 mx-auto text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest hover:text-[#7c7890] transition-colors">
+                      Score <SortIcon col="score" sortKey={sortKey} sortDir={sortDir} />
                     </button>
                   </th>
                   <th className="px-3 py-2.5 text-center">
-                    <span className="font-mono text-[9px] font-bold text-[#2d5040] uppercase tracking-widest">SIGNALS</span>
+                    <span className="text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest">Signals</span>
                   </th>
                   <th className="px-3 py-2.5 text-center">
-                    <span className="font-mono text-[9px] font-bold text-[#2d5040] uppercase tracking-widest">VERDICT</span>
+                    <span className="text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest">Verdict</span>
                   </th>
                 </tr>
               </thead>
@@ -274,43 +275,43 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                     <tr
                       key={r.ticker}
                       onClick={() => onSelectTicker(r.ticker)}
-                      className="border-b border-[#0a1610] hover:bg-[#0a1610] cursor-pointer transition-colors group"
+                      className="border-b border-[#12121c] hover:bg-[#12121c] cursor-pointer transition-colors group"
                     >
                       <td className="px-4 py-2.5">
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-xs font-bold text-[#c8edd8] group-hover:text-[#00e87c] transition-colors">{r.ticker}</span>
-                          {r.name && <span className="font-mono text-[8px] text-[#2d5040] truncate max-w-[130px]">{r.name}</span>}
+                          <span className="font-mono text-xs font-bold text-[#ede8e0] group-hover:text-[#c9a84c] transition-colors">{r.ticker}</span>
+                          {r.name && <span className="text-[8px] text-[#3a3748] truncate max-w-[130px]">{r.name}</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs text-[#c8edd8] tabular-nums">
+                      <td className="px-3 py-2.5 text-right font-mono text-xs text-[#ede8e0] tabular-nums">
                         {r.price != null ? `$${r.price.toFixed(2)}` : "—"}
                       </td>
-                      <td className={cn("px-3 py-2.5 text-right font-mono text-xs tabular-nums", isUp ? "text-[#00e87c]" : "text-[#ff4545]")}>
+                      <td className={cn("px-3 py-2.5 text-right font-mono text-xs tabular-nums", isUp ? "text-[#c9a84c]" : "text-[#e05252]")}>
                         {r.changePercent != null ? `${isUp ? "+" : ""}${r.changePercent.toFixed(2)}%` : "—"}
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        <span className={cn("inline-block px-2 py-0.5 rounded-md border text-xs font-bold", PILL[cat === "all" ? "neutral" : cat as SignalValue])}>
+                        <span className={cn("inline-block px-2 py-0.5 rounded-full border text-xs font-bold", PILL[cat === "all" ? "neutral" : cat as SignalValue])}>
                           {score > 0 ? `+${score}` : score}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-col gap-1 items-center w-20 mx-auto">
-                          <div className="flex items-center gap-1 font-mono text-[8px]">
-                            <span className="text-[#00e87c] font-bold">{s.strongBuys + s.buys}B</span>
-                            <span className="text-[#2d5040]">{s.neutrals}N</span>
-                            <span className="text-[#ff4545] font-bold">{s.sells + s.strongSells}S</span>
+                          <div className="flex items-center gap-1 text-[8px]">
+                            <span className="text-[#c9a84c] font-bold">{s.strongBuys + s.buys}B</span>
+                            <span className="text-[#3a3748]">{s.neutrals}N</span>
+                            <span className="text-[#e05252] font-bold">{s.sells + s.strongSells}S</span>
                           </div>
-                          <div className="flex h-1 w-full rounded-sm overflow-hidden" style={{ background: "#0f2218" }}>
-                            <div className="bg-[#00ff8a]" style={{ width: `${pct(s.strongBuys)}%` }} />
-                            <div className="bg-[#00e87c]" style={{ width: `${pct(s.buys)}%` }} />
-                            <div className="bg-[#2d5040]" style={{ width: `${pct(s.neutrals)}%` }} />
-                            <div className="bg-[#ff4545]" style={{ width: `${pct(s.sells)}%` }} />
-                            <div className="bg-[#ff2020]" style={{ width: `${pct(s.strongSells)}%` }} />
+                          <div className="flex h-1 w-full rounded-sm overflow-hidden bg-[#12121c]">
+                            <div className="bg-[#e8c76a]" style={{ width: `${pct(s.strongBuys)}%` }} />
+                            <div className="bg-[#c9a84c]" style={{ width: `${pct(s.buys)}%` }} />
+                            <div className="bg-[#2a2a3e]" style={{ width: `${pct(s.neutrals)}%` }} />
+                            <div className="bg-[#e05252]" style={{ width: `${pct(s.sells)}%` }} />
+                            <div className="bg-[#f04040]" style={{ width: `${pct(s.strongSells)}%` }} />
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        <span className={cn("inline-block px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wide", PILL[s.overall])}>
+                        <span className={cn("inline-block px-1.5 py-0.5 rounded border text-[9px] font-semibold capitalize tracking-wide", PILL[s.overall])}>
                           {s.overall === "strong-buy" ? "S.Buy" : s.overall === "strong-sell" ? "S.Sell" : s.overall}
                         </span>
                       </td>
@@ -324,8 +325,8 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       </div>
 
       {!loading && results.length > 0 && scannedAt && (
-        <p className="font-mono text-[8px] text-[#2d5040] text-center tracking-widest">
-          {results.length} STOCKS · {tf} TIMEFRAME · SCANNED {new Date(scannedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · CLICK ROW TO OPEN
+        <p className="text-[9px] text-[#3a3748] text-center">
+          {results.length} stocks · {tf} timeframe · Scanned {new Date(scannedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Click row to open
         </p>
       )}
     </div>
