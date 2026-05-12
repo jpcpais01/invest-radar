@@ -76,17 +76,17 @@ export default function AIPredPanel({ ticker }: Props) {
     const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
     const chart = createChart(el, {
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#8b949e", fontSize: 11 },
-      grid: { vertLines: { color: "#21262d" }, horzLines: { color: "#21262d" } },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#5a9e7a", fontSize: 10 },
+      grid: { vertLines: { color: "#152b1e" }, horzLines: { color: "#152b1e" } },
       crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: "#21262d" },
-      timeScale: { borderColor: "#21262d", timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: "#152b1e" },
+      timeScale: { borderColor: "#152b1e", timeVisible: true, secondsVisible: false },
       width: w, height: h,
     });
-    histRef.current  = chart.addSeries(LineSeries, { color: "#c9d1d9", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    upperRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "rgba(167,139,250,0.18)", bottomColor: "rgba(167,139,250,0.04)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    histRef.current  = chart.addSeries(LineSeries, { color: "#5a9e7a", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    upperRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "rgba(184,125,255,0.15)", bottomColor: "rgba(184,125,255,0.03)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
     lowerRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "transparent", bottomColor: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    meanRef.current  = chart.addSeries(LineSeries, { color: "#a78bfa", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
+    meanRef.current  = chart.addSeries(LineSeries, { color: "#b87dff", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
     chartRef.current = chart;
     const ro = new ResizeObserver(() => { const nw = el.clientWidth, nh = el.clientHeight; if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh }); });
     ro.observe(el);
@@ -114,27 +114,28 @@ export default function AIPredPanel({ ticker }: Props) {
   const isUp       = (predChange ?? 0) >= 0;
 
   return (
-    <div className="rounded-2xl border border-[#a78bfa33] bg-gradient-to-br from-[#161b22] to-[#0d1117] overflow-hidden"
-         style={{ boxShadow: "0 0 40px rgba(167,139,250,0.06)" }}>
+    <div className="rounded border border-[#b87dff33] bg-[#0a1610] overflow-hidden"
+         style={{ boxShadow: "0 0 40px rgba(184,125,255,0.06), inset 0 1px 0 rgba(184,125,255,0.06)" }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#21262d]">
+      <div className="flex items-center justify-between px-4 sm:px-5 pt-4 pb-3 border-b border-[#152b1e]">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#a78bfa] to-[#7c3aed] flex items-center justify-center shadow-lg shadow-purple-900/30">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
           <div>
-            <div className="text-sm font-bold text-white">AI Price Prediction</div>
-            <div className="text-[10px] text-[#484f58]">LLM ensemble Monte Carlo</div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] text-[#b87dff] tracking-widest">// </span>
+              <span className="font-mono text-xs font-bold text-[#c8edd8] tracking-wider">AI PRICE FORECAST</span>
+            </div>
+            <div className="font-mono text-[9px] text-[#2d5040] tracking-wide">LLM ENSEMBLE · MONTE CARLO</div>
           </div>
         </div>
         {data && lastClose && predFinal && (
           <div className="text-right">
-            <div className={cn("text-xl font-black tabular-nums", isUp ? "text-[#3fb950]" : "text-[#f85149]")}>
+            <div className={cn("font-mono text-xl font-black tabular-nums", isUp ? "text-[#00e87c]" : "text-[#ff4545]")}
+                 style={{ textShadow: isUp ? "0 0 16px rgba(0,232,124,0.4)" : "0 0 16px rgba(255,69,69,0.4)" }}>
               ${predFinal.toFixed(2)}
             </div>
-            <div className={cn("text-xs font-semibold flex items-center gap-1 justify-end", isUp ? "text-[#3fb950]" : "text-[#f85149]")}>
+            <div className={cn("font-mono text-[10px] font-bold flex items-center gap-1 justify-end", isUp ? "text-[#00e87c]" : "text-[#ff4545]")}>
               {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              {isUp ? "+" : ""}{predChange?.toFixed(2)}% in {data.n}d
+              {isUp ? "+" : ""}{predChange?.toFixed(2)}% · {data.n}D
             </div>
           </div>
         )}
@@ -145,63 +146,59 @@ export default function AIPredPanel({ ticker }: Props) {
         {loading && !data && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full border-2 border-[#a78bfa44] border-t-[#a78bfa] animate-spin" />
-              <Sparkles className="w-4 h-4 text-[#a78bfa] absolute inset-0 m-auto" />
+              <div className="w-10 h-10 rounded-full border-2 border-[#b87dff44] border-t-[#b87dff] animate-spin" />
+              <Sparkles className="w-4 h-4 text-[#b87dff] absolute inset-0 m-auto" />
             </div>
-            <p className="text-xs text-[#484f58]">Running {nRuns} prediction scenarios…</p>
+            <p className="font-mono text-[10px] text-[#2d5040] tracking-widest">RUNNING {nRuns} SCENARIOS…</p>
           </div>
         )}
         {error && !data && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-xs text-[#f85149]">{error}</p>
+            <p className="font-mono text-[10px] text-[#ff4545]">{error}</p>
           </div>
         )}
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3 border-t border-[#21262d] bg-[#0d1117]">
-        {/* Stats */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3 border-t border-[#152b1e]" style={{ background: "#060d09" }}>
         {data && (
-          <div className="flex items-center gap-1.5 text-[10px] text-[#484f58]">
-            <Sparkles className="w-3 h-3 text-[#a78bfa]" />
-            <span>{data.successfulRuns}/{data.totalRuns} runs</span>
+          <div className="flex items-center gap-1.5 font-mono text-[9px] text-[#2d5040]">
+            <Sparkles className="w-3 h-3 text-[#b87dff]" />
+            <span>{data.successfulRuns}/{data.totalRuns} RUNS</span>
           </div>
         )}
 
         <div className="flex-1" />
 
-        {/* Days + Runs + Button group */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Days */}
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-[#484f58] uppercase tracking-wide font-semibold">D</span>
+            <span className="font-mono text-[9px] text-[#2d5040] uppercase tracking-widest">D</span>
             <div className="flex items-center gap-0.5">
-              <button onClick={() => setNDays((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs font-mono text-white w-5 text-center">{nDays}</span>
-              <button onClick={() => setNDays((v: number) => Math.min(30, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Plus className="w-3 h-3" /></button>
+              <button onClick={() => setNDays((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Minus className="w-3 h-3" /></button>
+              <span className="font-mono text-xs text-[#c8edd8] w-5 text-center tabular-nums">{nDays}</span>
+              <button onClick={() => setNDays((v: number) => Math.min(30, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Plus className="w-3 h-3" /></button>
             </div>
           </div>
-          <div className="w-px h-3 bg-[#21262d]" />
-          {/* Runs */}
+          <div className="w-px h-3 bg-[#152b1e]" />
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-[#484f58] uppercase tracking-wide font-semibold">R</span>
+            <span className="font-mono text-[9px] text-[#2d5040] uppercase tracking-widest">R</span>
             <div className="flex items-center gap-0.5">
-              <button onClick={() => setNRuns((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs font-mono text-white w-5 text-center">{nRuns}</span>
-              <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Plus className="w-3 h-3" /></button>
+              <button onClick={() => setNRuns((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Minus className="w-3 h-3" /></button>
+              <span className="font-mono text-xs text-[#c8edd8] w-5 text-center tabular-nums">{nRuns}</span>
+              <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#5a9e7a] hover:text-[#c8edd8] hover:bg-[#0f2218]"><Plus className="w-3 h-3" /></button>
             </div>
           </div>
           <button
             onClick={() => predict(nDays, nRuns)}
             disabled={loading}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[10px] font-bold tracking-wider transition-all whitespace-nowrap",
               loading
-                ? "text-[#484f58] border-[#21262d] cursor-not-allowed"
-                : "text-[#a78bfa] bg-[#a78bfa0d] border-[#a78bfa44] hover:bg-[#a78bfa18] hover:border-[#a78bfa88]"
+                ? "text-[#2d5040] border-[#152b1e] cursor-not-allowed"
+                : "text-[#b87dff] bg-[#b87dff0a] border-[#b87dff33] hover:bg-[#b87dff18] hover:border-[#b87dff66]"
             )}
           >
-            {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</> : <><Sparkles className="w-3 h-3" />Predict</>}
+            {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />RUNNING…</> : <><Sparkles className="w-3 h-3" />PREDICT</>}
           </button>
         </div>
       </div>

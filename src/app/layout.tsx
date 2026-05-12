@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "InvestRadar — AI Investment Analysis",
-  description: "AI-powered investment analysis platform with real-time market data",
+  title: "Open Terminal — AI Investment Analysis",
+  description: "Open-source terminal for AI-powered investment analysis with real-time market data",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
