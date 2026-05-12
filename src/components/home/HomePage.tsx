@@ -51,8 +51,8 @@ export default function HomePage() {
 
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="w-7 h-7 rounded-md border border-[#2ec89833] bg-[#2ec89808] flex items-center justify-center group-hover:border-[#2ec89866] transition-colors">
-              <span className="text-[#2ec898] text-[10px] font-bold">◆</span>
+            <div className="w-7 h-7 rounded-md border border-[#60a5fa33] bg-[#60a5fa08] flex items-center justify-center group-hover:border-[#60a5fa66] transition-colors">
+              <span className="text-[#60a5fa] text-[10px] font-bold">◆</span>
             </div>
             <div className="hidden sm:flex flex-col leading-none">
               <span className="text-xs font-semibold text-[#ede8e0] tracking-wide">Open Terminal</span>
@@ -73,7 +73,7 @@ export default function HomePage() {
 
             {searchOpen && (
               <div className="absolute top-full left-0 mt-1 rounded-md border border-[#272738] bg-[#0d0d15] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
-                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(46,200,152,0.08)" }}>
+                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(96,165,250,0.08)" }}>
                 <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1a1a28]">
                   <Search className="w-3.5 h-3.5 text-[#3a3748] shrink-0" />
                   <input
@@ -95,7 +95,7 @@ export default function HomePage() {
                       onClick={() => selectTicker(t)}
                       className={cn(
                         "w-full text-left px-4 py-2 text-sm hover:bg-[#12121c] transition-colors flex items-center gap-2",
-                        t === activeTicker ? "text-[#2ec898]" : "text-[#ede8e0]"
+                        t === activeTicker ? "text-[#60a5fa]" : "text-[#ede8e0]"
                       )}
                     >
                       <span className="font-mono font-medium">{t}</span>
@@ -111,11 +111,11 @@ export default function HomePage() {
           <div className="flex items-center border border-[#1a1a28] rounded-md p-0.5 shrink-0 bg-[#0d0d15]">
             <button
               onClick={() => setActiveTab("overview")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#2ec89815] text-[#2ec898] border border-[#2ec89828]" : "text-[#7c7890] hover:text-[#ede8e0]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#60a5fa15] text-[#60a5fa] border border-[#60a5fa28]" : "text-[#7c7890] hover:text-[#ede8e0]")}
             >Overview</button>
             <button
               onClick={() => setActiveTab("discover")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#2ec89815] text-[#2ec898] border border-[#2ec89828]" : "text-[#7c7890] hover:text-[#ede8e0]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#60a5fa15] text-[#60a5fa] border border-[#60a5fa28]" : "text-[#7c7890] hover:text-[#ede8e0]")}
             >
               <Compass className="w-3 h-3" /><span className="hidden sm:inline">Discover</span>
             </button>
@@ -124,7 +124,7 @@ export default function HomePage() {
           {/* Terminal button */}
           <a
             href={`/terminal/${activeTicker}`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#2ec89828] bg-[#2ec89808] text-[#2ec898] text-xs font-medium hover:bg-[#2ec89815] hover:border-[#2ec89844] transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#60a5fa28] bg-[#60a5fa08] text-[#60a5fa] text-xs font-medium hover:bg-[#60a5fa15] hover:border-[#60a5fa44] transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:block whitespace-nowrap">Terminal</span>

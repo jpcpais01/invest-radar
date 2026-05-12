@@ -39,8 +39,8 @@ function scoreCategory(score: number): FilterTab {
 }
 
 const PILL: Record<SignalValue, string> = {
-  "strong-buy":  "text-[#5edbb8] bg-[#5edbb80a] border-[#5edbb82a]",
-  "buy":         "text-[#2ec898] bg-[#2ec89808] border-[#2ec89822]",
+  "strong-buy":  "text-[#93c5fd] bg-[#93c5fd0a] border-[#93c5fd2a]",
+  "buy":         "text-[#60a5fa] bg-[#60a5fa08] border-[#60a5fa22]",
   "neutral":     "text-[#7c7890] bg-transparent border-[#1a1a28]",
   "sell":        "text-[#e05252] bg-[#e052520a] border-[#e0525228]",
   "strong-sell": "text-[#d04444] bg-[#d044440a] border-[#d0444438]",
@@ -57,8 +57,8 @@ const FILTERS: { id: FilterTab; label: string }[] = [
 
 const FILTER_ACTIVE: Record<FilterTab, string> = {
   all:           "text-[#ede8e0] border-[#272738] bg-[#12121c]",
-  "strong-buy":  "text-[#5edbb8] border-[#5edbb82a] bg-[#5edbb80a]",
-  buy:           "text-[#2ec898] border-[#2ec89833] bg-[#2ec8980a]",
+  "strong-buy":  "text-[#93c5fd] border-[#93c5fd2a] bg-[#93c5fd0a]",
+  buy:           "text-[#60a5fa] border-[#60a5fa33] bg-[#60a5fa0a]",
   neutral:       "text-[#7c7890] border-[#272738] bg-[#12121c]",
   sell:          "text-[#e05252] border-[#e0525233] bg-[#e052520a]",
   "strong-sell": "text-[#d04444] border-[#d0444444] bg-[#d044440a]",
@@ -83,8 +83,8 @@ function writeCache(tf: string, results: ScanResult[]) {
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
   if (col !== sortKey) return <ChevronUp className="w-3 h-3 opacity-20" />;
   return sortDir === "asc"
-    ? <ChevronUp className="w-3 h-3 text-[#2ec898]" />
-    : <ChevronDown className="w-3 h-3 text-[#2ec898]" />;
+    ? <ChevronUp className="w-3 h-3 text-[#60a5fa]" />
+    : <ChevronDown className="w-3 h-3 text-[#60a5fa]" />;
 }
 
 export default function HomeDiscover({ onSelectTicker }: Props) {
@@ -156,7 +156,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <span className="text-[#2ec898] text-[8px]">◆</span>
+          <span className="text-[#60a5fa] text-[8px]">◆</span>
           <div>
             <h2 className="text-sm font-semibold text-[#ede8e0] tracking-wide">Signal Scanner</h2>
             <p className="text-[9px] text-[#3a3748] mt-0.5">
@@ -173,7 +173,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                 onClick={() => handleTf(t)}
                 className={cn(
                   "px-3 py-1.5 text-[10px] font-semibold tracking-wide transition-colors",
-                  t === tf ? "bg-[#2ec8980a] text-[#2ec898]" : "text-[#7c7890] hover:text-[#ede8e0]"
+                  t === tf ? "bg-[#60a5fa0a] text-[#60a5fa]" : "text-[#7c7890] hover:text-[#ede8e0]"
                 )}
               >{t}</button>
             ))}
@@ -279,14 +279,14 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                     >
                       <td className="px-4 py-2.5">
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-xs font-bold text-[#ede8e0] group-hover:text-[#2ec898] transition-colors">{r.ticker}</span>
+                          <span className="font-mono text-xs font-bold text-[#ede8e0] group-hover:text-[#60a5fa] transition-colors">{r.ticker}</span>
                           {r.name && <span className="text-[8px] text-[#3a3748] truncate max-w-[130px]">{r.name}</span>}
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono text-xs text-[#ede8e0] tabular-nums">
                         {r.price != null ? `$${r.price.toFixed(2)}` : "—"}
                       </td>
-                      <td className={cn("px-3 py-2.5 text-right font-mono text-xs tabular-nums", isUp ? "text-[#2ec898]" : "text-[#e05252]")}>
+                      <td className={cn("px-3 py-2.5 text-right font-mono text-xs tabular-nums", isUp ? "text-[#60a5fa]" : "text-[#e05252]")}>
                         {r.changePercent != null ? `${isUp ? "+" : ""}${r.changePercent.toFixed(2)}%` : "—"}
                       </td>
                       <td className="px-3 py-2.5 text-center">
@@ -297,13 +297,13 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                       <td className="px-3 py-2.5">
                         <div className="flex flex-col gap-1 items-center w-20 mx-auto">
                           <div className="flex items-center gap-1 text-[8px]">
-                            <span className="text-[#2ec898] font-bold">{s.strongBuys + s.buys}B</span>
+                            <span className="text-[#60a5fa] font-bold">{s.strongBuys + s.buys}B</span>
                             <span className="text-[#3a3748]">{s.neutrals}N</span>
                             <span className="text-[#e05252] font-bold">{s.sells + s.strongSells}S</span>
                           </div>
                           <div className="flex h-1 w-full rounded-sm overflow-hidden bg-[#12121c]">
-                            <div className="bg-[#5edbb8]" style={{ width: `${pct(s.strongBuys)}%` }} />
-                            <div className="bg-[#2ec898]" style={{ width: `${pct(s.buys)}%` }} />
+                            <div className="bg-[#93c5fd]" style={{ width: `${pct(s.strongBuys)}%` }} />
+                            <div className="bg-[#60a5fa]" style={{ width: `${pct(s.buys)}%` }} />
                             <div className="bg-[#2a2a3e]" style={{ width: `${pct(s.neutrals)}%` }} />
                             <div className="bg-[#e05252]" style={{ width: `${pct(s.sells)}%` }} />
                             <div className="bg-[#d04444]" style={{ width: `${pct(s.strongSells)}%` }} />

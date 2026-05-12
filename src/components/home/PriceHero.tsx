@@ -8,8 +8,8 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 interface Props { ticker: string }
 
 const SIGNAL_CONFIG = {
-  "strong-buy":  { label: "Strong Buy",  cls: "text-[#5edbb8] border-[#5edbb833] bg-[#5edbb80a]", dot: "#5edbb8" },
-  "buy":         { label: "Buy",          cls: "text-[#2ec898] border-[#2ec89833] bg-[#2ec8980a]", dot: "#2ec898" },
+  "strong-buy":  { label: "Strong Buy",  cls: "text-[#93c5fd] border-[#93c5fd33] bg-[#93c5fd0a]", dot: "#93c5fd" },
+  "buy":         { label: "Buy",          cls: "text-[#60a5fa] border-[#60a5fa33] bg-[#60a5fa0a]", dot: "#60a5fa" },
   "neutral":     { label: "Neutral",      cls: "text-[#7c7890] border-[#272738]   bg-transparent",  dot: "#5a5570" },
   "sell":        { label: "Sell",         cls: "text-[#e05252] border-[#e0525233] bg-[#e052520a]", dot: "#e05252" },
   "strong-sell": { label: "Strong Sell",  cls: "text-[#d04444] border-[#d0444444] bg-[#d044440a]", dot: "#d04444" },
@@ -72,17 +72,17 @@ export default function PriceHero({ ticker }: Props) {
             <>
               <span
                 className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight font-mono"
-                style={{ color: isUp ? "#2ec898" : "#e05252" }}
+                style={{ color: isUp ? "#60a5fa" : "#e05252" }}
               >
                 ${price.toFixed(2)}
               </span>
-              <div className={cn("flex items-center gap-1.5 text-sm font-medium", isUp ? "text-[#2ec898]" : "text-[#e05252]")}>
+              <div className={cn("flex items-center gap-1.5 text-sm font-medium", isUp ? "text-[#60a5fa]" : "text-[#e05252]")}>
                 {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 <span className="font-mono">{isUp ? "+" : ""}{change?.toFixed(2)}</span>
                 <span className="opacity-70 font-mono">({isUp ? "+" : ""}{pct?.toFixed(2)}%)</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-[#3a3748]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#2ec898] animate-pulse inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse inline-block" />
                 Live quote
               </div>
             </>
@@ -106,14 +106,14 @@ export default function PriceHero({ ticker }: Props) {
           <div className="mt-5 pt-4 border-t border-[#1a1a28] flex items-center gap-4">
             <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#12121c]">
               <div className="h-full flex">
-                <div className="bg-[#5edbb8]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#2ec898]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#93c5fd]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#60a5fa]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
                 <div className="bg-[#2a2a3e]" style={{ width: `${pctNeu}%` }} />
                 <div className="bg-[#e05252]" style={{ width: `${pctSel}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-4 text-[11px] shrink-0">
-              <span className="text-[#2ec898] font-medium">{s.strongBuys + s.buys} Buy</span>
+              <span className="text-[#60a5fa] font-medium">{s.strongBuys + s.buys} Buy</span>
               <span className="text-[#3a3748]">{s.neutrals} Neutral</span>
               <span className="text-[#e05252] font-medium">{s.sells + s.strongSells} Sell</span>
             </div>
