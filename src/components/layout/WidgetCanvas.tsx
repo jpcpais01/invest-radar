@@ -297,6 +297,12 @@ export default function WidgetCanvas() {
       {/* Canvas content — when locked, CSS hides resize handles */}
       <div
         ref={containerRef}
+        onMouseDownCapture={locked ? (e: React.MouseEvent) => {
+          if ((e.target as HTMLElement).closest(".widget-drag-handle")) {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        } : undefined}
         className={cn(
           "flex-1 overflow-y-auto overflow-x-hidden p-2 relative",
           locked && "[&_.react-resizable-handle]:!hidden [&_.widget-drag-handle]:!cursor-default"
