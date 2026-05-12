@@ -8,16 +8,27 @@ import { TIMEFRAMES } from "@/types/market";
 // Indicators need warmup bars to produce valid values (EMA200 = 200 bars minimum)
 const WARMUP_DAYS = 220;
 
-// Remove bars with wicks that are impossibly far from the local median close price.
-// Yahoo Finance's intraday feed occasionally emits bad ticks that create huge phantom spikes.
-function filterSpikes(bars: { time: number; open: number; high: number; low: number; close: number; volume: number }[]) {
-  if (bars.length < 5) return bars;
-  const closes = bars.map((b) => b.close).sort((a, b) => a - b);
-  const median = closes[Math.floor(closes.length / 2)];
-  // Allow ±20% from median — anything beyond that is a bad tick, not a real price move
-  const lo = median * 0.80;
-  const hi = median * 1.20;
-  return bars.filter((b) => b.low >= lo && b.high <= hi);
+// Clip wicks that are bad ticks: if the next candle opens less than halfway
+// toward the wick extreme, the wick never had real follow-through and is fake data.
+function fixWicks(bars: { time: number; open: number; high: number; low: number; close: number; volume: number }[]) {
+  return bars.map((bar, i) => {
+    if (i === bars.length - 1) return bar;
+    const nextOpen = bars[i + 1].open;
+    const bodyLow  = Math.min(bar.open, bar.close);
+    const bodyHigh = Math.max(bar.open, bar.close);
+    let { low, high } = bar;
+
+    // Downward spike: next open is more than halfway back up from the wick low
+    if (low < bodyLow && nextOpen > low + (bodyLow - low) / 2) {
+      low = bodyLow;
+    }
+    // Upward spike: next open is more than halfway back down from the wick high
+    if (high > bodyHigh && nextOpen < high - (high - bodyHigh) / 2) {
+      high = bodyHigh;
+    }
+
+    return { ...bar, low, high };
+  });
 }
 
 function trimIndicators(ind: TechnicalIndicators, len: number): TechnicalIndicators {
@@ -65,7 +76,7 @@ export async function GET(
     // Trim to just the display window
     const displayBars = allBars.filter((b) => b.time >= displayFrom.getTime() / 1000);
     const rawBars = displayBars.length > 0 ? displayBars : allBars;
-    const bars = isIntraday ? filterSpikes(rawBars) : rawBars;
+    const bars = isIntraday ? fixWicks(rawBars) : rawBars;
 
     let indicators: TechnicalIndicators | undefined;
     if (withIndicators) {
