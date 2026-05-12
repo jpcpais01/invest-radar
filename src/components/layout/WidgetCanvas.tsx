@@ -244,7 +244,7 @@ export default function WidgetCanvas() {
       id, type: entry.type, title: entry.label, i: id,
       x: 0, y: nextY,
       w: entry.defaultW, h: entry.defaultH,
-      minW: entry.minW, minH: 2,
+      minW: entry.minW, minH: 1,
     });
   }, [widgets, addWidget]);
 
