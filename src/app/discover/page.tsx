@@ -471,7 +471,7 @@ export default function DiscoverPage() {
                   return (
                     <tr
                       key={r.ticker}
-                      onClick={() => router.push(`/${r.ticker}`)}
+                      onClick={() => router.push(`/terminal/${r.ticker}`)}
                       className="border-b border-[#161b22] hover:bg-[#161b22] cursor-pointer transition-colors group"
                     >
                       {/* Ticker */}

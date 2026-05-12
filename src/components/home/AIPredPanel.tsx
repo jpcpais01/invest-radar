@@ -159,7 +159,7 @@ export default function AIPredPanel({ ticker }: Props) {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-3 px-5 py-3 border-t border-[#21262d] bg-[#0d1117]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3 border-t border-[#21262d] bg-[#0d1117]">
         {/* Stats */}
         {data && (
           <div className="flex items-center gap-1.5 text-[10px] text-[#484f58]">
@@ -170,33 +170,40 @@ export default function AIPredPanel({ ticker }: Props) {
 
         <div className="flex-1" />
 
-        {/* Days */}
-        <span className="text-[10px] text-[#484f58] uppercase tracking-wide font-semibold">Days</span>
-        <div className="flex items-center gap-0.5">
-          <button onClick={() => setNDays((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Minus className="w-3 h-3" /></button>
-          <span className="text-xs font-mono text-white w-5 text-center">{nDays}</span>
-          <button onClick={() => setNDays((v: number) => Math.min(30, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Plus className="w-3 h-3" /></button>
+        {/* Days + Runs + Button group */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Days */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-[#484f58] uppercase tracking-wide font-semibold">D</span>
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => setNDays((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Minus className="w-3 h-3" /></button>
+              <span className="text-xs font-mono text-white w-5 text-center">{nDays}</span>
+              <button onClick={() => setNDays((v: number) => Math.min(30, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Plus className="w-3 h-3" /></button>
+            </div>
+          </div>
+          <div className="w-px h-3 bg-[#21262d]" />
+          {/* Runs */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-[#484f58] uppercase tracking-wide font-semibold">R</span>
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => setNRuns((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Minus className="w-3 h-3" /></button>
+              <span className="text-xs font-mono text-white w-5 text-center">{nRuns}</span>
+              <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Plus className="w-3 h-3" /></button>
+            </div>
+          </div>
+          <button
+            onClick={() => predict(nDays, nRuns)}
+            disabled={loading}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap",
+              loading
+                ? "text-[#484f58] border-[#21262d] cursor-not-allowed"
+                : "text-[#a78bfa] bg-[#a78bfa0d] border-[#a78bfa44] hover:bg-[#a78bfa18] hover:border-[#a78bfa88]"
+            )}
+          >
+            {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</> : <><Sparkles className="w-3 h-3" />Predict</>}
+          </button>
         </div>
-        <div className="w-px h-3 bg-[#21262d]" />
-        {/* Runs */}
-        <span className="text-[10px] text-[#484f58] uppercase tracking-wide font-semibold">Runs</span>
-        <div className="flex items-center gap-0.5">
-          <button onClick={() => setNRuns((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Minus className="w-3 h-3" /></button>
-          <span className="text-xs font-mono text-white w-5 text-center">{nRuns}</span>
-          <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d]"><Plus className="w-3 h-3" /></button>
-        </div>
-        <button
-          onClick={() => predict(nDays, nRuns)}
-          disabled={loading}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
-            loading
-              ? "text-[#484f58] border-[#21262d] cursor-not-allowed"
-              : "text-[#a78bfa] bg-[#a78bfa0d] border-[#a78bfa44] hover:bg-[#a78bfa18] hover:border-[#a78bfa88]"
-          )}
-        >
-          {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</> : <><Sparkles className="w-3 h-3" />Predict</>}
-        </button>
       </div>
     </div>
   );

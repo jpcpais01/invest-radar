@@ -50,7 +50,7 @@ export default function TopBar() {
 
   const handleTickerSelect = (ticker: string) => {
     setActiveTicker(ticker);
-    router.push(`/${ticker}`);
+    router.push(`/terminal/${ticker}`);
   };
 
   const price = quote?.price;
@@ -69,7 +69,7 @@ export default function TopBar() {
 
         {/* Desk link */}
         <button
-          onClick={() => router.push(`/${activeTicker}`)}
+          onClick={() => router.push(`/terminal/${activeTicker}`)}
           className={cn(
             "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
             pathname !== "/discover"

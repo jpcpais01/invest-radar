@@ -154,7 +154,7 @@ export default function LeftPanel() {
 
   const handleSelect = (t: string) => {
     setActiveTicker(t);
-    window.history.pushState({}, '', `/${t}`);
+    window.history.pushState({}, '', `/terminal/${t}`);
   };
 
   return (
