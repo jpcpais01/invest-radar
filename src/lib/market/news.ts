@@ -19,7 +19,7 @@ function scoreSentiment(text: string): { sentiment: "positive" | "negative" | "n
 }
 
 async function getYahooNews(ticker: string): Promise<NewsItem[]> {
-  const result: any = await yf.search(ticker, { newsCount: 20, quotesCount: 0 });
+  const result: any = await yf.search(ticker, { newsCount: 50, quotesCount: 0 });
   const articles: any[] = result?.news ?? [];
   return articles
     .filter((a) => a.title && a.link)
@@ -42,8 +42,8 @@ export async function getNews(ticker: string): Promise<NewsItem[]> {
   if (NEWSAPI_KEY) {
     try {
       const query = encodeURIComponent(ticker);
-      const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      const url = `https://newsapi.org/v2/everything?q=${query}&from=${from}&sortBy=publishedAt&language=en&pageSize=20&apiKey=${NEWSAPI_KEY}`;
+      const from = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const url = `https://newsapi.org/v2/everything?q=${query}&from=${from}&sortBy=publishedAt&language=en&pageSize=100&apiKey=${NEWSAPI_KEY}`;
       const res = await fetch(url, { next: { revalidate: 300 } });
       const data = await res.json();
       if (data.articles?.length) {
