@@ -7,11 +7,11 @@ interface Props { ticker: string }
 type Sig = "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell";
 
 const SIG_CLS: Record<Sig, string> = {
-  "strong-buy":  "text-[#93c5fd] bg-[#93c5fd0a] border-[#93c5fd2a]",
-  "buy":         "text-[#60a5fa] bg-[#60a5fa08] border-[#60a5fa22]",
-  "neutral":     "text-[#7c7890] bg-transparent border-[#1a1a28]",
-  "sell":        "text-[#e05252] bg-[#e052520a] border-[#e0525228]",
-  "strong-sell": "text-[#d04444] bg-[#d044440a] border-[#d0444438]",
+  "strong-buy":  "text-[#7ab0cc] bg-[#7ab0cc0a] border-[#7ab0cc2a]",
+  "buy":         "text-[#5a90b0] bg-[#5a90b008] border-[#5a90b022]",
+  "neutral":     "text-[#7890a8] bg-transparent border-[#182235]",
+  "sell":        "text-[#aa6060] bg-[#aa60600a] border-[#aa606028]",
+  "strong-sell": "text-[#904848] bg-[#9048480a] border-[#90484838]",
 };
 
 function lastValidNum(arr?: number[]) {
@@ -24,15 +24,15 @@ function lastValidNum(arr?: number[]) {
 
 function TechCard({ name, value, signal, sub }: { name: string; value: string; signal: Sig; sub?: string }) {
   return (
-    <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-[#1a1a28] bg-[#0d0d15] px-4 py-3 min-w-[130px] hover:border-[#272738] transition-colors">
+    <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-[#182235] bg-[#0a1020] px-4 py-3 min-w-[130px] hover:border-[#243348] transition-colors">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] font-semibold text-[#3a3748] uppercase tracking-widest">{name}</span>
+        <span className="text-[9px] font-semibold text-[#384e68] uppercase tracking-widest">{name}</span>
         <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full border", SIG_CLS[signal])}>
           {signal === "strong-buy" ? "S.Buy" : signal === "strong-sell" ? "S.Sell" : signal.charAt(0).toUpperCase() + signal.slice(1)}
         </span>
       </div>
-      <div className="font-mono text-lg font-bold text-[#ede8e0] leading-none tabular-nums">{value}</div>
-      {sub && <div className="text-[9px] text-[#3a3748]">{sub}</div>}
+      <div className="font-mono text-lg font-bold text-[#d8e4f0] leading-none tabular-nums">{value}</div>
+      {sub && <div className="text-[9px] text-[#384e68]">{sub}</div>}
     </div>
   );
 }
@@ -97,16 +97,16 @@ export default function TechnicalsStrip({ ticker }: Props) {
   })();
 
   return (
-    <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] p-4">
+    <div className="rounded-lg border border-[#182235] bg-[#0a1020] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-[#60a5fa] text-[8px]">◆</span>
-        <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">Technical Indicators</span>
-        <span className="text-[9px] text-[#3a3748] ml-1">3M</span>
+        <span className="text-[#5a90b0] text-[8px]">◆</span>
+        <span className="text-[11px] font-semibold text-[#d8e4f0] tracking-wide">Technical Indicators</span>
+        <span className="text-[9px] text-[#384e68] ml-1">3M</span>
       </div>
       {isLoading ? (
         <div className="flex gap-3 overflow-x-auto pb-1">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex-shrink-0 min-w-[130px] h-[76px] rounded-lg bg-[#12121c] animate-pulse" />
+            <div key={i} className="flex-shrink-0 min-w-[130px] h-[76px] rounded-lg bg-[#0e1628] animate-pulse" />
           ))}
         </div>
       ) : (

@@ -38,25 +38,25 @@ export default function HomePage() {
 
   return (
     <div
-      className="h-screen overflow-y-auto text-[#ede8e0]"
+      className="h-screen overflow-y-auto text-[#d8e4f0]"
       style={{
-        background: "#09090e",
+        background: "#060a12",
         scrollbarWidth: "thin",
-        scrollbarColor: "#1a1a28 transparent",
+        scrollbarColor: "#182235 transparent",
       }}
     >
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-[#1a1a28]" style={{ background: "rgba(9,9,14,0.92)", backdropFilter: "blur(12px)" }}>
+      <header className="sticky top-0 z-40 border-b border-[#182235]" style={{ background: "rgba(6,10,18,0.92)", backdropFilter: "blur(12px)" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
 
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="w-7 h-7 rounded-md border border-[#60a5fa33] bg-[#60a5fa08] flex items-center justify-center group-hover:border-[#60a5fa66] transition-colors">
-              <span className="text-[#60a5fa] text-[10px] font-bold">◆</span>
+            <div className="w-7 h-7 rounded-md border border-[#5a90b033] bg-[#5a90b008] flex items-center justify-center group-hover:border-[#5a90b066] transition-colors">
+              <span className="text-[#5a90b0] text-[10px] font-bold">◆</span>
             </div>
             <div className="hidden sm:flex flex-col leading-none">
-              <span className="text-xs font-semibold text-[#ede8e0] tracking-wide">Open Terminal</span>
-              <span className="text-[8px] text-[#3a3748] tracking-widest uppercase">by open source</span>
+              <span className="text-xs font-semibold text-[#d8e4f0] tracking-wide">Open Terminal</span>
+              <span className="text-[8px] text-[#384e68] tracking-widest uppercase">by open source</span>
             </div>
           </a>
 
@@ -64,28 +64,28 @@ export default function HomePage() {
           <div className="relative flex-1 min-w-0">
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md border border-[#1a1a28] bg-[#0d0d15] hover:border-[#272738] transition-colors text-left"
+              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md border border-[#182235] bg-[#0a1020] hover:border-[#243348] transition-colors text-left"
             >
-              <Search className="w-3.5 h-3.5 text-[#3a3748] shrink-0" />
-              <span className="text-sm font-semibold text-[#ede8e0] truncate font-mono">{activeTicker}</span>
-              <span className="text-[10px] text-[#3a3748] ml-auto hidden sm:block">Search ticker</span>
+              <Search className="w-3.5 h-3.5 text-[#384e68] shrink-0" />
+              <span className="text-sm font-semibold text-[#d8e4f0] truncate font-mono">{activeTicker}</span>
+              <span className="text-[10px] text-[#384e68] ml-auto hidden sm:block">Search ticker</span>
             </button>
 
             {searchOpen && (
-              <div className="absolute top-full left-0 mt-1 rounded-md border border-[#272738] bg-[#0d0d15] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
-                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(96,165,250,0.08)" }}>
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1a1a28]">
-                  <Search className="w-3.5 h-3.5 text-[#3a3748] shrink-0" />
+              <div className="absolute top-full left-0 mt-1 rounded-md border border-[#243348] bg-[#0a1020] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
+                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(90,144,176,0.08)" }}>
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#182235]">
+                  <Search className="w-3.5 h-3.5 text-[#384e68] shrink-0" />
                   <input
                     autoFocus
                     value={query}
                     onChange={e => setQuery(e.target.value.toUpperCase())}
                     onKeyDown={handleSearchKey}
                     placeholder="Type ticker…"
-                    className="flex-1 bg-transparent text-sm font-mono text-[#ede8e0] placeholder-[#3a3748] outline-none min-w-0"
+                    className="flex-1 bg-transparent text-sm font-mono text-[#d8e4f0] placeholder-[#384e68] outline-none min-w-0"
                   />
                   <button onClick={() => { setSearchOpen(false); setQuery(""); }}>
-                    <X className="w-3.5 h-3.5 text-[#3a3748] hover:text-[#ede8e0] transition-colors" />
+                    <X className="w-3.5 h-3.5 text-[#384e68] hover:text-[#d8e4f0] transition-colors" />
                   </button>
                 </div>
                 <div className="py-1 max-h-64 overflow-y-auto">
@@ -94,12 +94,12 @@ export default function HomePage() {
                       key={t}
                       onClick={() => selectTicker(t)}
                       className={cn(
-                        "w-full text-left px-4 py-2 text-sm hover:bg-[#12121c] transition-colors flex items-center gap-2",
-                        t === activeTicker ? "text-[#60a5fa]" : "text-[#ede8e0]"
+                        "w-full text-left px-4 py-2 text-sm hover:bg-[#0e1628] transition-colors flex items-center gap-2",
+                        t === activeTicker ? "text-[#5a90b0]" : "text-[#d8e4f0]"
                       )}
                     >
                       <span className="font-mono font-medium">{t}</span>
-                      {watchlist.includes(t) && <span className="text-[9px] text-[#3a3748] ml-auto">watchlist</span>}
+                      {watchlist.includes(t) && <span className="text-[9px] text-[#384e68] ml-auto">watchlist</span>}
                     </button>
                   ))}
                 </div>
@@ -108,14 +108,14 @@ export default function HomePage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center border border-[#1a1a28] rounded-md p-0.5 shrink-0 bg-[#0d0d15]">
+          <div className="flex items-center border border-[#182235] rounded-md p-0.5 shrink-0 bg-[#0a1020]">
             <button
               onClick={() => setActiveTab("overview")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#60a5fa15] text-[#60a5fa] border border-[#60a5fa28]" : "text-[#7c7890] hover:text-[#ede8e0]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#5a90b015] text-[#5a90b0] border border-[#5a90b028]" : "text-[#7890a8] hover:text-[#d8e4f0]")}
             >Overview</button>
             <button
               onClick={() => setActiveTab("discover")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#60a5fa15] text-[#60a5fa] border border-[#60a5fa28]" : "text-[#7c7890] hover:text-[#ede8e0]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#5a90b015] text-[#5a90b0] border border-[#5a90b028]" : "text-[#7890a8] hover:text-[#d8e4f0]")}
             >
               <Compass className="w-3 h-3" /><span className="hidden sm:inline">Discover</span>
             </button>
@@ -124,7 +124,7 @@ export default function HomePage() {
           {/* Terminal button */}
           <a
             href={`/terminal/${activeTicker}`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#60a5fa28] bg-[#60a5fa08] text-[#60a5fa] text-xs font-medium hover:bg-[#60a5fa15] hover:border-[#60a5fa44] transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#5a90b028] bg-[#5a90b008] text-[#5a90b0] text-xs font-medium hover:bg-[#5a90b015] hover:border-[#5a90b044] transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:block whitespace-nowrap">Terminal</span>

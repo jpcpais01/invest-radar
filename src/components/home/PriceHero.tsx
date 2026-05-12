@@ -8,11 +8,11 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 interface Props { ticker: string }
 
 const SIGNAL_CONFIG = {
-  "strong-buy":  { label: "Strong Buy",  cls: "text-[#93c5fd] border-[#93c5fd33] bg-[#93c5fd0a]", dot: "#93c5fd" },
-  "buy":         { label: "Buy",          cls: "text-[#60a5fa] border-[#60a5fa33] bg-[#60a5fa0a]", dot: "#60a5fa" },
-  "neutral":     { label: "Neutral",      cls: "text-[#7c7890] border-[#272738]   bg-transparent",  dot: "#5a5570" },
-  "sell":        { label: "Sell",         cls: "text-[#e05252] border-[#e0525233] bg-[#e052520a]", dot: "#e05252" },
-  "strong-sell": { label: "Strong Sell",  cls: "text-[#d04444] border-[#d0444444] bg-[#d044440a]", dot: "#d04444" },
+  "strong-buy":  { label: "Strong Buy",  cls: "text-[#7ab0cc] border-[#7ab0cc33] bg-[#7ab0cc0a]", dot: "#7ab0cc" },
+  "buy":         { label: "Buy",          cls: "text-[#5a90b0] border-[#5a90b033] bg-[#5a90b00a]", dot: "#5a90b0" },
+  "neutral":     { label: "Neutral",      cls: "text-[#7890a8] border-[#243348]   bg-transparent",  dot: "#5a5570" },
+  "sell":        { label: "Sell",         cls: "text-[#aa6060] border-[#aa606033] bg-[#aa60600a]", dot: "#aa6060" },
+  "strong-sell": { label: "Strong Sell",  cls: "text-[#904848] border-[#90484844] bg-[#9048480a]", dot: "#904848" },
 };
 
 export default function PriceHero({ ticker }: Props) {
@@ -45,9 +45,9 @@ export default function PriceHero({ ticker }: Props) {
 
   return (
     <div
-      className="relative rounded-lg border border-[#1a1a28] overflow-hidden px-6 py-6"
+      className="relative rounded-lg border border-[#182235] overflow-hidden px-6 py-6"
       style={{
-        background: "linear-gradient(135deg, #0d0d15 0%, #09090e 100%)",
+        background: "linear-gradient(135deg, #0a1020 0%, #060a12 100%)",
         boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset",
       }}
     >
@@ -55,7 +55,7 @@ export default function PriceHero({ ticker }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
         <div>
           <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-3xl sm:text-4xl font-bold tracking-tight text-[#ede8e0] font-mono">{ticker}</span>
+            <span className="text-3xl sm:text-4xl font-bold tracking-tight text-[#d8e4f0] font-mono">{ticker}</span>
             {sigCfg && (
               <span className={cn("text-[10px] font-semibold px-2.5 py-0.5 rounded-full border tracking-wide", sigCfg.cls)}>
                 {sigCfg.label}
@@ -63,7 +63,7 @@ export default function PriceHero({ ticker }: Props) {
             )}
           </div>
           {name !== ticker && (
-            <p className="text-sm text-[#7c7890]">{name}</p>
+            <p className="text-sm text-[#7890a8]">{name}</p>
           )}
         </div>
 
@@ -72,24 +72,24 @@ export default function PriceHero({ ticker }: Props) {
             <>
               <span
                 className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight font-mono"
-                style={{ color: isUp ? "#60a5fa" : "#e05252" }}
+                style={{ color: isUp ? "#5a90b0" : "#aa6060" }}
               >
                 ${price.toFixed(2)}
               </span>
-              <div className={cn("flex items-center gap-1.5 text-sm font-medium", isUp ? "text-[#60a5fa]" : "text-[#e05252]")}>
+              <div className={cn("flex items-center gap-1.5 text-sm font-medium", isUp ? "text-[#5a90b0]" : "text-[#aa6060]")}>
                 {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 <span className="font-mono">{isUp ? "+" : ""}{change?.toFixed(2)}</span>
                 <span className="opacity-70 font-mono">({isUp ? "+" : ""}{pct?.toFixed(2)}%)</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#3a3748]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse inline-block" />
+              <div className="flex items-center gap-1.5 text-[10px] text-[#384e68]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5a90b0] animate-pulse inline-block" />
                 Live quote
               </div>
             </>
           ) : (
             <div className="animate-pulse space-y-2">
-              <div className="h-10 w-36 rounded-md bg-[#1a1a28]" />
-              <div className="h-4 w-24 rounded bg-[#1a1a28]" />
+              <div className="h-10 w-36 rounded-md bg-[#182235]" />
+              <div className="h-4 w-24 rounded bg-[#182235]" />
             </div>
           )}
         </div>
@@ -103,19 +103,19 @@ export default function PriceHero({ ticker }: Props) {
         const pctNeu = total ? (s.neutrals / total) * 100 : 0;
         const pctSel = total ? ((s.sells + s.strongSells) / total) * 100 : 0;
         return (
-          <div className="mt-5 pt-4 border-t border-[#1a1a28] flex items-center gap-4">
-            <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#12121c]">
+          <div className="mt-5 pt-4 border-t border-[#182235] flex items-center gap-4">
+            <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#0e1628]">
               <div className="h-full flex">
-                <div className="bg-[#93c5fd]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#60a5fa]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#2a2a3e]" style={{ width: `${pctNeu}%` }} />
-                <div className="bg-[#e05252]" style={{ width: `${pctSel}%` }} />
+                <div className="bg-[#7ab0cc]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#5a90b0]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
+                <div className="bg-[#1a2e48]" style={{ width: `${pctNeu}%` }} />
+                <div className="bg-[#aa6060]" style={{ width: `${pctSel}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-4 text-[11px] shrink-0">
-              <span className="text-[#60a5fa] font-medium">{s.strongBuys + s.buys} Buy</span>
-              <span className="text-[#3a3748]">{s.neutrals} Neutral</span>
-              <span className="text-[#e05252] font-medium">{s.sells + s.strongSells} Sell</span>
+              <span className="text-[#5a90b0] font-medium">{s.strongBuys + s.buys} Buy</span>
+              <span className="text-[#384e68]">{s.neutrals} Neutral</span>
+              <span className="text-[#aa6060] font-medium">{s.sells + s.strongSells} Sell</span>
             </div>
           </div>
         );

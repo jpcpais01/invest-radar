@@ -22,66 +22,66 @@ export default function NewsPanel({ ticker }: Props) {
   const neu = articles.length - pos - neg;
 
   return (
-    <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a1a28]">
+    <div className="rounded-lg border border-[#182235] bg-[#0a1020] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#182235]">
         <div className="flex items-center gap-2.5">
-          <span className="text-[#60a5fa] text-[8px]">◆</span>
-          <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">News Feed</span>
+          <span className="text-[#5a90b0] text-[8px]">◆</span>
+          <span className="text-[11px] font-semibold text-[#d8e4f0] tracking-wide">News Feed</span>
         </div>
         {articles.length > 0 && (
           <div className="flex items-center gap-2.5 text-[10px]">
-            <span className="text-[#60a5fa]">{pos} pos</span>
-            <span className="text-[#3a3748]">{neu} neu</span>
-            <span className="text-[#e05252]">{neg} neg</span>
+            <span className="text-[#5a90b0]">{pos} pos</span>
+            <span className="text-[#384e68]">{neu} neu</span>
+            <span className="text-[#aa6060]">{neg} neg</span>
           </div>
         )}
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col divide-y divide-[#1a1a28] animate-pulse">
+        <div className="flex flex-col divide-y divide-[#182235] animate-pulse">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="px-4 py-3 flex flex-col gap-1.5">
-              <div className="h-2.5 w-3/4 rounded bg-[#1a1a28]" />
-              <div className="h-2 w-1/2 rounded bg-[#1a1a28]" />
+              <div className="h-2.5 w-3/4 rounded bg-[#182235]" />
+              <div className="h-2 w-1/2 rounded bg-[#182235]" />
             </div>
           ))}
         </div>
       ) : articles.length === 0 ? (
         <div className="flex items-center justify-center py-8">
-          <p className="text-[11px] text-[#3a3748]">No news available</p>
+          <p className="text-[11px] text-[#384e68]">No news available</p>
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-[#1a1a28]">
+        <div className="flex flex-col divide-y divide-[#182235]">
           {articles.slice(0, 8).map((a, i) => (
             <a
               key={i}
               href={a.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-start gap-3 px-4 py-3 hover:bg-[#12121c] transition-colors"
+              className="group flex items-start gap-3 px-4 py-3 hover:bg-[#0e1628] transition-colors"
             >
               <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", {
-                "bg-[#60a5fa]": a.sentiment === "positive",
-                "bg-[#e05252]": a.sentiment === "negative",
-                "bg-[#3a3748]": a.sentiment === "neutral",
+                "bg-[#5a90b0]": a.sentiment === "positive",
+                "bg-[#aa6060]": a.sentiment === "negative",
+                "bg-[#384e68]": a.sentiment === "neutral",
               })} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-[#ede8e0] group-hover:text-white leading-snug line-clamp-2 transition-colors">
+                <p className="text-xs text-[#d8e4f0] group-hover:text-white leading-snug line-clamp-2 transition-colors">
                   {a.title}
                 </p>
-                <div className="flex items-center gap-2 mt-1 text-[9px] text-[#3a3748]">
+                <div className="flex items-center gap-2 mt-1 text-[9px] text-[#384e68]">
                   {a.source && <span>{a.source}</span>}
                   {a.publishedAt && (
                     <><span>·</span><span>{new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>
                   )}
                   <span className={cn("ml-auto capitalize font-medium", {
-                    "text-[#60a5fa]": a.sentiment === "positive",
-                    "text-[#e05252]": a.sentiment === "negative",
-                    "text-[#7c7890]": a.sentiment === "neutral",
+                    "text-[#5a90b0]": a.sentiment === "positive",
+                    "text-[#aa6060]": a.sentiment === "negative",
+                    "text-[#7890a8]": a.sentiment === "neutral",
                   })}>{a.sentiment}</span>
                 </div>
               </div>
-              <ExternalLink className="w-3 h-3 text-[#1a1a28] group-hover:text-[#3a3748] shrink-0 mt-1 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-[#182235] group-hover:text-[#384e68] shrink-0 mt-1 transition-colors" />
             </a>
           ))}
         </div>
