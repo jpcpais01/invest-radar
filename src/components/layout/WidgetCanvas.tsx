@@ -62,7 +62,7 @@ interface CatalogEntry {
 }
 
 const CATALOG: CatalogEntry[] = [
-  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",              defaultW: 16, defaultH: 5, minW: 8  },
+  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",              defaultW: 16, defaultH: 5, minW: 4  },
   { type: "rsi",                label: "RSI",                   desc: "Relative Strength Index",              defaultW: 8,  defaultH: 4, minW: 4  },
   { type: "macd",               label: "MACD",                  desc: "Moving Average Convergence",           defaultW: 8,  defaultH: 4, minW: 4  },
   { type: "stochastic",         label: "Stochastic",            desc: "Stochastic oscillator %K/%D",          defaultW: 8,  defaultH: 4, minW: 4  },
