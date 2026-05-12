@@ -2,10 +2,10 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
-import Together from "together-ai";
+import { getTogetherClient } from "@/lib/ai/client";
 import { getHistory } from "@/lib/market/yahoo";
 
-const together = new Together({ apiKey: process.env.TOGETHER_API_KEY ?? "" });
+const PREDICT_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
 function nextTradingDays(fromSec: number, n: number): number[] {
   const days: number[] = [];
@@ -19,8 +19,9 @@ function nextTradingDays(fromSec: number, n: number): number[] {
 }
 
 async function runPrediction(prices: number[], n: number): Promise<number[]> {
-  const resp = await together.chat.completions.create({
-    model: "meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo",
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resp: any = await (getTogetherClient().chat.completions.create as any)({
+    model: PREDICT_MODEL,
     messages: [
       {
         role: "system",
@@ -33,14 +34,19 @@ async function runPrediction(prices: number[], n: number): Promise<number[]> {
     ],
     max_tokens: Math.max(200, n * 20),
     temperature: 0.85,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+    stream: false,
+  });
 
-  const text = resp.choices[0]?.message?.content ?? "";
+  const text: string = resp.choices?.[0]?.message?.content ?? "";
+  if (!text) throw new Error("Empty response from model");
+
+  // Extract JSON array — handle markdown code fences and surrounding text
   const match = text.match(/\[[\d.,\s\-eE+]+\]/);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const arr: number[] = JSON.parse(match ? match[0] : text) as any;
-  if (!Array.isArray(arr) || arr.length === 0) throw new Error("Invalid response");
+  if (!match) throw new Error(`No array found in: ${text.slice(0, 120)}`);
+
+  const arr: number[] = JSON.parse(match[0]);
+  if (!Array.isArray(arr) || arr.length === 0) throw new Error("Parsed empty array");
+
   const last = prices[prices.length - 1];
   while (arr.length < n) arr.push(arr[arr.length - 1] ?? last);
   return arr.slice(0, n).map(Number);
@@ -71,8 +77,16 @@ export async function GET(
       .filter((r): r is PromiseFulfilledResult<number[]> => r.status === "fulfilled")
       .map((r) => r.value);
 
+    // Surface the actual errors so they're visible during debugging
+    const errors = settled
+      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+      .map((r) => String(r.reason));
+
     if (successful.length === 0) {
-      return NextResponse.json({ error: "All prediction runs failed" }, { status: 500 });
+      return NextResponse.json(
+        { error: "All prediction runs failed", details: errors },
+        { status: 500 }
+      );
     }
 
     const mean = Array.from({ length: n }, (_, i) =>
@@ -82,9 +96,9 @@ export async function GET(
     const futureDates = nextTradingDays(bars[bars.length - 1].time, n);
 
     return NextResponse.json({
-      historical:    bars.slice(-60).map((b) => ({ time: b.time, close: b.close })),
+      historical:     bars.slice(-60).map((b) => ({ time: b.time, close: b.close })),
       futureDates,
-      runs:          successful,
+      runs:           successful,
       mean,
       n,
       successfulRuns: successful.length,

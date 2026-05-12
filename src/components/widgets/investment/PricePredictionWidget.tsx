@@ -52,7 +52,7 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
     try {
       const res  = await fetch(`/api/market/predict/${ticker}?n=${days}&runs=${runs}`);
       const json = await res.json();
-      if (json.error) throw new Error(json.error);
+      if (json.error) throw new Error(json.details?.[0] ?? json.error);
       setData(json);
     } catch (e) {
       setError(String(e));
