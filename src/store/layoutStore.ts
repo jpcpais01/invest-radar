@@ -3,9 +3,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { WidgetConfig, PresetLayout } from "@/types/widgets";
 
-// Grid: 24 cols, rowHeight = colWidth (computed dynamically in WidgetCanvas).
-// All h/w values are in column units — 1 unit = 1/24 of canvas width.
-// At ~1720px that's ~65px per unit. Scale: chart h=5 ≈ 325px, panel h=3 ≈ 195px.
+// Grid: 24 cols, containerPadding=[0,0], margin=[6,6]
+// rowHeight is set dynamically in WidgetCanvas to equal colWidth:
+//   colWidth = rowHeight = (canvasInnerWidth - 6 * (24-1)) / 24
+// At a ~1500px inner canvas that gives ~56px per unit.
+// h=5 → ~280px tall,  h=3 → ~168px tall,  w=16 → ~896px wide.
 const OVERVIEW_LAYOUT: WidgetConfig[] = [
   { id: "chart",      type: "candlestick", title: "Price Chart",      i: "chart",      x: 0,  y: 0, w: 16, h: 5, minW: 8, minH: 3 },
   { id: "rsi",        type: "rsi",         title: "RSI (14)",          i: "rsi",        x: 16, y: 0, w: 8,  h: 3, minW: 4, minH: 2 },
@@ -16,12 +18,12 @@ const OVERVIEW_LAYOUT: WidgetConfig[] = [
 ];
 
 const OPTIONS_LAYOUT: WidgetConfig[] = [
-  { id: "chart",         type: "candlestick",    title: "Price Chart",      i: "chart",         x: 0,  y: 0, w: 16, h: 5,  minW: 8, minH: 3 },
-  { id: "iv-rank",       type: "iv-rank",        title: "IV Rank",          i: "iv-rank",       x: 16, y: 0, w: 8,  h: 3,  minW: 4, minH: 2 },
-  { id: "pcr",           type: "put-call-ratio", title: "Put/Call Ratio",   i: "pcr",           x: 16, y: 3, w: 8,  h: 2,  minW: 4, minH: 2 },
-  { id: "options-chain", type: "options-chain",  title: "Options Chain",    i: "options-chain", x: 0,  y: 5, w: 16, h: 7,  minW: 8, minH: 4 },
-  { id: "max-pain",      type: "max-pain",       title: "Max Pain",         i: "max-pain",      x: 16, y: 5, w: 8,  h: 3,  minW: 4, minH: 2 },
-  { id: "prob-cone",     type: "prob-cone",      title: "Probability Cone", i: "prob-cone",     x: 16, y: 8, w: 8,  h: 4,  minW: 4, minH: 2 },
+  { id: "chart",         type: "candlestick",    title: "Price Chart",      i: "chart",         x: 0,  y: 0, w: 16, h: 5, minW: 8, minH: 3 },
+  { id: "iv-rank",       type: "iv-rank",        title: "IV Rank",          i: "iv-rank",       x: 16, y: 0, w: 8,  h: 3, minW: 4, minH: 2 },
+  { id: "pcr",           type: "put-call-ratio",  title: "Put/Call Ratio",  i: "pcr",           x: 16, y: 3, w: 8,  h: 2, minW: 4, minH: 2 },
+  { id: "options-chain", type: "options-chain",  title: "Options Chain",    i: "options-chain", x: 0,  y: 5, w: 16, h: 6, minW: 8, minH: 4 },
+  { id: "max-pain",      type: "max-pain",       title: "Max Pain",         i: "max-pain",      x: 16, y: 5, w: 8,  h: 3, minW: 4, minH: 2 },
+  { id: "prob-cone",     type: "prob-cone",      title: "Probability Cone", i: "prob-cone",     x: 16, y: 8, w: 8,  h: 3, minW: 4, minH: 2 },
 ];
 
 const TECHNICAL_LAYOUT: WidgetConfig[] = [
@@ -130,6 +132,6 @@ export const useLayoutStore = create<LayoutState>()(
           };
         }),
     }),
-    { name: "investradar-layout-v7" }
+    { name: "investradar-layout-v8" }
   )
 );

@@ -29,15 +29,27 @@ import ConvictionTrackerWidget from "@/components/widgets/investment/ConvictionT
 import NarrativeIndexWidget from "@/components/widgets/investment/NarrativeIndexWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
-// ─── Grid constants ───────────────────────────────────────────────────────────
-// 24 columns, 6px gap between cells.
-// rowHeight is set equal to colWidth so both resize axes snap by the same
-// number of pixels — the grid is a perfect square at every screen size.
+// ─── Grid geometry ────────────────────────────────────────────────────────────
 //
-// colWidth  = (canvasWidth - GAP * (COLS - 1)) / COLS
-// rowHeight = colWidth  (computed below from live canvasWidth)
+// We use 24 columns with containerPadding=[0,0] and margin=[GAP,GAP].
+// Per the RGL source (chunk-BPZQUJ7Y.js):
+//
+//   effectiveContainerPadding = containerPadding ?? margin   ← that's why we set it explicitly
+//   colWidth = (width - margin[0]*(cols-1) - containerPadding[0]*2) / cols
+//
+// With containerPadding=[0,0]:
+//   colWidth = (width - GAP*(COLS-1)) / COLS
+//
+// We set rowHeight = colWidth by computing it from the measured container width.
+// Result: both resize axes snap by the same pixel distance on every screen size.
+
 const COLS = 24;
-const GAP  = 6;   // margin between cells (both axes)
+const GAP  = 6;   // px — used for both margin and containerPadding is 0
+
+// colWidth (== rowHeight) = (innerWidth - GAP*(COLS-1)) / COLS
+function calcRowHeight(innerWidth: number): number {
+  return Math.max(20, Math.round((innerWidth - GAP * (COLS - 1)) / COLS));
+}
 
 // ─── Widget catalogue ─────────────────────────────────────────────────────────
 interface CatalogEntry {
@@ -66,7 +78,7 @@ const CATALOG: CatalogEntry[] = [
   { type: "news-feed",          label: "News Feed",             desc: "Latest news with sentiment",           defaultW: 8,  defaultH: 4, minW: 4  },
   { type: "iv-rank",            label: "IV Rank",               desc: "Implied volatility rank",              defaultW: 8,  defaultH: 3, minW: 4  },
   { type: "put-call-ratio",     label: "Put / Call Ratio",      desc: "Options sentiment ratio",              defaultW: 8,  defaultH: 3, minW: 4  },
-  { type: "options-chain",      label: "Options Chain",         desc: "Full calls / puts table",              defaultW: 16, defaultH: 7, minW: 8  },
+  { type: "options-chain",      label: "Options Chain",         desc: "Full calls / puts table",              defaultW: 16, defaultH: 6, minW: 8  },
   { type: "max-pain",           label: "Max Pain",              desc: "Max pain strike calculator",           defaultW: 8,  defaultH: 3, minW: 4  },
   { type: "prob-cone",          label: "Probability Cone",      desc: "1σ / 2σ price range at expiry",       defaultW: 8,  defaultH: 4, minW: 4  },
   { type: "quality-score",      label: "Quality Score",         desc: "Business quality: margins, ROE, FCF", defaultW: 8,  defaultH: 4, minW: 4  },
@@ -108,13 +120,7 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
 }
 
 // ─── Widget picker modal ──────────────────────────────────────────────────────
-function WidgetPicker({
-  onAdd,
-  onClose,
-}: {
-  onAdd: (entry: CatalogEntry) => void;
-  onClose: () => void;
-}) {
+function WidgetPicker({ onAdd, onClose }: { onAdd: (e: CatalogEntry) => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -129,16 +135,14 @@ function WidgetPicker({
           </button>
         </div>
         <div className="overflow-y-auto p-3 grid grid-cols-2 gap-2">
-          {CATALOG.map((entry) => (
+          {CATALOG.map((e) => (
             <button
-              key={entry.type}
-              onClick={() => { onAdd(entry); onClose(); }}
+              key={e.type}
+              onClick={() => { onAdd(e); onClose(); }}
               className="text-left px-3 py-2.5 rounded-xl border border-[#21262d] bg-[#161b22] hover:border-[#1f6feb44] hover:bg-[#1f6feb08] transition-all group"
             >
-              <div className="text-xs font-semibold text-white group-hover:text-[#388bfd] transition-colors">
-                {entry.label}
-              </div>
-              <div className="text-[10px] text-[#484f58] mt-0.5 leading-relaxed">{entry.desc}</div>
+              <div className="text-xs font-semibold text-white group-hover:text-[#388bfd] transition-colors">{e.label}</div>
+              <div className="text-[10px] text-[#484f58] mt-0.5 leading-relaxed">{e.desc}</div>
             </button>
           ))}
         </div>
@@ -147,7 +151,7 @@ function WidgetPicker({
   );
 }
 
-// ─── Main canvas ──────────────────────────────────────────────────────────────
+// ─── Canvas ───────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const GL = GridLayout as any;
 
@@ -156,57 +160,58 @@ export default function WidgetCanvas() {
   const { activeTicker, watchlist, addToWatchlist, removeFromWatchlist } = useTickerStore();
   const queryClient = useQueryClient();
 
-  // canvasWidth tracks the inner width of the scrollable container.
-  // We put the ref on an inner div that has no padding so clientWidth == usable width.
-  const innerRef  = useRef<HTMLDivElement>(null);
-  const [canvasWidth, setCanvasWidth] = useState(1200);
+  // gridRef sits on a div with NO padding so its clientWidth == the exact pixel
+  // budget we hand to <GL width={...}>.  This makes calcRowHeight() exact.
+  const gridRef = useRef<HTMLDivElement>(null);
 
-  const [pickerOpen,    setPickerOpen]    = useState(false);
-  const [locked,        setLocked]        = useState(false);
-  const [refreshing,    setRefreshing]    = useState(false);
-  const [clearConfirm,  setClearConfirm]  = useState(false);
+  // Single state object so both values update in one React render (no flash).
+  const [grid, setGrid] = useState({ width: 1200, rowHeight: calcRowHeight(1200) });
+
+  const [pickerOpen,   setPickerOpen]   = useState(false);
+  const [locked,       setLocked]       = useState(false);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Square-cell row height ──
-  // rowHeight = colWidth  →  both resize axes snap by identical pixels
-  // colWidth formula (matches react-grid-layout internals):
-  //   colWidth = (width - GAP * (COLS - 1)) / COLS
-  const rowHeight = Math.max(20, Math.round((canvasWidth - GAP * (COLS - 1)) / COLS));
-
-  // Track live canvas width via ResizeObserver on the padded inner div
+  // Measure the grid container and keep rowHeight == colWidth at all times.
   useEffect(() => {
-    const el = innerRef.current;
+    const el = gridRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      setCanvasWidth(entry.contentRect.width);
-    });
+    const measure = () => {
+      const w = el.clientWidth;
+      setGrid({ width: w, rowHeight: calcRowHeight(w) });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    setCanvasWidth(el.clientWidth);
     return () => ro.disconnect();
   }, []);
 
-  // ── Skip the spurious onLayoutChange that RGL fires on every mount ──
-  // We don't want to overwrite the persisted store with the initial prop layout.
-  const skipLayout = useRef(true);
+  // ── Skip the initial spurious onLayoutChange from RGL ──
+  // RGL fires onLayoutChange once on mount (and on remount after key flip).
+  // That call just reflects the props we already have — we must NOT write it
+  // back to the store or it can corrupt persisted custom positions.
+  const skipRef = useRef(true);
 
-  // Lock toggle forces a key-based remount → skip that mount's layout event too.
-  const prevLocked = useRef(locked);
-  if (prevLocked.current !== locked) {
-    prevLocked.current = locked;
-    skipLayout.current = true;
+  // Remount key for locking (forces GL to remount → skip its first callback).
+  const glKey = locked ? "locked" : "unlocked";
+  const prevKey = useRef(glKey);
+  if (prevKey.current !== glKey) {
+    prevKey.current = glKey;
+    skipRef.current = true;
   }
 
-  // Preset / widget-set change also triggers a prop-driven re-render → skip.
+  // Also skip when the widget set changes (preset switch / add / remove).
   const widgetSig = widgets.map((w) => w.i).join(",");
-  const prevSig   = useRef(widgetSig);
+  const prevSig = useRef(widgetSig);
   if (prevSig.current !== widgetSig) {
-    prevSig.current   = widgetSig;
-    skipLayout.current = true;
+    prevSig.current = widgetSig;
+    skipRef.current = true;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleLayoutChange = useCallback((next: any[]) => {
-    if (skipLayout.current) { skipLayout.current = false; return; }
+    if (skipRef.current) { skipRef.current = false; return; }
     const updated: WidgetConfig[] = widgets.map((w) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const l = next.find((n: any) => n.i === w.i);
@@ -245,11 +250,7 @@ export default function WidgetCanvas() {
 
   const glLayout = widgets.map((w) => {
     const cat = CATALOG.find((c) => c.type === w.type);
-    return {
-      i: w.i, x: w.x, y: w.y, w: w.w, h: w.h,
-      minW: cat?.minW ?? 4,
-      minH: 2,
-    };
+    return { i: w.i, x: w.x, y: w.y, w: w.w, h: w.h, minW: cat?.minW ?? 4, minH: 2 };
   });
 
   const inWatchlist = watchlist.includes(activeTicker);
@@ -259,7 +260,7 @@ export default function WidgetCanvas() {
       {pickerOpen && <WidgetPicker onAdd={handleAddWidget} onClose={() => setPickerOpen(false)} />}
 
       {/* ── Toolbar ── */}
-      <div className="flex items-center h-8 px-2 gap-0.5 border-b border-[#21262d] shrink-0">
+      <div className="flex items-center h-8 px-2 gap-0.5 border-b border-[#21262d] shrink-0 bg-[#0d1117]">
         <button
           onClick={() => setPickerOpen(true)}
           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[#8b949e] hover:text-white hover:bg-[#161b22] transition-colors"
@@ -282,9 +283,7 @@ export default function WidgetCanvas() {
           onClick={() => inWatchlist ? removeFromWatchlist(activeTicker) : addToWatchlist(activeTicker)}
           className={cn(
             "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
-            inWatchlist
-              ? "text-[#d29922] hover:bg-[#161b22]"
-              : "text-[#8b949e] hover:text-[#d29922] hover:bg-[#161b22]"
+            inWatchlist ? "text-[#d29922] hover:bg-[#161b22]" : "text-[#8b949e] hover:text-[#d29922] hover:bg-[#161b22]"
           )}
         >
           <Star className={cn("w-3 h-3", inWatchlist && "fill-current")} />
@@ -296,9 +295,7 @@ export default function WidgetCanvas() {
             onClick={() => setLocked((v) => !v)}
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
-              locked
-                ? "text-[#388bfd] bg-[#1f6feb15] hover:bg-[#1f6feb22]"
-                : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"
+              locked ? "text-[#388bfd] bg-[#1f6feb15] hover:bg-[#1f6feb22]" : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"
             )}
           >
             {locked ? <Lock className="w-3 h-3" /> : <LockOpen className="w-3 h-3" />}
@@ -311,9 +308,7 @@ export default function WidgetCanvas() {
             onClick={handleClear}
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
-              clearConfirm
-                ? "text-[#f85149] bg-[#f8514915] hover:bg-[#f8514922]"
-                : "text-[#8b949e] hover:text-[#f85149] hover:bg-[#161b22]"
+              clearConfirm ? "text-[#f85149] bg-[#f8514915] hover:bg-[#f8514922]" : "text-[#8b949e] hover:text-[#f85149] hover:bg-[#161b22]"
             )}
           >
             <Trash2 className="w-3 h-3" />
@@ -322,11 +317,10 @@ export default function WidgetCanvas() {
         </div>
       </div>
 
-      {/* ── Canvas ── */}
-      {/* Outer div: scroll container, no horizontal overflow, slight padding */}
+      {/* ── Scroll container (has padding for aesthetics — NOT the ref target) ── */}
       <div
         className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden relative",
+          "flex-1 overflow-y-auto overflow-x-hidden relative p-2",
           locked && "[&_.react-resizable-handle]:!hidden [&_.widget-drag-handle]:!cursor-default"
         )}
         onMouseDownCapture={locked ? (e: React.MouseEvent) => {
@@ -336,30 +330,34 @@ export default function WidgetCanvas() {
           }
         } : undefined}
       >
-        {/* Inner div: no padding — its clientWidth is exactly what we feed to GL */}
-        <div ref={innerRef} className="w-full">
-          {widgets.length === 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
-              <button onClick={() => setPickerOpen(true)} className="flex flex-col items-center gap-2 group">
-                <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] group-hover:border-[#30363d] flex items-center justify-center transition-colors">
-                  <Plus className="w-5 h-5 text-[#30363d] group-hover:text-[#484f58] transition-colors" />
-                </div>
-                <p className="text-xs text-[#30363d] group-hover:text-[#484f58] transition-colors">
-                  Add a widget to get started
-                </p>
-              </button>
-            </div>
-          )}
+        {widgets.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
+            <button onClick={() => setPickerOpen(true)} className="flex flex-col items-center gap-2 group">
+              <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] group-hover:border-[#30363d] flex items-center justify-center transition-colors">
+                <Plus className="w-5 h-5 text-[#30363d] group-hover:text-[#484f58] transition-colors" />
+              </div>
+              <p className="text-xs text-[#30363d] group-hover:text-[#484f58] transition-colors">Add a widget to get started</p>
+            </button>
+          </div>
+        )}
 
+        {/*
+          gridRef is on this div — no padding, so clientWidth == the exact pixel budget.
+          We measure it and feed both `width` and `rowHeight` to GL from that one number.
+          containerPadding=[0,0] is EXPLICIT so RGL's colWidth formula is simply:
+            colWidth = (width - GAP*(COLS-1)) / COLS
+          which is exactly what calcRowHeight() computes — guaranteed equal steps.
+        */}
+        <div ref={gridRef}>
           <GL
             layout={glLayout}
             cols={COLS}
-            rowHeight={rowHeight}
-            width={canvasWidth}
+            rowHeight={grid.rowHeight}
+            width={grid.width}
             margin={[GAP, GAP]}
-            containerPadding={[GAP, GAP]}
+            containerPadding={[0, 0]}
             onLayoutChange={handleLayoutChange}
-            key={locked ? "locked" : "unlocked"}
+            key={glKey}
             draggableHandle=".widget-drag-handle"
             draggableCancel=".widget-body"
             isDraggable={!locked}
