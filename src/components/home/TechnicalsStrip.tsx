@@ -7,11 +7,11 @@ interface Props { ticker: string }
 type Sig = "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell";
 
 const SIG_CLS: Record<Sig, string> = {
-  "strong-buy":  "text-[#7ab0cc] bg-[#7ab0cc0a] border-[#7ab0cc2a]",
-  "buy":         "text-[#5a90b0] bg-[#5a90b008] border-[#5a90b022]",
-  "neutral":     "text-[#8aa4be] bg-transparent border-[#182235]",
-  "sell":        "text-[#aa6060] bg-[#aa60600a] border-[#aa606028]",
-  "strong-sell": "text-[#904848] bg-[#9048480a] border-[#90484838]",
+  "strong-buy":  "text-[#5ecce8] bg-[#5ecce80a] border-[#5ecce82a]",
+  "buy":         "text-[#38b2cc] bg-[#38b2cc08] border-[#38b2cc22]",
+  "neutral":     "text-[#8aa4be] bg-transparent border-[#1a2540]",
+  "sell":        "text-[#cc6464] bg-[#cc64640a] border-[#cc646428]",
+  "strong-sell": "text-[#b05050] bg-[#b050500a] border-[#b0505038]",
 };
 
 function lastValidNum(arr?: number[]) {
@@ -24,7 +24,7 @@ function lastValidNum(arr?: number[]) {
 
 function TechCard({ name, value, signal, sub }: { name: string; value: string; signal: Sig; sub?: string }) {
   return (
-    <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-[#182235] bg-[#0a1020] px-4 py-3 min-w-[130px] hover:border-[#243348] transition-colors">
+    <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-[#1a2540] bg-[#0a1020] px-4 py-3 min-w-[130px] hover:border-[#2a3858] transition-colors">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[9px] font-semibold text-[#4a6280] uppercase tracking-widest">{name}</span>
         <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full border", SIG_CLS[signal])}>
@@ -97,9 +97,9 @@ export default function TechnicalsStrip({ ticker }: Props) {
   })();
 
   return (
-    <div className="rounded-lg border border-[#182235] bg-[#0a1020] p-4">
+    <div className="rounded-lg border border-[#1a2540] bg-[#0a1020] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-[#5a90b0] text-[8px]">◆</span>
+        <span className="text-[#38b2cc] text-[8px]">◆</span>
         <span className="text-[11px] font-semibold text-[#edf2f8] tracking-wide">Technical Indicators</span>
         <span className="text-[9px] text-[#4a6280] ml-1">3M</span>
       </div>

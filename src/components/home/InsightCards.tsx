@@ -9,9 +9,9 @@ interface Props { ticker: string }
 
 function CardShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-[#182235] bg-[#0a1020] overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#182235]">
-        <span className="text-[#5a90b0] text-[8px]">◆</span>
+    <div className="rounded-lg border border-[#1a2540] bg-[#0a1020] overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#1a2540]">
+        <span className="text-[#38b2cc] text-[8px]">◆</span>
         <span className="text-[11px] font-semibold text-[#edf2f8] tracking-wide">{title}</span>
       </div>
       <div className="px-4 py-3">{children}</div>
@@ -23,7 +23,7 @@ function Skeleton({ lines = 3 }: { lines?: number }) {
   return (
     <div className="flex flex-col gap-2 animate-pulse">
       {Array.from({ length: lines }).map((_, i) => (
-        <div key={i} className="h-2.5 rounded bg-[#182235]" style={{ width: `${60 + (i % 3) * 15}%` }} />
+        <div key={i} className="h-2.5 rounded bg-[#1a2540]" style={{ width: `${60 + (i % 3) * 15}%` }} />
       ))}
     </div>
   );
@@ -32,11 +32,11 @@ function Skeleton({ lines = 3 }: { lines?: number }) {
 // ── Signal Card ───────────────────────────────────────────────────────────────
 
 const SIG_CFG: Record<SignalValue, { label: string; text: string; bg: string; border: string }> = {
-  "strong-buy":  { label: "Strong Buy",  text: "text-[#7ab0cc]", bg: "bg-[#7ab0cc0a]", border: "border-[#7ab0cc33]" },
-  "buy":         { label: "Buy",         text: "text-[#5a90b0]", bg: "bg-[#5a90b008]", border: "border-[#5a90b028]" },
-  "neutral":     { label: "Neutral",     text: "text-[#8aa4be]", bg: "bg-transparent", border: "border-[#243348]" },
-  "sell":        { label: "Sell",        text: "text-[#aa6060]", bg: "bg-[#aa60600a]", border: "border-[#aa606028]" },
-  "strong-sell": { label: "Strong Sell", text: "text-[#904848]", bg: "bg-[#9048480a]", border: "border-[#90484840]" },
+  "strong-buy":  { label: "Strong Buy",  text: "text-[#5ecce8]", bg: "bg-[#5ecce80a]", border: "border-[#5ecce833]" },
+  "buy":         { label: "Buy",         text: "text-[#38b2cc]", bg: "bg-[#38b2cc08]", border: "border-[#38b2cc28]" },
+  "neutral":     { label: "Neutral",     text: "text-[#8aa4be]", bg: "bg-transparent", border: "border-[#2a3858]" },
+  "sell":        { label: "Sell",        text: "text-[#cc6464]", bg: "bg-[#cc64640a]", border: "border-[#cc646428]" },
+  "strong-sell": { label: "Strong Sell", text: "text-[#b05050]", bg: "bg-[#b050500a]", border: "border-[#b0505040]" },
 };
 
 export function SignalCard({ ticker }: Props) {
@@ -75,19 +75,19 @@ export function SignalCard({ ticker }: Props) {
           </div>
           <div className="h-1 rounded-full overflow-hidden bg-[#0e1628]">
             <div className="h-full flex">
-              <div className="bg-[#7ab0cc]" style={{ width: `${pct(summary.strongBuys)}%` }} />
-              <div className="bg-[#5a90b0]" style={{ width: `${pct(summary.buys)}%` }} />
+              <div className="bg-[#5ecce8]" style={{ width: `${pct(summary.strongBuys)}%` }} />
+              <div className="bg-[#38b2cc]" style={{ width: `${pct(summary.buys)}%` }} />
               <div className="bg-[#1a2e48]" style={{ width: `${pct(summary.neutrals)}%` }} />
-              <div className="bg-[#aa6060]" style={{ width: `${pct(summary.sells)}%` }} />
-              <div className="bg-[#904848]" style={{ width: `${pct(summary.strongSells)}%` }} />
+              <div className="bg-[#cc6464]" style={{ width: `${pct(summary.sells)}%` }} />
+              <div className="bg-[#b05050]" style={{ width: `${pct(summary.strongSells)}%` }} />
             </div>
           </div>
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-[#5a90b0]">{summary.strongBuys + summary.buys} Buy</span>
+            <span className="text-[#38b2cc]">{summary.strongBuys + summary.buys} Buy</span>
             <span className="text-[#4a6280]">{summary.neutrals} Neutral</span>
-            <span className="text-[#aa6060]">{summary.sells + summary.strongSells} Sell</span>
+            <span className="text-[#cc6464]">{summary.sells + summary.strongSells} Sell</span>
           </div>
-          <div className="flex flex-wrap gap-1 pt-2 border-t border-[#182235]">
+          <div className="flex flex-wrap gap-1 pt-2 border-t border-[#1a2540]">
             {summary.signals.slice(0, 6).map((s) => {
               const sc = SIG_CFG[s.signal];
               return (
@@ -107,7 +107,7 @@ export function SignalCard({ ticker }: Props) {
 
 interface QualityData { overall: number; profitability: number; growth: number; health: number; efficiency: number }
 
-function qColor(v: number) { return v >= 70 ? "#5a90b0" : v >= 45 ? "#8aa4be" : "#aa6060"; }
+function qColor(v: number) { return v >= 70 ? "#38b2cc" : v >= 45 ? "#8aa4be" : "#cc6464"; }
 function qLabel(v: number) { return v >= 75 ? "Excellent" : v >= 60 ? "Good" : v >= 45 ? "Fair" : v >= 30 ? "Weak" : "Poor"; }
 
 function MiniBar({ label, value }: { label: string; value: number }) {
@@ -143,7 +143,7 @@ export function QualityCard({ ticker }: Props) {
               {qLabel(data.overall)}
             </span>
           </div>
-          <div className="flex flex-col gap-1.5 pt-2 border-t border-[#182235]">
+          <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1a2540]">
             <MiniBar label="Profitability" value={data.profitability} />
             <MiniBar label="Growth" value={data.growth} />
             <MiniBar label="Health" value={data.health} />
@@ -161,10 +161,10 @@ type Stage = "emerging" | "building" | "consensus" | "fading" | "unknown";
 interface NarrativeData { stage: Stage; totalArticles: number; positive: number; neutral: number; negative: number }
 
 const STAGE_CFG: Record<Stage, { label: string; desc: string; color: string; pos: number }> = {
-  emerging:  { label: "Emerging",  desc: "Story forming",     color: "#5a90b0", pos: 0.12 },
+  emerging:  { label: "Emerging",  desc: "Story forming",     color: "#38b2cc", pos: 0.12 },
   building:  { label: "Building",  desc: "Gaining traction",  color: "#7c9ed4", pos: 0.38 },
   consensus: { label: "Consensus", desc: "Widely known",      color: "#9d8ec0", pos: 0.65 },
-  fading:    { label: "Fading",    desc: "Interest waning",   color: "#aa6060", pos: 0.88 },
+  fading:    { label: "Fading",    desc: "Interest waning",   color: "#cc6464", pos: 0.88 },
   unknown:   { label: "Unknown",   desc: "Insufficient data", color: "#4a6280", pos: 0.5  },
 };
 
@@ -191,7 +191,7 @@ export function NarrativeCard({ ticker }: Props) {
             <span className="text-[10px] text-[#4a6280]">{data.totalArticles} articles</span>
           </div>
           <div className="relative py-1">
-            <div className="h-0.5 rounded-full bg-[#182235]" />
+            <div className="h-0.5 rounded-full bg-[#1a2540]" />
             <div
               className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#060a12] transition-all"
               style={{ left: `calc(${cfg.pos * 100}% - 5px)`, backgroundColor: cfg.color }}
@@ -201,18 +201,18 @@ export function NarrativeCard({ ticker }: Props) {
             <span>Emerging</span><span>Building</span><span>Consensus</span><span>Fading</span>
           </div>
           {total > 0 && (
-            <div className="flex flex-col gap-1 pt-2 border-t border-[#182235]">
+            <div className="flex flex-col gap-1 pt-2 border-t border-[#1a2540]">
               <div className="h-1 rounded-full overflow-hidden bg-[#0e1628]">
                 <div className="h-full flex">
-                  <div className="bg-[#5a90b0]" style={{ width: `${posPct}%` }} />
+                  <div className="bg-[#38b2cc]" style={{ width: `${posPct}%` }} />
                   <div className="bg-[#1a2e48]" style={{ width: `${neuPct}%` }} />
-                  <div className="bg-[#aa6060]" style={{ width: `${negPct}%` }} />
+                  <div className="bg-[#cc6464]" style={{ width: `${negPct}%` }} />
                 </div>
               </div>
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-[#5a90b0]">{data.positive} pos</span>
+                <span className="text-[#38b2cc]">{data.positive} pos</span>
                 <span className="text-[#4a6280]">{data.neutral} neu</span>
-                <span className="text-[#aa6060]">{data.negative} neg</span>
+                <span className="text-[#cc6464]">{data.negative} neg</span>
               </div>
             </div>
           )}
@@ -232,9 +232,9 @@ function valPos(r: ValRange) {
   return Math.max(0, Math.min(1, (r.current - r.min) / (r.max - r.min)));
 }
 function valLabel(pos: number) {
-  if (pos < 0.25) return { text: "Cheap", color: "#5a90b0" };
+  if (pos < 0.25) return { text: "Cheap", color: "#38b2cc" };
   if (pos < 0.55) return { text: "Fair",  color: "#8aa4be" };
-  return { text: "Rich", color: "#aa6060" };
+  return { text: "Rich", color: "#cc6464" };
 }
 
 function ValRow({ label, range }: { label: string; range: ValRange }) {
@@ -245,7 +245,7 @@ function ValRow({ label, range }: { label: string; range: ValRange }) {
       <span className="text-[10px] text-[#8aa4be] w-10 shrink-0">{label}</span>
       <div className="relative flex-1 h-1 rounded-full bg-[#0e1628]">
         <div className="absolute inset-y-0 left-0 rounded-full opacity-20"
-             style={{ width: `${pos * 100}%`, background: `linear-gradient(to right, #5a90b0, #aa6060)` }} />
+             style={{ width: `${pos * 100}%`, background: `linear-gradient(to right, #38b2cc, #cc6464)` }} />
         <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-[#060a12]"
              style={{ left: `calc(${pos * 100}% - 4px)`, backgroundColor: color }} />
       </div>
@@ -274,7 +274,7 @@ export function ValuationCard({ ticker }: Props) {
       {isLoading ? <Skeleton lines={4} /> : rows.length > 0 ? (
         <div className="flex flex-col gap-2.5">
           {rows.map(r => <ValRow key={r.label} {...r} />)}
-          <p className="text-[9px] text-[#182235] pt-1 border-t border-[#182235]">Position within 5-year historical range</p>
+          <p className="text-[9px] text-[#1a2540] pt-1 border-t border-[#1a2540]">Position within 5-year historical range</p>
         </div>
       ) : <p className="text-[11px] text-[#4a6280]">No valuation data</p>}
     </CardShell>
@@ -305,20 +305,20 @@ export function InsiderCard({ ticker }: Props) {
     <CardShell title="Insider Activity">
       {isLoading ? <Skeleton lines={3} /> : txns.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between pb-2 border-b border-[#182235]">
+          <div className="flex items-center justify-between pb-2 border-b border-[#1a2540]">
             <span className="text-[10px] text-[#4a6280]">Net {isNetBuy ? "buying" : "selling"}</span>
-            <span className={cn("text-xs font-semibold font-mono flex items-center gap-1", isNetBuy ? "text-[#5a90b0]" : "text-[#aa6060]")}>
+            <span className={cn("text-xs font-semibold font-mono flex items-center gap-1", isNetBuy ? "text-[#38b2cc]" : "text-[#cc6464]")}>
               {isNetBuy ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {isNetBuy ? "+" : ""}{fmtNum(net)}
             </span>
           </div>
           {txns.map((t, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className={cn("mt-1 w-1 h-1 rounded-full shrink-0", t.isBuy ? "bg-[#5a90b0]" : "bg-[#aa6060]")} />
+              <span className={cn("mt-1 w-1 h-1 rounded-full shrink-0", t.isBuy ? "bg-[#38b2cc]" : "bg-[#cc6464]")} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-[10px] font-medium text-[#edf2f8] truncate">{t.name}</span>
-                  <span className={cn("text-[9px] font-semibold shrink-0", t.isBuy ? "text-[#5a90b0]" : "text-[#aa6060]")}>
+                  <span className={cn("text-[9px] font-semibold shrink-0", t.isBuy ? "text-[#38b2cc]" : "text-[#cc6464]")}>
                     {t.isBuy ? "Buy" : "Sell"}
                   </span>
                 </div>

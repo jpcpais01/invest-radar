@@ -22,27 +22,27 @@ export default function NewsPanel({ ticker }: Props) {
   const neu = articles.length - pos - neg;
 
   return (
-    <div className="rounded-lg border border-[#182235] bg-[#0a1020] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#182235]">
+    <div className="rounded-lg border border-[#1a2540] bg-[#0a1020] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a2540]">
         <div className="flex items-center gap-2.5">
-          <span className="text-[#5a90b0] text-[8px]">◆</span>
+          <span className="text-[#38b2cc] text-[8px]">◆</span>
           <span className="text-[11px] font-semibold text-[#edf2f8] tracking-wide">News Feed</span>
         </div>
         {articles.length > 0 && (
           <div className="flex items-center gap-2.5 text-[10px]">
-            <span className="text-[#5a90b0]">{pos} pos</span>
+            <span className="text-[#38b2cc]">{pos} pos</span>
             <span className="text-[#4a6280]">{neu} neu</span>
-            <span className="text-[#aa6060]">{neg} neg</span>
+            <span className="text-[#cc6464]">{neg} neg</span>
           </div>
         )}
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col divide-y divide-[#182235] animate-pulse">
+        <div className="flex flex-col divide-y divide-[#1a2540] animate-pulse">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="px-4 py-3 flex flex-col gap-1.5">
-              <div className="h-2.5 w-3/4 rounded bg-[#182235]" />
-              <div className="h-2 w-1/2 rounded bg-[#182235]" />
+              <div className="h-2.5 w-3/4 rounded bg-[#1a2540]" />
+              <div className="h-2 w-1/2 rounded bg-[#1a2540]" />
             </div>
           ))}
         </div>
@@ -51,7 +51,7 @@ export default function NewsPanel({ ticker }: Props) {
           <p className="text-[11px] text-[#4a6280]">No news available</p>
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-[#182235]">
+        <div className="flex flex-col divide-y divide-[#1a2540]">
           {articles.slice(0, 8).map((a, i) => (
             <a
               key={i}
@@ -61,8 +61,8 @@ export default function NewsPanel({ ticker }: Props) {
               className="group flex items-start gap-3 px-4 py-3 hover:bg-[#0e1628] transition-colors"
             >
               <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", {
-                "bg-[#5a90b0]": a.sentiment === "positive",
-                "bg-[#aa6060]": a.sentiment === "negative",
+                "bg-[#38b2cc]": a.sentiment === "positive",
+                "bg-[#cc6464]": a.sentiment === "negative",
                 "bg-[#4a6280]": a.sentiment === "neutral",
               })} />
               <div className="flex-1 min-w-0">
@@ -75,13 +75,13 @@ export default function NewsPanel({ ticker }: Props) {
                     <><span>·</span><span>{new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>
                   )}
                   <span className={cn("ml-auto capitalize font-medium", {
-                    "text-[#5a90b0]": a.sentiment === "positive",
-                    "text-[#aa6060]": a.sentiment === "negative",
+                    "text-[#38b2cc]": a.sentiment === "positive",
+                    "text-[#cc6464]": a.sentiment === "negative",
                     "text-[#8aa4be]": a.sentiment === "neutral",
                   })}>{a.sentiment}</span>
                 </div>
               </div>
-              <ExternalLink className="w-3 h-3 text-[#182235] group-hover:text-[#4a6280] shrink-0 mt-1 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-[#1a2540] group-hover:text-[#4a6280] shrink-0 mt-1 transition-colors" />
             </a>
           ))}
         </div>

@@ -42,17 +42,17 @@ export default function HomePage() {
       style={{
         background: "#060a12",
         scrollbarWidth: "thin",
-        scrollbarColor: "#182235 transparent",
+        scrollbarColor: "#1a2540 transparent",
       }}
     >
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-[#182235]" style={{ background: "rgba(6,10,18,0.92)", backdropFilter: "blur(12px)" }}>
+      <header className="sticky top-0 z-40 border-b border-[#1a2540]" style={{ background: "rgba(6,10,18,0.92)", backdropFilter: "blur(12px)" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
 
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="w-7 h-7 rounded-md border border-[#5a90b033] bg-[#5a90b008] flex items-center justify-center group-hover:border-[#5a90b066] transition-colors">
-              <span className="text-[#5a90b0] text-[10px] font-bold">◆</span>
+            <div className="w-7 h-7 rounded-md border border-[#38b2cc33] bg-[#38b2cc08] flex items-center justify-center group-hover:border-[#38b2cc66] transition-colors">
+              <span className="text-[#38b2cc] text-[10px] font-bold">◆</span>
             </div>
             <div className="hidden sm:flex flex-col leading-none">
               <span className="text-xs font-semibold text-[#edf2f8] tracking-wide">Open Terminal</span>
@@ -64,7 +64,7 @@ export default function HomePage() {
           <div className="relative flex-1 min-w-0">
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md border border-[#182235] bg-[#0a1020] hover:border-[#243348] transition-colors text-left"
+              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md border border-[#1a2540] bg-[#0a1020] hover:border-[#2a3858] transition-colors text-left"
             >
               <Search className="w-3.5 h-3.5 text-[#4a6280] shrink-0" />
               <span className="text-sm font-semibold text-[#edf2f8] truncate font-mono">{activeTicker}</span>
@@ -72,9 +72,9 @@ export default function HomePage() {
             </button>
 
             {searchOpen && (
-              <div className="absolute top-full left-0 mt-1 rounded-md border border-[#243348] bg-[#0a1020] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
-                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(90,144,176,0.08)" }}>
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#182235]">
+              <div className="absolute top-full left-0 mt-1 rounded-md border border-[#2a3858] bg-[#0a1020] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
+                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(56,178,204,0.08)" }}>
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1a2540]">
                   <Search className="w-3.5 h-3.5 text-[#4a6280] shrink-0" />
                   <input
                     autoFocus
@@ -95,7 +95,7 @@ export default function HomePage() {
                       onClick={() => selectTicker(t)}
                       className={cn(
                         "w-full text-left px-4 py-2 text-sm hover:bg-[#0e1628] transition-colors flex items-center gap-2",
-                        t === activeTicker ? "text-[#5a90b0]" : "text-[#edf2f8]"
+                        t === activeTicker ? "text-[#38b2cc]" : "text-[#edf2f8]"
                       )}
                     >
                       <span className="font-mono font-medium">{t}</span>
@@ -108,14 +108,14 @@ export default function HomePage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center border border-[#182235] rounded-md p-0.5 shrink-0 bg-[#0a1020]">
+          <div className="flex items-center border border-[#1a2540] rounded-md p-0.5 shrink-0 bg-[#0a1020]">
             <button
               onClick={() => setActiveTab("overview")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#5a90b015] text-[#5a90b0] border border-[#5a90b028]" : "text-[#8aa4be] hover:text-[#edf2f8]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#38b2cc15] text-[#38b2cc] border border-[#38b2cc28]" : "text-[#8aa4be] hover:text-[#edf2f8]")}
             >Overview</button>
             <button
               onClick={() => setActiveTab("discover")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#5a90b015] text-[#5a90b0] border border-[#5a90b028]" : "text-[#8aa4be] hover:text-[#edf2f8]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#38b2cc15] text-[#38b2cc] border border-[#38b2cc28]" : "text-[#8aa4be] hover:text-[#edf2f8]")}
             >
               <Compass className="w-3 h-3" /><span className="hidden sm:inline">Discover</span>
             </button>
@@ -124,7 +124,7 @@ export default function HomePage() {
           {/* Terminal button */}
           <a
             href={`/terminal/${activeTicker}`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#5a90b028] bg-[#5a90b008] text-[#5a90b0] text-xs font-medium hover:bg-[#5a90b015] hover:border-[#5a90b044] transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#38b2cc28] bg-[#38b2cc08] text-[#38b2cc] text-xs font-medium hover:bg-[#38b2cc15] hover:border-[#38b2cc44] transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:block whitespace-nowrap">Terminal</span>
