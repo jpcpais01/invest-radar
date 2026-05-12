@@ -7,8 +7,8 @@ interface Props { ticker: string }
 type Sig = "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell";
 
 const SIG_CLS: Record<Sig, string> = {
-  "strong-buy":  "text-[#e8c76a] bg-[#e8c76a0a] border-[#e8c76a2a]",
-  "buy":         "text-[#c9a84c] bg-[#c9a84c08] border-[#c9a84c22]",
+  "strong-buy":  "text-[#6ee7b7] bg-[#6ee7b70a] border-[#6ee7b72a]",
+  "buy":         "text-[#34d399] bg-[#34d39908] border-[#34d39922]",
   "neutral":     "text-[#7c7890] bg-transparent border-[#1a1a28]",
   "sell":        "text-[#e05252] bg-[#e052520a] border-[#e0525228]",
   "strong-sell": "text-[#f04040] bg-[#f040400a] border-[#f0404038]",
@@ -99,7 +99,7 @@ export default function TechnicalsStrip({ ticker }: Props) {
   return (
     <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-[#c9a84c] text-[8px]">◆</span>
+        <span className="text-[#34d399] text-[8px]">◆</span>
         <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">Technical Indicators</span>
         <span className="text-[9px] text-[#3a3748] ml-1">3M</span>
       </div>

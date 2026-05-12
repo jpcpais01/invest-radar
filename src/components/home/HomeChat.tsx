@@ -49,7 +49,7 @@ export default function HomeChat({ ticker }: Props) {
     <div className="rounded-lg border border-[#1a1a28] bg-[#0d0d15] overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#1a1a28] shrink-0">
-        <span className="text-[#c9a84c] text-[8px]">◆</span>
+        <span className="text-[#34d399] text-[8px]">◆</span>
         <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">AI Assistant</span>
         <span className="text-[9px] text-[#3a3748] ml-0.5">{ticker}</span>
         <button
@@ -85,7 +85,7 @@ export default function HomeChat({ ticker }: Props) {
           messages.map(msg => (
             <div key={msg.id} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
               {msg.role === "assistant" && (
-                <span className="text-[#c9a84c] text-[8px] shrink-0 mt-1">◆</span>
+                <span className="text-[#34d399] text-[8px] shrink-0 mt-1">◆</span>
               )}
               <div className={cn(
                 "max-w-[88%] rounded-lg border px-3 py-2 text-xs leading-relaxed",
@@ -99,7 +99,7 @@ export default function HomeChat({ ticker }: Props) {
                     [&_ul]:my-1 [&_ul]:pl-3 [&_li]:my-0.5
                     [&_ol]:my-1 [&_ol]:pl-3
                     [&_strong]:text-[#ede8e0] [&_strong]:font-semibold
-                    [&_code]:bg-[#12121c] [&_code]:border [&_code]:border-[#1a1a28] [&_code]:px-1 [&_code]:rounded [&_code]:font-mono [&_code]:text-[10px] [&_code]:text-[#c9a84c]
+                    [&_code]:bg-[#12121c] [&_code]:border [&_code]:border-[#1a1a28] [&_code]:px-1 [&_code]:rounded [&_code]:font-mono [&_code]:text-[10px] [&_code]:text-[#34d399]
                     [&_h3]:text-[11px] [&_h3]:font-semibold [&_h3]:text-[#ede8e0] [&_h3]:mt-2 [&_h3]:mb-1">
                     <ReactMarkdown>{msg.content || (isStreaming ? "▋" : "")}</ReactMarkdown>
                   </div>
@@ -135,7 +135,7 @@ export default function HomeChat({ ticker }: Props) {
               className={cn(
                 "w-6 h-6 rounded border flex items-center justify-center transition-colors shrink-0",
                 input.trim()
-                  ? "border-[#c9a84c33] bg-[#c9a84c0a] text-[#c9a84c] hover:bg-[#c9a84c18]"
+                  ? "border-[#34d39933] bg-[#34d3990a] text-[#34d399] hover:bg-[#34d39918]"
                   : "border-[#1a1a28] bg-transparent text-[#3a3748] cursor-not-allowed"
               )}
             >

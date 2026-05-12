@@ -84,9 +84,9 @@ export default function AIPredPanel({ ticker }: Props) {
       width: w, height: h,
     });
     histRef.current  = chart.addSeries(LineSeries, { color: "#3a3748", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    upperRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "rgba(201,168,76,0.12)", bottomColor: "rgba(201,168,76,0.02)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    upperRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "rgba(52,211,153,0.12)", bottomColor: "rgba(52,211,153,0.02)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
     lowerRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "transparent", bottomColor: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    meanRef.current  = chart.addSeries(LineSeries, { color: "#c9a84c", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
+    meanRef.current  = chart.addSeries(LineSeries, { color: "#34d399", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
     chartRef.current = chart;
     const ro = new ResizeObserver(() => { const nw = el.clientWidth, nh = el.clientHeight; if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh }); });
     ro.observe(el);
@@ -118,7 +118,7 @@ export default function AIPredPanel({ ticker }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-3 border-b border-[#1a1a28]">
         <div className="flex items-center gap-2.5">
-          <span className="text-[#c9a84c] text-[8px]">◆</span>
+          <span className="text-[#34d399] text-[8px]">◆</span>
           <div>
             <span className="text-[11px] font-semibold text-[#ede8e0] tracking-wide">AI Price Forecast</span>
             <p className="text-[9px] text-[#3a3748] mt-0.5">LLM Ensemble · Monte Carlo</p>
@@ -127,12 +127,12 @@ export default function AIPredPanel({ ticker }: Props) {
         {data && lastClose && predFinal && (
           <div className="text-right">
             <div
-              className={cn("text-xl font-bold tabular-nums font-mono", isUp ? "text-[#c9a84c]" : "text-[#e05252]")}
-              style={{ textShadow: isUp ? "0 0 20px rgba(201,168,76,0.3)" : "0 0 20px rgba(224,82,82,0.3)" }}
+              className={cn("text-xl font-bold tabular-nums font-mono", isUp ? "text-[#34d399]" : "text-[#e05252]")}
+              style={{ textShadow: isUp ? "0 0 20px rgba(52,211,153,0.3)" : "0 0 20px rgba(224,82,82,0.3)" }}
             >
               ${predFinal.toFixed(2)}
             </div>
-            <div className={cn("text-[10px] font-medium flex items-center gap-1 justify-end", isUp ? "text-[#c9a84c]" : "text-[#e05252]")}>
+            <div className={cn("text-[10px] font-medium flex items-center gap-1 justify-end", isUp ? "text-[#34d399]" : "text-[#e05252]")}>
               {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {isUp ? "+" : ""}{predChange?.toFixed(2)}% · {data.n}D
             </div>
@@ -145,8 +145,8 @@ export default function AIPredPanel({ ticker }: Props) {
         {loading && !data && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full border-2 border-[#c9a84c22] border-t-[#c9a84c] animate-spin" />
-              <Sparkles className="w-4 h-4 text-[#c9a84c] absolute inset-0 m-auto" />
+              <div className="w-10 h-10 rounded-full border-2 border-[#34d39922] border-t-[#34d399] animate-spin" />
+              <Sparkles className="w-4 h-4 text-[#34d399] absolute inset-0 m-auto" />
             </div>
             <p className="text-[10px] text-[#3a3748]">Running {nRuns} scenarios…</p>
           </div>
@@ -162,7 +162,7 @@ export default function AIPredPanel({ ticker }: Props) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-t border-[#1a1a28]">
         {data && (
           <div className="flex items-center gap-1.5 text-[9px] text-[#3a3748]">
-            <Sparkles className="w-3 h-3 text-[#c9a84c]" />
+            <Sparkles className="w-3 h-3 text-[#34d399]" />
             <span>{data.successfulRuns}/{data.totalRuns} runs</span>
           </div>
         )}
@@ -194,7 +194,7 @@ export default function AIPredPanel({ ticker }: Props) {
               "flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
               loading
                 ? "text-[#3a3748] border-[#1a1a28] cursor-not-allowed"
-                : "text-[#c9a84c] bg-[#c9a84c0a] border-[#c9a84c33] hover:bg-[#c9a84c18] hover:border-[#c9a84c55]"
+                : "text-[#34d399] bg-[#34d3990a] border-[#34d39933] hover:bg-[#34d39918] hover:border-[#34d39955]"
             )}
           >
             {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</> : <><Sparkles className="w-3 h-3" />Predict</>}
