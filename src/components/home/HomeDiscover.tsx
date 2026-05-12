@@ -39,11 +39,11 @@ function scoreCategory(score: number): FilterTab {
 }
 
 const PILL: Record<SignalValue, string> = {
-  "strong-buy":  "text-[#6ee7b7] bg-[#6ee7b70a] border-[#6ee7b72a]",
-  "buy":         "text-[#34d399] bg-[#34d39908] border-[#34d39922]",
+  "strong-buy":  "text-[#7ab8a4] bg-[#7ab8a40a] border-[#7ab8a42a]",
+  "buy":         "text-[#5a9e85] bg-[#5a9e8508] border-[#5a9e8522]",
   "neutral":     "text-[#7c7890] bg-transparent border-[#1a1a28]",
-  "sell":        "text-[#e05252] bg-[#e052520a] border-[#e0525228]",
-  "strong-sell": "text-[#f04040] bg-[#f040400a] border-[#f0404038]",
+  "sell":        "text-[#bf6464] bg-[#bf64640a] border-[#bf646428]",
+  "strong-sell": "text-[#b05050] bg-[#b050500a] border-[#b0505038]",
 };
 
 const FILTERS: { id: FilterTab; label: string }[] = [
@@ -57,11 +57,11 @@ const FILTERS: { id: FilterTab; label: string }[] = [
 
 const FILTER_ACTIVE: Record<FilterTab, string> = {
   all:           "text-[#ede8e0] border-[#272738] bg-[#12121c]",
-  "strong-buy":  "text-[#6ee7b7] border-[#6ee7b72a] bg-[#6ee7b70a]",
-  buy:           "text-[#34d399] border-[#34d39933] bg-[#34d3990a]",
+  "strong-buy":  "text-[#7ab8a4] border-[#7ab8a42a] bg-[#7ab8a40a]",
+  buy:           "text-[#5a9e85] border-[#5a9e8533] bg-[#5a9e850a]",
   neutral:       "text-[#7c7890] border-[#272738] bg-[#12121c]",
-  sell:          "text-[#e05252] border-[#e0525233] bg-[#e052520a]",
-  "strong-sell": "text-[#f04040] border-[#f0404044] bg-[#f040400a]",
+  sell:          "text-[#bf6464] border-[#bf646433] bg-[#bf64640a]",
+  "strong-sell": "text-[#b05050] border-[#b0505044] bg-[#b050500a]",
 };
 
 const CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -83,8 +83,8 @@ function writeCache(tf: string, results: ScanResult[]) {
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
   if (col !== sortKey) return <ChevronUp className="w-3 h-3 opacity-20" />;
   return sortDir === "asc"
-    ? <ChevronUp className="w-3 h-3 text-[#34d399]" />
-    : <ChevronDown className="w-3 h-3 text-[#34d399]" />;
+    ? <ChevronUp className="w-3 h-3 text-[#5a9e85]" />
+    : <ChevronDown className="w-3 h-3 text-[#5a9e85]" />;
 }
 
 export default function HomeDiscover({ onSelectTicker }: Props) {
@@ -156,7 +156,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <span className="text-[#34d399] text-[8px]">◆</span>
+          <span className="text-[#5a9e85] text-[8px]">◆</span>
           <div>
             <h2 className="text-sm font-semibold text-[#ede8e0] tracking-wide">Signal Scanner</h2>
             <p className="text-[9px] text-[#3a3748] mt-0.5">
@@ -173,7 +173,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                 onClick={() => handleTf(t)}
                 className={cn(
                   "px-3 py-1.5 text-[10px] font-semibold tracking-wide transition-colors",
-                  t === tf ? "bg-[#34d3990a] text-[#34d399]" : "text-[#7c7890] hover:text-[#ede8e0]"
+                  t === tf ? "bg-[#5a9e850a] text-[#5a9e85]" : "text-[#7c7890] hover:text-[#ede8e0]"
                 )}
               >{t}</button>
             ))}
@@ -279,14 +279,14 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                     >
                       <td className="px-4 py-2.5">
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-xs font-bold text-[#ede8e0] group-hover:text-[#34d399] transition-colors">{r.ticker}</span>
+                          <span className="font-mono text-xs font-bold text-[#ede8e0] group-hover:text-[#5a9e85] transition-colors">{r.ticker}</span>
                           {r.name && <span className="text-[8px] text-[#3a3748] truncate max-w-[130px]">{r.name}</span>}
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono text-xs text-[#ede8e0] tabular-nums">
                         {r.price != null ? `$${r.price.toFixed(2)}` : "—"}
                       </td>
-                      <td className={cn("px-3 py-2.5 text-right font-mono text-xs tabular-nums", isUp ? "text-[#34d399]" : "text-[#e05252]")}>
+                      <td className={cn("px-3 py-2.5 text-right font-mono text-xs tabular-nums", isUp ? "text-[#5a9e85]" : "text-[#bf6464]")}>
                         {r.changePercent != null ? `${isUp ? "+" : ""}${r.changePercent.toFixed(2)}%` : "—"}
                       </td>
                       <td className="px-3 py-2.5 text-center">
@@ -297,16 +297,16 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                       <td className="px-3 py-2.5">
                         <div className="flex flex-col gap-1 items-center w-20 mx-auto">
                           <div className="flex items-center gap-1 text-[8px]">
-                            <span className="text-[#34d399] font-bold">{s.strongBuys + s.buys}B</span>
+                            <span className="text-[#5a9e85] font-bold">{s.strongBuys + s.buys}B</span>
                             <span className="text-[#3a3748]">{s.neutrals}N</span>
-                            <span className="text-[#e05252] font-bold">{s.sells + s.strongSells}S</span>
+                            <span className="text-[#bf6464] font-bold">{s.sells + s.strongSells}S</span>
                           </div>
                           <div className="flex h-1 w-full rounded-sm overflow-hidden bg-[#12121c]">
-                            <div className="bg-[#6ee7b7]" style={{ width: `${pct(s.strongBuys)}%` }} />
-                            <div className="bg-[#34d399]" style={{ width: `${pct(s.buys)}%` }} />
+                            <div className="bg-[#7ab8a4]" style={{ width: `${pct(s.strongBuys)}%` }} />
+                            <div className="bg-[#5a9e85]" style={{ width: `${pct(s.buys)}%` }} />
                             <div className="bg-[#2a2a3e]" style={{ width: `${pct(s.neutrals)}%` }} />
-                            <div className="bg-[#e05252]" style={{ width: `${pct(s.sells)}%` }} />
-                            <div className="bg-[#f04040]" style={{ width: `${pct(s.strongSells)}%` }} />
+                            <div className="bg-[#bf6464]" style={{ width: `${pct(s.sells)}%` }} />
+                            <div className="bg-[#b05050]" style={{ width: `${pct(s.strongSells)}%` }} />
                           </div>
                         </div>
                       </td>

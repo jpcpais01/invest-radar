@@ -40,7 +40,7 @@ export default function HomePage() {
     <div
       className="h-screen overflow-y-auto text-[#ede8e0]"
       style={{
-        background: "radial-gradient(ellipse 100% 50% at 50% -5%, rgba(52,211,153,0.05) 0%, transparent 65%), #09090e",
+        background: "radial-gradient(ellipse 100% 50% at 50% -5%, rgba(90,158,133,0.05) 0%, transparent 65%), #09090e",
         scrollbarWidth: "thin",
         scrollbarColor: "#1a1a28 transparent",
       }}
@@ -51,8 +51,8 @@ export default function HomePage() {
 
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="w-7 h-7 rounded-md border border-[#34d39933] bg-[#34d39908] flex items-center justify-center group-hover:border-[#34d39966] transition-colors">
-              <span className="text-[#34d399] text-[10px] font-bold">◆</span>
+            <div className="w-7 h-7 rounded-md border border-[#5a9e8533] bg-[#5a9e8508] flex items-center justify-center group-hover:border-[#5a9e8566] transition-colors">
+              <span className="text-[#5a9e85] text-[10px] font-bold">◆</span>
             </div>
             <div className="hidden sm:flex flex-col leading-none">
               <span className="text-xs font-semibold text-[#ede8e0] tracking-wide">Open Terminal</span>
@@ -73,7 +73,7 @@ export default function HomePage() {
 
             {searchOpen && (
               <div className="absolute top-full left-0 mt-1 rounded-md border border-[#272738] bg-[#0d0d15] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
-                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(52,211,153,0.08)" }}>
+                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(90,158,133,0.08)" }}>
                 <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1a1a28]">
                   <Search className="w-3.5 h-3.5 text-[#3a3748] shrink-0" />
                   <input
@@ -95,7 +95,7 @@ export default function HomePage() {
                       onClick={() => selectTicker(t)}
                       className={cn(
                         "w-full text-left px-4 py-2 text-sm hover:bg-[#12121c] transition-colors flex items-center gap-2",
-                        t === activeTicker ? "text-[#34d399]" : "text-[#ede8e0]"
+                        t === activeTicker ? "text-[#5a9e85]" : "text-[#ede8e0]"
                       )}
                     >
                       <span className="font-mono font-medium">{t}</span>
@@ -111,11 +111,11 @@ export default function HomePage() {
           <div className="flex items-center border border-[#1a1a28] rounded-md p-0.5 shrink-0 bg-[#0d0d15]">
             <button
               onClick={() => setActiveTab("overview")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#34d39915] text-[#34d399] border border-[#34d39928]" : "text-[#7c7890] hover:text-[#ede8e0]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#5a9e8515] text-[#5a9e85] border border-[#5a9e8528]" : "text-[#7c7890] hover:text-[#ede8e0]")}
             >Overview</button>
             <button
               onClick={() => setActiveTab("discover")}
-              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#34d39915] text-[#34d399] border border-[#34d39928]" : "text-[#7c7890] hover:text-[#ede8e0]")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#5a9e8515] text-[#5a9e85] border border-[#5a9e8528]" : "text-[#7c7890] hover:text-[#ede8e0]")}
             >
               <Compass className="w-3 h-3" /><span className="hidden sm:inline">Discover</span>
             </button>
@@ -124,7 +124,7 @@ export default function HomePage() {
           {/* Terminal button */}
           <a
             href={`/terminal/${activeTicker}`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#34d39928] bg-[#34d39908] text-[#34d399] text-xs font-medium hover:bg-[#34d39915] hover:border-[#34d39944] transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#5a9e8528] bg-[#5a9e8508] text-[#5a9e85] text-xs font-medium hover:bg-[#5a9e8515] hover:border-[#5a9e8544] transition-colors"
           >
             <Terminal className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:block whitespace-nowrap">Terminal</span>
