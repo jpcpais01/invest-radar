@@ -31,8 +31,12 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
   const { removeWidget } = useLayoutStore();
 
   const [ready,   setReady]   = useState(false);
-  const [nDays,   setNDays]   = useState(7);
-  const [nRuns,   setNRuns]   = useState(5);
+  const [nDays,   setNDays]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`pp-days-${id}`) ?? "7"); } catch { return 7; }
+  });
+  const [nRuns,   setNRuns]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`pp-runs-${id}`) ?? "5"); } catch { return 5; }
+  });
   const [data,    setData]    = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -45,6 +49,10 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
     ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+
+  // Persist settings
+  useEffect(() => { localStorage.setItem(`pp-days-${id}`, String(nDays)); }, [id, nDays]);
+  useEffect(() => { localStorage.setItem(`pp-runs-${id}`, String(nRuns)); }, [id, nRuns]);
 
   const predict = useCallback(async (days: number, runs: number) => {
     setLoading(true);
@@ -247,14 +255,14 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
         <span className="text-[9px] font-semibold tracking-widest text-[#484f58] uppercase">Days</span>
         <div className="flex items-center gap-0.5">
           <button
-            onClick={() => setNDays((v) => Math.max(1, v - 1))}
+            onClick={() => setNDays((v: number) => Math.max(1, v - 1))}
             className="w-5 h-5 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors"
           >
             <Minus className="w-2.5 h-2.5" />
           </button>
           <span className="text-[11px] font-mono text-white w-5 text-center select-none">{nDays}</span>
           <button
-            onClick={() => setNDays((v) => Math.min(30, v + 1))}
+            onClick={() => setNDays((v: number) => Math.min(30, v + 1))}
             className="w-5 h-5 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors"
           >
             <Plus className="w-2.5 h-2.5" />
@@ -267,14 +275,14 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
         <span className="text-[9px] font-semibold tracking-widest text-[#484f58] uppercase">Runs</span>
         <div className="flex items-center gap-0.5">
           <button
-            onClick={() => setNRuns((v) => Math.max(1, v - 1))}
+            onClick={() => setNRuns((v: number) => Math.max(1, v - 1))}
             className="w-5 h-5 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors"
           >
             <Minus className="w-2.5 h-2.5" />
           </button>
           <span className="text-[11px] font-mono text-white w-5 text-center select-none">{nRuns}</span>
           <button
-            onClick={() => setNRuns((v) => Math.min(20, v + 1))}
+            onClick={() => setNRuns((v: number) => Math.min(20, v + 1))}
             className="w-5 h-5 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors"
           >
             <Plus className="w-2.5 h-2.5" />
