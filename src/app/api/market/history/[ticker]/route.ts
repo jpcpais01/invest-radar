@@ -37,8 +37,10 @@ export async function GET(
   const frame = TIMEFRAMES.find((t) => t.value === tf) ?? TIMEFRAMES[3];
   const now = new Date();
 
-  // Fetch extra warmup days so indicators can compute correctly even on short windows
-  const warmupFrom = new Date(now.getTime() - (frame.days + WARMUP_DAYS) * 24 * 60 * 60 * 1000);
+  // Intraday intervals are limited to ~60 days by Yahoo Finance — skip warmup to avoid fetch failures
+  const isIntraday = ["1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h"].includes(frame.interval);
+  const warmupDays = isIntraday ? 0 : WARMUP_DAYS;
+  const warmupFrom = new Date(now.getTime() - (frame.days + warmupDays) * 24 * 60 * 60 * 1000);
   const displayFrom = new Date(now.getTime() - frame.days * 24 * 60 * 60 * 1000);
 
   try {
