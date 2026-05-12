@@ -13,6 +13,12 @@ interface Props { ticker: string; id: string }
 
 export default function PSARWidget({ ticker, id }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const priceRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sarRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const { removeWidget } = useLayoutStore();
   const { activeTimeframe: tf } = useTickerStore();
@@ -44,45 +50,38 @@ export default function PSARWidget({ ticker, id }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!ready || !chartRef.current || !data?.bars?.length) return;
+    if (!ready || !chartRef.current) return;
     const el = chartRef.current;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
+    const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
-
     const chart = createChart(el, {
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#8b949e" },
       grid: { vertLines: { color: "#21262d" }, horzLines: { color: "#21262d" } },
       rightPriceScale: { borderColor: "#30363d", scaleMargins: { top: 0.05, bottom: 0.05 } },
       timeScale: { borderColor: "#30363d", timeVisible: false },
-      width: w,
-      height: h,
+      width: w, height: h,
     });
-
-    const priceSeries = chart.addSeries(LineSeries, { color: "#e6edf3", lineWidth: 1, title: "Price" });
-    const sarSeries   = chart.addSeries(LineSeries, { color: "#f0883e", lineWidth: 1, lineStyle: 2, title: "SAR" });
-
-    const bars    = data.bars;
-    const sarVals = data.indicators?.psar ?? [];
-
-    const mkPoints = (arr: number[]) =>
-      bars
-        .map((b, i) => ({ time: b.time as unknown as Time, value: arr[i] }))
-        .filter((d) => d.value != null && !isNaN(d.value));
-
-    priceSeries.setData(mkPoints(bars.map((b) => b.close)));
-    sarSeries.setData(mkPoints(sarVals));
-
-    chart.timeScale().fitContent();
-
+    priceRef.current = chart.addSeries(LineSeries, { color: "#e6edf3", lineWidth: 1, title: "Price" });
+    sarRef.current   = chart.addSeries(LineSeries, { color: "#f0883e", lineWidth: 1, lineStyle: 2, title: "SAR" });
+    apiRef.current = chart;
     const ro = new ResizeObserver(() => {
-      const nw = el.clientWidth;
-      const nh = el.clientHeight;
+      const nw = el.clientWidth; const nh = el.clientHeight;
       if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh });
     });
     ro.observe(el);
-    return () => { ro.disconnect(); chart.remove(); };
-  }, [ready, data]);
+    return () => { ro.disconnect(); chart.remove(); apiRef.current = priceRef.current = sarRef.current = null; };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!apiRef.current || !priceRef.current || !data?.bars?.length) return;
+    const bars = data.bars; const sarVals = data.indicators?.psar ?? [];
+    const mkPoints = (arr: number[]) =>
+      bars.map((b, i) => ({ time: b.time as unknown as Time, value: arr[i] }))
+          .filter((d: {value: number}) => d.value != null && !isNaN(d.value));
+    priceRef.current.setData(mkPoints(bars.map((b) => b.close)));
+    sarRef.current.setData(mkPoints(sarVals));
+    apiRef.current.timeScale().fitContent();
+  }, [data, ready]);
 
   const sarVals  = data?.indicators?.psar ?? [];
   const lastSAR  = sarVals.filter((v) => !isNaN(v)).slice(-1)[0];

@@ -22,6 +22,10 @@ function fmtObv(v: number): string {
 
 export default function OBVWidget({ ticker, id }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obvRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const { removeWidget } = useLayoutStore();
   const { activeTimeframe: tf } = useTickerStore();
@@ -44,54 +48,43 @@ export default function OBVWidget({ ticker, id }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!ready || !chartRef.current || !data?.bars?.length) return;
+    if (!ready || !chartRef.current) return;
     const el = chartRef.current;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
+    const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
-
-    const obvVals = data.indicators?.obv ?? [];
-    const isRising = (() => {
-      const valid = obvVals.filter((v) => !isNaN(v));
-      if (valid.length < 6) return null;
-      return valid[valid.length - 1] > valid[valid.length - 6];
-    })();
-
     const chart = createChart(el, {
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#8b949e" },
       grid: { vertLines: { color: "#21262d" }, horzLines: { color: "#21262d" } },
-      rightPriceScale: {
-        borderColor: "#30363d",
-        scaleMargins: { top: 0.1, bottom: 0.1 },
-      },
+      rightPriceScale: { borderColor: "#30363d", scaleMargins: { top: 0.1, bottom: 0.1 } },
       timeScale: { borderColor: "#30363d", timeVisible: false },
-      width: w,
-      height: h,
+      width: w, height: h,
     });
-
-    const obvSeries = chart.addSeries(LineSeries, {
-      color: isRising === false ? "#f85149" : "#3fb950",
+    obvRef.current = chart.addSeries(LineSeries, {
+      color: "#3fb950",
       lineWidth: 2,
       priceFormat: { type: "custom", formatter: fmtObv },
     });
-
-    const bars = data.bars;
-    obvSeries.setData(
-      bars
-        .map((b, i) => ({ time: b.time as unknown as Time, value: obvVals[i] }))
-        .filter((d) => d.value != null && !isNaN(d.value))
-    );
-
-    chart.timeScale().fitContent();
-
+    apiRef.current = chart;
     const ro = new ResizeObserver(() => {
-      const nw = el.clientWidth;
-      const nh = el.clientHeight;
+      const nw = el.clientWidth; const nh = el.clientHeight;
       if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh });
     });
     ro.observe(el);
-    return () => { ro.disconnect(); chart.remove(); };
-  }, [ready, data]);
+    return () => { ro.disconnect(); chart.remove(); apiRef.current = obvRef.current = null; };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!apiRef.current || !obvRef.current || !data?.bars?.length) return;
+    const bars = data.bars; const obvVals = data.indicators?.obv ?? [];
+    const valid = obvVals.filter((v) => !isNaN(v));
+    const isRising = valid.length >= 6 ? valid[valid.length - 1] > valid[valid.length - 6] : null;
+    obvRef.current.applyOptions({ color: isRising === false ? "#f85149" : "#3fb950" });
+    obvRef.current.setData(
+      bars.map((b, i) => ({ time: b.time as unknown as Time, value: obvVals[i] }))
+          .filter((d: {value: number}) => d.value != null && !isNaN(d.value))
+    );
+    apiRef.current.timeScale().fitContent();
+  }, [data, ready]);
 
   const obvVals = data?.indicators?.obv ?? [];
   const validObv = obvVals.filter((v) => !isNaN(v));

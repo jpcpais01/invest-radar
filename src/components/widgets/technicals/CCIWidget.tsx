@@ -13,6 +13,10 @@ interface Props { ticker: string; id: string }
 
 export default function CCIWidget({ ticker, id }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cciRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const { removeWidget } = useLayoutStore();
   const { activeTimeframe: tf } = useTickerStore();
@@ -35,46 +39,40 @@ export default function CCIWidget({ ticker, id }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!ready || !chartRef.current || !data?.bars?.length) return;
+    if (!ready || !chartRef.current) return;
     const el = chartRef.current;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
+    const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
-
     const chart = createChart(el, {
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#8b949e" },
       grid: { vertLines: { color: "#21262d" }, horzLines: { color: "#21262d" } },
       rightPriceScale: { borderColor: "#30363d", scaleMargins: { top: 0.1, bottom: 0.1 } },
       timeScale: { borderColor: "#30363d", timeVisible: false },
-      width: w,
-      height: h,
+      width: w, height: h,
     });
-
-    const cciSeries = chart.addSeries(LineSeries, {
+    cciRef.current = chart.addSeries(LineSeries, {
       color: "#58a6ff",
       lineWidth: 2,
       priceFormat: { type: "custom", formatter: (v: number) => v.toFixed(1) },
     });
-
-    const bars = data.bars;
-    const cciVals = data.indicators?.cci ?? [];
-
-    cciSeries.setData(
-      bars
-        .map((b, i) => ({ time: b.time as unknown as Time, value: cciVals[i] }))
-        .filter((d) => d.value != null && !isNaN(d.value))
-    );
-
-    chart.timeScale().fitContent();
-
+    apiRef.current = chart;
     const ro = new ResizeObserver(() => {
-      const nw = el.clientWidth;
-      const nh = el.clientHeight;
+      const nw = el.clientWidth; const nh = el.clientHeight;
       if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh });
     });
     ro.observe(el);
-    return () => { ro.disconnect(); chart.remove(); };
-  }, [ready, data]);
+    return () => { ro.disconnect(); chart.remove(); apiRef.current = cciRef.current = null; };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!apiRef.current || !cciRef.current || !data?.bars?.length) return;
+    const bars = data.bars; const cciVals = data.indicators?.cci ?? [];
+    cciRef.current.setData(
+      bars.map((b, i) => ({ time: b.time as unknown as Time, value: cciVals[i] }))
+          .filter((d: {value: number}) => d.value != null && !isNaN(d.value))
+    );
+    apiRef.current.timeScale().fitContent();
+  }, [data, ready]);
 
   const cciVals = data?.indicators?.cci ?? [];
   const lastCCI = cciVals.filter((v) => !isNaN(v)).slice(-1)[0];

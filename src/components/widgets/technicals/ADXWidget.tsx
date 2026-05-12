@@ -13,6 +13,14 @@ interface Props { ticker: string; id: string }
 
 export default function ADXWidget({ ticker, id }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adxRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdiRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mdiRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const { removeWidget } = useLayoutStore();
   const { activeTimeframe: tf } = useTickerStore();
@@ -35,49 +43,42 @@ export default function ADXWidget({ ticker, id }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!ready || !chartRef.current || !data?.bars?.length) return;
+    if (!ready || !chartRef.current) return;
     const el = chartRef.current;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
+    const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
-
     const chart = createChart(el, {
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#8b949e" },
       grid: { vertLines: { color: "#21262d" }, horzLines: { color: "#21262d" } },
       rightPriceScale: { borderColor: "#30363d", scaleMargins: { top: 0.05, bottom: 0.05 } },
       timeScale: { borderColor: "#30363d", timeVisible: false },
-      width: w,
-      height: h,
+      width: w, height: h,
     });
-
-    const adxSeries = chart.addSeries(LineSeries, { color: "#a371f7", lineWidth: 2, title: "ADX" });
-    const pdiSeries = chart.addSeries(LineSeries, { color: "#3fb950", lineWidth: 1, title: "+DI" });
-    const mdiSeries = chart.addSeries(LineSeries, { color: "#f85149", lineWidth: 1, title: "-DI" });
-
-    const bars = data.bars;
-    const adxData = data.indicators?.adx;
-
-    const mkPoints = (arr: number[]) =>
-      bars
-        .map((b, i) => ({ time: b.time as unknown as Time, value: arr[i] }))
-        .filter((d) => d.value != null && !isNaN(d.value));
-
-    if (adxData) {
-      adxSeries.setData(mkPoints(adxData.adx));
-      pdiSeries.setData(mkPoints(adxData.pdi));
-      mdiSeries.setData(mkPoints(adxData.mdi));
-    }
-
-    chart.timeScale().fitContent();
-
+    adxRef.current = chart.addSeries(LineSeries, { color: "#a371f7", lineWidth: 2, title: "ADX" });
+    pdiRef.current = chart.addSeries(LineSeries, { color: "#3fb950", lineWidth: 1, title: "+DI" });
+    mdiRef.current = chart.addSeries(LineSeries, { color: "#f85149", lineWidth: 1, title: "-DI" });
+    apiRef.current = chart;
     const ro = new ResizeObserver(() => {
-      const nw = el.clientWidth;
-      const nh = el.clientHeight;
+      const nw = el.clientWidth; const nh = el.clientHeight;
       if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh });
     });
     ro.observe(el);
-    return () => { ro.disconnect(); chart.remove(); };
-  }, [ready, data]);
+    return () => { ro.disconnect(); chart.remove(); apiRef.current = adxRef.current = pdiRef.current = mdiRef.current = null; };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!apiRef.current || !adxRef.current || !data?.bars?.length) return;
+    const bars = data.bars; const adxData = data.indicators?.adx;
+    const mkPoints = (arr: number[]) =>
+      bars.map((b, i) => ({ time: b.time as unknown as Time, value: arr[i] }))
+          .filter((d) => d.value != null && !isNaN(d.value));
+    if (adxData) {
+      adxRef.current.setData(mkPoints(adxData.adx));
+      pdiRef.current.setData(mkPoints(adxData.pdi));
+      mdiRef.current.setData(mkPoints(adxData.mdi));
+    }
+    apiRef.current.timeScale().fitContent();
+  }, [data, ready]);
 
   const adxData = data?.indicators?.adx;
   const lastADX = adxData?.adx?.filter((v) => !isNaN(v)).slice(-1)[0];
@@ -87,7 +88,6 @@ export default function ADXWidget({ ticker, id }: Props) {
   const strength = lastADX == null ? null : lastADX >= 40 ? "Very Strong" : lastADX >= 25 ? "Strong" : lastADX >= 20 ? "Moderate" : "Weak/No Trend";
   const strengthColor = lastADX == null ? "#8b949e" : lastADX >= 25 ? "#3fb950" : lastADX >= 20 ? "#d29922" : "#8b949e";
   const direction = lastPDI != null && lastMDI != null ? (lastPDI > lastMDI ? "Bullish" : "Bearish") : null;
-  const dirColor = direction === "Bullish" ? "#3fb950" : "#f85149";
 
   const askAI = `ADX/DMI for ${ticker} (${tf}): ADX ${lastADX?.toFixed(1) ?? "N/A"} (${strength}), +DI ${lastPDI?.toFixed(1) ?? "N/A"}, -DI ${lastMDI?.toFixed(1) ?? "N/A"}. Analyse the trend strength and direction.`;
 
@@ -123,7 +123,6 @@ export default function ADXWidget({ ticker, id }: Props) {
         <span className="text-[#484f58]">Strong &gt;25 · No trend &lt;20</span>
       </div>
       <div ref={chartRef} className="w-full flex-1 min-h-0" />
-      {/* Legend */}
       <div className="flex gap-3 px-3 pb-1.5 shrink-0 text-[10px]">
         <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-[#a371f7] inline-block" />ADX</span>
         <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-[#3fb950] inline-block" />+DI</span>

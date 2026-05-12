@@ -16,6 +16,10 @@ interface Props { ticker: string; id: string }
 export default function CandlestickChart({ ticker, id }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const candleRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const volumeRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const { removeWidget } = useLayoutStore();
   const { activeTimeframe: tf, setActiveTimeframe: setTf } = useTickerStore();
@@ -37,7 +41,6 @@ export default function CandlestickChart({ ticker, id }: Props) {
     refetchInterval: 30000,
   });
 
-  // Wait for the container to have real dimensions before creating the chart
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver((entries) => {
@@ -49,86 +52,39 @@ export default function CandlestickChart({ ticker, id }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!ready || !containerRef.current || !data?.bars?.length) return;
-
+    if (!ready || !containerRef.current) return;
     const el = containerRef.current;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
+    const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
 
-    // Destroy existing chart
-    if (chartRef.current) {
-      chartRef.current.remove();
-      chartRef.current = null;
-    }
-
     const chart = createChart(el, {
-      layout: {
-        background: { type: ColorType.Solid, color: "#0d1117" },
-        textColor: "#8b949e",
-      },
-      grid: {
-        vertLines: { color: "#21262d" },
-        horzLines: { color: "#21262d" },
-      },
+      layout: { background: { type: ColorType.Solid, color: "#0d1117" }, textColor: "#8b949e" },
+      grid: { vertLines: { color: "#21262d" }, horzLines: { color: "#21262d" } },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "#30363d" },
-      timeScale: {
-        borderColor: "#30363d",
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      width: w,
-      height: h,
+      timeScale: { borderColor: "#30363d", timeVisible: true, secondsVisible: false },
+      width: w, height: h,
     });
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#3fb950",
-      downColor: "#f85149",
-      borderUpColor: "#3fb950",
-      borderDownColor: "#f85149",
-      wickUpColor: "#3fb950",
-      wickDownColor: "#f85149",
+    candleRef.current = chart.addSeries(CandlestickSeries, {
+      upColor: "#3fb950", downColor: "#f85149",
+      borderUpColor: "#3fb950", borderDownColor: "#f85149",
+      wickUpColor: "#3fb950", wickDownColor: "#f85149",
     });
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
+    volumeRef.current = chart.addSeries(HistogramSeries, {
       color: "#1f6feb44",
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
     });
-
-    chart.priceScale("volume").applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
+    chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
 
     chartRef.current = chart;
 
-    const sorted = [...data.bars].sort((a, b) => a.time - b.time);
-    candleSeries.setData(
-      sorted.map((b) => ({
-        time: b.time as unknown as Time,
-        open: b.open,
-        high: b.high,
-        low: b.low,
-        close: b.close,
-      }))
-    );
-    volumeSeries.setData(
-      sorted.map((b) => ({
-        time: b.time as unknown as Time,
-        value: b.volume,
-        color: b.close >= b.open ? "#3fb95044" : "#f8514944",
-      }))
-    );
-    chart.timeScale().fitContent();
-
     const ro = new ResizeObserver(() => {
       if (el && chartRef.current) {
-        const nw = el.clientWidth;
-        const nh = el.clientHeight;
-        if (nw > 0 && nh > 0) {
-          chartRef.current.applyOptions({ width: nw, height: nh });
-        }
+        const nw = el.clientWidth; const nh = el.clientHeight;
+        if (nw > 0 && nh > 0) chartRef.current.applyOptions({ width: nw, height: nh });
       }
     });
     ro.observe(el);
@@ -136,9 +92,28 @@ export default function CandlestickChart({ ticker, id }: Props) {
     return () => {
       ro.disconnect();
       chart.remove();
-      chartRef.current = null;
+      chartRef.current = candleRef.current = volumeRef.current = null;
     };
-  }, [ready, data]);
+  }, [ready]);
+
+  useEffect(() => {
+    if (!chartRef.current || !candleRef.current || !data?.bars?.length) return;
+    const sorted = [...data.bars].sort((a, b) => a.time - b.time);
+    candleRef.current.setData(
+      sorted.map((b) => ({
+        time: b.time as unknown as Time,
+        open: b.open, high: b.high, low: b.low, close: b.close,
+      }))
+    );
+    volumeRef.current.setData(
+      sorted.map((b) => ({
+        time: b.time as unknown as Time,
+        value: b.volume,
+        color: b.close >= b.open ? "#3fb95044" : "#f8514944",
+      }))
+    );
+    chartRef.current.timeScale().fitContent();
+  }, [data, ready]);
 
   const price = quote?.price;
   const change = quote?.change;
@@ -157,7 +132,6 @@ export default function CandlestickChart({ ticker, id }: Props) {
       error={error ? "Failed to load chart data" : null}
       askAIContext={askAICtx}
     >
-      {/* Price header */}
       {price != null && (
         <div className="flex items-baseline gap-2 px-3 pt-2 pb-1 shrink-0">
           <span className="text-xl font-bold text-white">${price.toFixed(2)}</span>
@@ -169,7 +143,6 @@ export default function CandlestickChart({ ticker, id }: Props) {
         </div>
       )}
 
-      {/* Timeframe selector */}
       <div className="flex items-center gap-1 px-3 pb-1 shrink-0">
         {TIMEFRAMES.map((t) => (
           <button
@@ -187,7 +160,6 @@ export default function CandlestickChart({ ticker, id }: Props) {
         ))}
       </div>
 
-      {/* Chart container — fills remaining space */}
       <div ref={containerRef} className="w-full flex-1 min-h-0" />
     </WidgetShell>
   );
