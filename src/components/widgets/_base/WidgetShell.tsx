@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { X, MessageSquare, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/chatStore";
@@ -29,6 +29,13 @@ export default function WidgetShell({
 }: Props) {
   const { prefillMessage } = useChatStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+
+  useEffect(() => {
+    if (!loading) { setShowOverlay(false); return; }
+    const t = setTimeout(() => setShowOverlay(true), 500);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const handleRefresh = async () => {
     if (!onRefresh) return;
@@ -94,7 +101,7 @@ export default function WidgetShell({
         className="widget-body flex-1 overflow-hidden relative flex flex-col"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {loading && !error && (
+        {showOverlay && !error && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-[#161b22]/70">
             <div className="w-5 h-5 border-2 border-[#30363d] border-t-[#1f6feb] rounded-full animate-spin" />
           </div>
