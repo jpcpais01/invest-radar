@@ -238,10 +238,10 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
       )}
 
       {/* ── Chart ──────────────────────────────────────────────────────────── */}
-      <div ref={containerRef} className="flex-1 min-h-0" />
+      <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden" />
 
       {/* ── Controls ───────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-t border-[#21262d]">
+      <div className="relative z-10 shrink-0 flex items-center gap-2 px-3 py-1.5 border-t border-[#21262d] bg-[#0d1117]">
 
         {/* Days stepper */}
         <span className="text-[9px] font-semibold tracking-widest text-[#484f58] uppercase">Days</span>
