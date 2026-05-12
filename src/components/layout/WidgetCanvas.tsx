@@ -38,32 +38,32 @@ interface CatalogEntry {
   defaultH: number;
 }
 
-// cols=30, rowHeight=30 → each unit ≈ 32×30px at 1200px canvas
+// cols=12, rowHeight is computed dynamically = colWidth so both axes snap equally
 const WIDGET_CATALOG: CatalogEntry[] = [
-  { type: "candlestick",       label: "Price Chart",          desc: "OHLCV candlestick chart",              defaultW: 20, defaultH: 10 },
-  { type: "rsi",               label: "RSI",                  desc: "Relative Strength Index",              defaultW: 10, defaultH: 6  },
-  { type: "macd",              label: "MACD",                 desc: "Moving Average Convergence",           defaultW: 10, defaultH: 6  },
-  { type: "stochastic",        label: "Stochastic",           desc: "Stochastic oscillator %K/%D",          defaultW: 10, defaultH: 6  },
-  { type: "bollinger",         label: "Bollinger Bands",      desc: "Volatility bands",                     defaultW: 10, defaultH: 6  },
-  { type: "ema",               label: "EMA Panel",            desc: "9/21/50/100/200 EMAs",                 defaultW: 15, defaultH: 6  },
-  { type: "signal-summary",    label: "Signal Summary",       desc: "Aggregate buy/sell signals",           defaultW: 15, defaultH: 6  },
-  { type: "adx",               label: "ADX / DMI",            desc: "Trend strength & direction",           defaultW: 10, defaultH: 6  },
-  { type: "cci",               label: "CCI (20)",             desc: "Commodity Channel Index",              defaultW: 10, defaultH: 6  },
-  { type: "psar",              label: "Parabolic SAR",        desc: "Stop-and-reverse reversal dots",       defaultW: 10, defaultH: 6  },
-  { type: "obv",               label: "OBV",                  desc: "On-Balance Volume trend",              defaultW: 10, defaultH: 6  },
-  { type: "key-metrics",       label: "Key Metrics",          desc: "P/E, EV/EBITDA, market cap",          defaultW: 10, defaultH: 6  },
-  { type: "earnings",          label: "Earnings",             desc: "EPS history & estimates",              defaultW: 10, defaultH: 6  },
-  { type: "news-feed",         label: "News Feed",            desc: "Latest news with sentiment",           defaultW: 10, defaultH: 8  },
-  { type: "iv-rank",           label: "IV Rank",              desc: "Implied volatility rank",              defaultW: 10, defaultH: 6  },
-  { type: "put-call-ratio",    label: "Put/Call Ratio",       desc: "Options sentiment ratio",              defaultW: 10, defaultH: 6  },
-  { type: "options-chain",     label: "Options Chain",        desc: "Full calls/puts table",                defaultW: 20, defaultH: 12 },
-  { type: "max-pain",          label: "Max Pain",             desc: "Max pain strike calculator",           defaultW: 10, defaultH: 6  },
-  { type: "prob-cone",         label: "Probability Cone",     desc: "1σ/2σ price range at expiry",         defaultW: 10, defaultH: 6  },
-  { type: "quality-score",     label: "Quality Score",        desc: "Business quality: margins, ROE, FCF",  defaultW: 10, defaultH: 8  },
-  { type: "valuation-context", label: "Valuation Context",   desc: "Multiples vs own 1Y history",          defaultW: 10, defaultH: 8  },
-  { type: "timeframe-heatmap", label: "Timeframe Heatmap",   desc: "1M–2Y agreement grid",                 defaultW: 20, defaultH: 8  },
-  { type: "conviction-tracker",label: "Management Conviction",desc: "Insider buy/sell trend",               defaultW: 10, defaultH: 10 },
-  { type: "narrative-index",   label: "Narrative Index",     desc: "News narrative lifecycle stage",       defaultW: 10, defaultH: 8  },
+  { type: "candlestick",       label: "Price Chart",          desc: "OHLCV candlestick chart",              defaultW: 8, defaultH: 5 },
+  { type: "rsi",               label: "RSI",                  desc: "Relative Strength Index",              defaultW: 4, defaultH: 3 },
+  { type: "macd",              label: "MACD",                 desc: "Moving Average Convergence",           defaultW: 4, defaultH: 3 },
+  { type: "stochastic",        label: "Stochastic",           desc: "Stochastic oscillator %K/%D",          defaultW: 4, defaultH: 3 },
+  { type: "bollinger",         label: "Bollinger Bands",      desc: "Volatility bands",                     defaultW: 4, defaultH: 3 },
+  { type: "ema",               label: "EMA Panel",            desc: "9/21/50/100/200 EMAs",                 defaultW: 6, defaultH: 3 },
+  { type: "signal-summary",    label: "Signal Summary",       desc: "Aggregate buy/sell signals",           defaultW: 6, defaultH: 3 },
+  { type: "adx",               label: "ADX / DMI",            desc: "Trend strength & direction",           defaultW: 4, defaultH: 3 },
+  { type: "cci",               label: "CCI (20)",             desc: "Commodity Channel Index",              defaultW: 4, defaultH: 3 },
+  { type: "psar",              label: "Parabolic SAR",        desc: "Stop-and-reverse reversal dots",       defaultW: 4, defaultH: 3 },
+  { type: "obv",               label: "OBV",                  desc: "On-Balance Volume trend",              defaultW: 4, defaultH: 3 },
+  { type: "key-metrics",       label: "Key Metrics",          desc: "P/E, EV/EBITDA, market cap",          defaultW: 4, defaultH: 3 },
+  { type: "earnings",          label: "Earnings",             desc: "EPS history & estimates",              defaultW: 4, defaultH: 3 },
+  { type: "news-feed",         label: "News Feed",            desc: "Latest news with sentiment",           defaultW: 4, defaultH: 4 },
+  { type: "iv-rank",           label: "IV Rank",              desc: "Implied volatility rank",              defaultW: 4, defaultH: 3 },
+  { type: "put-call-ratio",    label: "Put/Call Ratio",       desc: "Options sentiment ratio",              defaultW: 4, defaultH: 3 },
+  { type: "options-chain",     label: "Options Chain",        desc: "Full calls/puts table",                defaultW: 8, defaultH: 6 },
+  { type: "max-pain",          label: "Max Pain",             desc: "Max pain strike calculator",           defaultW: 4, defaultH: 3 },
+  { type: "prob-cone",         label: "Probability Cone",     desc: "1σ/2σ price range at expiry",         defaultW: 4, defaultH: 3 },
+  { type: "quality-score",     label: "Quality Score",        desc: "Business quality: margins, ROE, FCF",  defaultW: 4, defaultH: 4 },
+  { type: "valuation-context", label: "Valuation Context",   desc: "Multiples vs own 1Y history",          defaultW: 4, defaultH: 4 },
+  { type: "timeframe-heatmap", label: "Timeframe Heatmap",   desc: "1M–2Y agreement grid",                 defaultW: 8, defaultH: 4 },
+  { type: "conviction-tracker",label: "Management Conviction",desc: "Insider buy/sell trend",               defaultW: 4, defaultH: 5 },
+  { type: "narrative-index",   label: "Narrative Index",     desc: "News narrative lifecycle stage",       defaultW: 4, defaultH: 4 },
 ];
 
 function WidgetPicker({ onAdd, onClose }: { onAdd: (entry: CatalogEntry) => void; onClose: () => void }) {
@@ -207,7 +207,7 @@ export default function WidgetCanvas() {
     const widget: WidgetConfig = {
       id, type: entry.type, title: entry.label, i: id,
       x: 0, y: nextY, w: entry.defaultW, h: entry.defaultH,
-      minW: entry.type === "candlestick" || entry.type === "options-chain" ? 5 : 2,
+      minW: entry.type === "candlestick" || entry.type === "options-chain" ? 5 : 3,
       minH: 2,
     };
     addWidget(widget);
@@ -218,9 +218,15 @@ export default function WidgetCanvas() {
     "options-chain": 5,
   };
 
+  const COLS = 12;
+  // rowHeight = column width so both axes snap by the same pixel amount
+  const rowHeight = canvasWidth > 0
+    ? Math.max(30, Math.round((canvasWidth - 16 - 8 * (COLS - 1)) / COLS))
+    : 60;
+
   const layout = widgets.map((w) => ({
     i: w.i, x: w.x, y: w.y, w: w.w, h: w.h,
-    minW: MIN_W[w.type] ?? 2,
+    minW: MIN_W[w.type] ?? 3,
     minH: 2,
   }));
 
@@ -341,8 +347,8 @@ export default function WidgetCanvas() {
         <GL
           className="react-grid-layout"
           layout={layout}
-          cols={30}
-          rowHeight={30}
+          cols={COLS}
+          rowHeight={rowHeight}
           width={canvasWidth - 16}
           onLayoutChange={handleLayoutChange}
           key={locked ? "locked" : "unlocked"}
