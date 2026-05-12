@@ -92,14 +92,16 @@ function padLeft(arr: number[], targetLen: number): number[] {
   return [...Array(pad).fill(NaN), ...arr];
 }
 
+export type SignalValue = "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell";
+
 export function computeSignalSummary(indicators: TechnicalIndicators, currentPrice: number) {
-  const signals: { name: string; signal: "buy" | "sell" | "neutral"; value: string }[] = [];
+  const signals: { name: string; signal: SignalValue; value: string }[] = [];
 
   const lastRSI = lastVal(indicators.rsi);
   if (lastRSI != null) {
     signals.push({
       name: "RSI(14)",
-      signal: lastRSI > 70 ? "sell" : lastRSI < 30 ? "buy" : "neutral",
+      signal: lastRSI < 20 ? "strong-buy" : lastRSI < 30 ? "buy" : lastRSI > 80 ? "strong-sell" : lastRSI > 70 ? "sell" : "neutral",
       value: lastRSI.toFixed(1),
     });
   }
@@ -147,7 +149,7 @@ export function computeSignalSummary(indicators: TechnicalIndicators, currentPri
     if (k != null) {
       signals.push({
         name: "Stochastic",
-        signal: k > 80 ? "sell" : k < 20 ? "buy" : "neutral",
+        signal: k < 10 ? "strong-buy" : k < 20 ? "buy" : k > 90 ? "strong-sell" : k > 80 ? "sell" : "neutral",
         value: `%K ${k.toFixed(1)}${d != null ? ` / %D ${d.toFixed(1)}` : ""}`,
       });
     }
@@ -190,7 +192,7 @@ export function computeSignalSummary(indicators: TechnicalIndicators, currentPri
   if (cciVal != null) {
     signals.push({
       name: "CCI(20)",
-      signal: cciVal > 100 ? "sell" : cciVal < -100 ? "buy" : "neutral",
+      signal: cciVal < -200 ? "strong-buy" : cciVal < -100 ? "buy" : cciVal > 200 ? "strong-sell" : cciVal > 100 ? "sell" : "neutral",
       value: cciVal.toFixed(1),
     });
   }
@@ -207,12 +209,27 @@ export function computeSignalSummary(indicators: TechnicalIndicators, currentPri
     });
   }
 
-  const buys = signals.filter((s) => s.signal === "buy").length;
-  const sells = signals.filter((s) => s.signal === "sell").length;
-  const overall: "buy" | "sell" | "neutral" =
-    buys > sells ? "buy" : sells > buys ? "sell" : "neutral";
+  const strongBuys  = signals.filter((s) => s.signal === "strong-buy").length;
+  const buys        = signals.filter((s) => s.signal === "buy").length;
+  const sells       = signals.filter((s) => s.signal === "sell").length;
+  const strongSells = signals.filter((s) => s.signal === "strong-sell").length;
+  const neutrals    = signals.filter((s) => s.signal === "neutral").length;
 
-  return { signals, overall, buys, sells, neutrals: signals.length - buys - sells };
+  // Weighted score: strong signals count double
+  const bullScore = strongBuys * 2 + buys;
+  const bearScore = strongSells * 2 + sells;
+  const overall: "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell" = (() => {
+    if (bullScore === 0 && bearScore === 0) return "neutral";
+    const total = bullScore + bearScore + neutrals;
+    const ratio = (bullScore - bearScore) / total;
+    if (ratio >= 0.5)  return "strong-buy";
+    if (ratio > 0)     return "buy";
+    if (ratio <= -0.5) return "strong-sell";
+    if (ratio < 0)     return "sell";
+    return "neutral";
+  })();
+
+  return { signals, overall, strongBuys, buys, sells, strongSells, neutrals };
 }
 
 function lastVal(arr?: number[]): number | null {

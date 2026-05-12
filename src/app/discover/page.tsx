@@ -13,7 +13,7 @@ const PRESET_TICKERS = [
   "GS", "BA", "NKE", "ADBE", "PYPL", "NFLX", "AMD", "QCOM", "SBUX", "GE",
 ];
 
-type SignalValue = "buy" | "sell" | "neutral";
+type SignalValue = "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell";
 
 interface SignalEntry {
   name: string;
@@ -24,8 +24,10 @@ interface SignalEntry {
 interface ScanSummary {
   signals: SignalEntry[];
   overall: SignalValue;
+  strongBuys: number;
   buys: number;
   sells: number;
+  strongSells: number;
   neutrals: number;
 }
 
@@ -57,7 +59,7 @@ const INDICATOR_LABELS: Record<string, string> = {
 
 function getScore(r: ScanResult): number {
   if (!r.summary) return 0;
-  return r.summary.buys - r.summary.sells;
+  return (r.summary.strongBuys ?? 0) * 2 + r.summary.buys - r.summary.sells - (r.summary.strongSells ?? 0) * 2;
 }
 
 function scoreCategory(score: number): FilterTab {
@@ -98,9 +100,11 @@ const SCORE_COLORS: Record<FilterTab, string> = {
 };
 
 const SIGNAL_PILL: Record<SignalValue, string> = {
-  buy: "text-[#3fb950] bg-[#3fb95015] border-[#3fb95033]",
-  sell: "text-[#f85149] bg-[#f8514915] border-[#f8514933]",
-  neutral: "text-[#484f58] bg-transparent border-[#21262d]",
+  "strong-buy":  "text-[#3fb950] bg-[#3fb95020] border-[#3fb95050]",
+  "buy":         "text-[#56d364] bg-[#56d36415] border-[#56d36430]",
+  "neutral":     "text-[#484f58] bg-transparent border-[#21262d]",
+  "sell":        "text-[#ff7b72] bg-[#ff7b7215] border-[#ff7b7230]",
+  "strong-sell": "text-[#f85149] bg-[#f8514920] border-[#f8514950]",
 };
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
@@ -458,10 +462,10 @@ export default function DiscoverPage() {
                   const score = getScore(r);
                   const cat = scoreCategory(score);
                   const isUp = (r.changePercent ?? 0) >= 0;
-                  const totalSig = (r.summary?.buys ?? 0) + (r.summary?.sells ?? 0) + (r.summary?.neutrals ?? 0);
-                  const buyPct = totalSig ? ((r.summary?.buys ?? 0) / totalSig) * 100 : 0;
-                  const sellPct = totalSig ? ((r.summary?.sells ?? 0) / totalSig) * 100 : 0;
-                  const neutralPct = totalSig ? ((r.summary?.neutrals ?? 0) / totalSig) * 100 : 0;
+                  const sBuys = (r.summary?.strongBuys ?? 0);
+                  const sSells = (r.summary?.strongSells ?? 0);
+                  const totalSig = sBuys + (r.summary?.buys ?? 0) + (r.summary?.neutrals ?? 0) + (r.summary?.sells ?? 0) + sSells;
+                  const pct = (n: number) => totalSig ? (n / totalSig) * 100 : 0;
                   const isCustom = customTickers.includes(r.ticker);
 
                   return (
@@ -510,14 +514,16 @@ export default function DiscoverPage() {
                       <td className="px-3 py-2.5">
                         <div className="flex flex-col gap-1 items-center w-24 mx-auto">
                           <div className="flex items-center gap-1.5 text-[10px]">
-                            <span className="text-[#3fb950] font-semibold">{r.summary?.buys ?? 0}B</span>
+                            <span className="text-[#3fb950] font-semibold">{sBuys + (r.summary?.buys ?? 0)}B</span>
                             <span className="text-[#8b949e]">{r.summary?.neutrals ?? 0}N</span>
-                            <span className="text-[#f85149] font-semibold">{r.summary?.sells ?? 0}S</span>
+                            <span className="text-[#f85149] font-semibold">{(r.summary?.sells ?? 0) + sSells}S</span>
                           </div>
                           <div className="flex h-1 w-full rounded-full overflow-hidden gap-px">
-                            <div className="bg-[#3fb950] rounded-l-full" style={{ width: `${buyPct}%` }} />
-                            <div className="bg-[#8b949e]" style={{ width: `${neutralPct}%` }} />
-                            <div className="bg-[#f85149] rounded-r-full" style={{ width: `${sellPct}%` }} />
+                            <div className="bg-[#3fb950] rounded-l-full" style={{ width: `${pct(sBuys)}%` }} />
+                            <div className="bg-[#56d364]" style={{ width: `${pct(r.summary?.buys ?? 0)}%` }} />
+                            <div className="bg-[#484f58]" style={{ width: `${pct(r.summary?.neutrals ?? 0)}%` }} />
+                            <div className="bg-[#ff7b72]" style={{ width: `${pct(r.summary?.sells ?? 0)}%` }} />
+                            <div className="bg-[#f85149] rounded-r-full" style={{ width: `${pct(sSells)}%` }} />
                           </div>
                         </div>
                       </td>
@@ -528,7 +534,7 @@ export default function DiscoverPage() {
                           <td key={name} className="px-3 py-2.5 text-center">
                             {sig ? (
                               <span className={cn("inline-block px-1.5 py-0.5 rounded border text-[9px] font-semibold uppercase tracking-wide", SIGNAL_PILL[sig.signal])}>
-                                {sig.signal === "neutral" ? "—" : sig.signal}
+                                {sig.signal === "neutral" ? "—" : sig.signal === "strong-buy" ? "S.Buy" : sig.signal === "strong-sell" ? "S.Sell" : sig.signal}
                               </span>
                             ) : (
                               <span className="text-[#21262d]">—</span>
