@@ -22,7 +22,12 @@ export type WidgetType =
   | "news-feed"
   | "analyst-ratings"
   | "sector-heatmap"
-  | "yield-curve";
+  | "yield-curve"
+  | "quality-score"
+  | "valuation-context"
+  | "timeframe-heatmap"
+  | "conviction-tracker"
+  | "narrative-index";
 
 export interface WidgetConfig {
   id: string;
@@ -59,4 +64,9 @@ export const WIDGET_CATALOG: { type: WidgetType; title: string; defaultW: number
   { type: "analyst-ratings", title: "Analyst Ratings", defaultW: 4, defaultH: 3 },
   { type: "sector-heatmap", title: "Sector Heatmap", defaultW: 8, defaultH: 5 },
   { type: "yield-curve", title: "Yield Curve", defaultW: 4, defaultH: 4 },
+  { type: "quality-score", title: "Quality Score", defaultW: 4, defaultH: 4 },
+  { type: "valuation-context", title: "Valuation Context", defaultW: 4, defaultH: 4 },
+  { type: "timeframe-heatmap", title: "Timeframe Heatmap", defaultW: 8, defaultH: 4 },
+  { type: "conviction-tracker", title: "Management Conviction", defaultW: 4, defaultH: 5 },
+  { type: "narrative-index", title: "Narrative Index", defaultW: 4, defaultH: 4 },
 ];

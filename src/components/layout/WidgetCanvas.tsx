@@ -23,6 +23,11 @@ import ADXWidget from "@/components/widgets/technicals/ADXWidget";
 import CCIWidget from "@/components/widgets/technicals/CCIWidget";
 import PSARWidget from "@/components/widgets/technicals/PSARWidget";
 import OBVWidget from "@/components/widgets/technicals/OBVWidget";
+import QualityScoreWidget from "@/components/widgets/investment/QualityScoreWidget";
+import ValuationContextWidget from "@/components/widgets/investment/ValuationContextWidget";
+import HeatmapWidget from "@/components/widgets/investment/HeatmapWidget";
+import ConvictionTrackerWidget from "@/components/widgets/investment/ConvictionTrackerWidget";
+import NarrativeIndexWidget from "@/components/widgets/investment/NarrativeIndexWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
 interface CatalogEntry {
@@ -50,9 +55,14 @@ const WIDGET_CATALOG: CatalogEntry[] = [
   { type: "news-feed",     label: "News Feed",        desc: "Latest news with sentiment",     defaultW: 4, defaultH: 3 },
   { type: "iv-rank",       label: "IV Rank",          desc: "Implied volatility rank",        defaultW: 4, defaultH: 3 },
   { type: "put-call-ratio",label: "Put/Call Ratio",   desc: "Options sentiment ratio",        defaultW: 4, defaultH: 3 },
-  { type: "options-chain", label: "Options Chain",    desc: "Full calls/puts table",          defaultW: 8, defaultH: 6 },
-  { type: "max-pain",      label: "Max Pain",         desc: "Max pain strike calculator",     defaultW: 4, defaultH: 3 },
-  { type: "prob-cone",     label: "Probability Cone", desc: "1σ/2σ price range at expiry",   defaultW: 4, defaultH: 3 },
+  { type: "options-chain",     label: "Options Chain",      desc: "Full calls/puts table",              defaultW: 8, defaultH: 6 },
+  { type: "max-pain",          label: "Max Pain",           desc: "Max pain strike calculator",         defaultW: 4, defaultH: 3 },
+  { type: "prob-cone",         label: "Probability Cone",   desc: "1σ/2σ price range at expiry",       defaultW: 4, defaultH: 3 },
+  { type: "quality-score",     label: "Quality Score",      desc: "Business quality: margins, ROE, FCF", defaultW: 4, defaultH: 4 },
+  { type: "valuation-context", label: "Valuation Context",  desc: "Multiples vs own 1Y history",        defaultW: 4, defaultH: 4 },
+  { type: "timeframe-heatmap", label: "Timeframe Heatmap",  desc: "1M–2Y agreement grid",               defaultW: 8, defaultH: 4 },
+  { type: "conviction-tracker",label: "Management Conviction", desc: "Insider buy/sell trend",          defaultW: 4, defaultH: 5 },
+  { type: "narrative-index",   label: "Narrative Index",    desc: "News narrative lifecycle stage",     defaultW: 4, defaultH: 4 },
 ];
 
 function WidgetPicker({ onAdd, onClose }: { onAdd: (entry: CatalogEntry) => void; onClose: () => void }) {
@@ -99,7 +109,12 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
     case "adx":            return <ADXWidget ticker={ticker} id={id} />;
     case "cci":            return <CCIWidget ticker={ticker} id={id} />;
     case "psar":           return <PSARWidget ticker={ticker} id={id} />;
-    case "obv":            return <OBVWidget ticker={ticker} id={id} />;
+    case "obv":              return <OBVWidget ticker={ticker} id={id} />;
+    case "quality-score":    return <QualityScoreWidget ticker={ticker} id={id} />;
+    case "valuation-context":return <ValuationContextWidget ticker={ticker} id={id} />;
+    case "timeframe-heatmap":return <HeatmapWidget ticker={ticker} id={id} />;
+    case "conviction-tracker":return <ConvictionTrackerWidget ticker={ticker} id={id} />;
+    case "narrative-index":  return <NarrativeIndexWidget ticker={ticker} id={id} />;
     default:
       return (
         <WidgetShell title={type} id={id} onRemove={onRemove}>

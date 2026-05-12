@@ -122,6 +122,118 @@ export async function getEarnings(ticker: string): Promise<EarningsEvent[]> {
   }
 }
 
+export async function getQualityData(ticker: string) {
+  const summary: any = await yf.quoteSummary(ticker, {
+    modules: ["financialData", "defaultKeyStatistics"],
+  }).catch(() => null);
+
+  const fd = summary?.financialData;
+  const ks = summary?.defaultKeyStatistics;
+  const safeNum = (val: any): number | undefined => {
+    if (val == null) return undefined;
+    if (typeof val === "number") return val;
+    if (typeof val === "object" && "raw" in val) return val.raw as number;
+    return undefined;
+  };
+
+  return {
+    profitMargins: safeNum(fd?.profitMargins),
+    operatingMargins: safeNum(fd?.operatingMargins),
+    grossMargins: safeNum(fd?.grossMargins),
+    returnOnAssets: safeNum(fd?.returnOnAssets),
+    returnOnEquity: safeNum(fd?.returnOnEquity),
+    revenueGrowth: safeNum(fd?.revenueGrowth),
+    earningsGrowth: safeNum(fd?.earningsGrowth),
+    currentRatio: safeNum(fd?.currentRatio),
+    debtToEquity: safeNum(fd?.debtToEquity),
+    freeCashflow: safeNum(fd?.freeCashflow),
+    operatingCashflow: safeNum(fd?.operatingCashflow),
+    totalRevenue: safeNum(fd?.totalRevenue),
+    sharesOutstanding: safeNum(ks?.sharesOutstanding),
+    trailingEps: safeNum(ks?.trailingEps),
+  };
+}
+
+export async function getInsiderTransactions(ticker: string) {
+  const summary: any = await yf.quoteSummary(ticker, {
+    modules: ["insiderTransactions"],
+  }).catch(() => null);
+
+  const raw: any[] = summary?.insiderTransactions?.transactions ?? [];
+  const safeNum = (val: any): number => {
+    if (val == null) return 0;
+    if (typeof val === "number") return val;
+    if (typeof val === "object" && "raw" in val) return val.raw as number;
+    return 0;
+  };
+
+  return raw.map((t: any) => ({
+    name: t.filerName ?? "Unknown",
+    relation: t.filerRelation ?? "",
+    text: t.transactionText ?? "",
+    date: t.startDate ? new Date(t.startDate).toISOString().split("T")[0] : "",
+    shares: safeNum(t.shares),
+    value: safeNum(t.value),
+    isBuy: (t.transactionText ?? "").toLowerCase().includes("purchase") ||
+            (t.transactionText ?? "").toLowerCase().includes("acqui"),
+  })).filter((t) => t.date);
+}
+
+export async function getValuationHistory(ticker: string) {
+  const [summary, quote, bars] = await Promise.all([
+    yf.quoteSummary(ticker, {
+      modules: ["defaultKeyStatistics", "financialData"],
+    }).catch(() => null) as Promise<any>,
+    yf.quote(ticker) as Promise<any>,
+    getHistory(
+      ticker,
+      "1d",
+      new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+    ),
+  ]);
+
+  const safeNum = (val: any): number | undefined => {
+    if (val == null) return undefined;
+    if (typeof val === "number") return val;
+    if (typeof val === "object" && "raw" in val) return val.raw as number;
+    return undefined;
+  };
+
+  const ks = summary?.defaultKeyStatistics;
+  const fd = summary?.financialData;
+  const trailingEps = safeNum(ks?.trailingEps);
+  const sharesOutstanding = safeNum(ks?.sharesOutstanding);
+  const totalRevenue = safeNum(fd?.totalRevenue);
+  const freeCashflow = safeNum(fd?.freeCashflow);
+
+  const currentPrice = quote?.regularMarketPrice ?? 0;
+  const prices = bars.map((b) => b.close);
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+
+  const calcRange = (divisor: number | undefined) => {
+    if (!divisor || divisor === 0) return null;
+    return { min: minPrice / divisor, max: maxPrice / divisor, current: currentPrice / divisor };
+  };
+
+  const pePerShare = trailingEps;
+  const psPerShare = sharesOutstanding && totalRevenue ? totalRevenue / sharesOutstanding : undefined;
+  const pfcfPerShare = sharesOutstanding && freeCashflow ? freeCashflow / sharesOutstanding : undefined;
+
+  return {
+    pe: calcRange(pePerShare),
+    ps: calcRange(psPerShare),
+    pfcf: calcRange(pfcfPerShare),
+    pb: (() => {
+      const pb = safeNum(quote?.priceToBook ?? ks?.priceToBook);
+      if (!pb || !currentPrice) return null;
+      const bvPerShare = currentPrice / pb;
+      return calcRange(bvPerShare);
+    })(),
+    evEbitda: { current: safeNum(ks?.enterpriseToEbitda) },
+  };
+}
+
 export async function searchTickers(query: string) {
   const results: any = await yf.search(query);
   return ((results.quotes ?? []) as any[])
