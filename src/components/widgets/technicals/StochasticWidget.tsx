@@ -13,6 +13,12 @@ interface Props { ticker: string; id: string }
 
 export default function StochasticWidget({ ticker, id }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const kRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const { removeWidget } = useLayoutStore();
   const { activeTimeframe: tf } = useTickerStore();
@@ -35,48 +41,40 @@ export default function StochasticWidget({ ticker, id }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!ready || !chartRef.current || !data?.bars?.length) return;
-
+    if (!ready || !chartRef.current) return;
     const el = chartRef.current;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
+    const w = el.clientWidth; const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
-
     const chart = createChart(el, {
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#8b949e" },
       grid: { vertLines: { color: "#21262d" }, horzLines: { color: "#21262d" } },
       rightPriceScale: { borderColor: "#30363d", scaleMargins: { top: 0.1, bottom: 0.1 } },
       timeScale: { borderColor: "#30363d", timeVisible: false },
-      width: w,
-      height: h,
+      width: w, height: h,
     });
-
-    const kSeries = chart.addSeries(LineSeries, { color: "#388bfd", lineWidth: 2 });
-    const dSeries = chart.addSeries(LineSeries, { color: "#f85149", lineWidth: 1 });
-
-    const bars = data.bars;
-    const stoch = data.indicators?.stochastic;
-
-    if (stoch) {
-      const mkData = (arr: number[]) =>
-        bars
-          .map((b, i) => ({ time: b.time as unknown as Time, value: arr[i] }))
-          .filter((d) => d.value != null && !isNaN(d.value));
-      kSeries.setData(mkData(stoch.k));
-      dSeries.setData(mkData(stoch.d));
-    }
-
-    chart.timeScale().fitContent();
-
+    kRef.current = chart.addSeries(LineSeries, { color: "#388bfd", lineWidth: 2 });
+    dRef.current = chart.addSeries(LineSeries, { color: "#f85149", lineWidth: 1 });
+    apiRef.current = chart;
     const ro = new ResizeObserver(() => {
-      const nw = el.clientWidth;
-      const nh = el.clientHeight;
+      const nw = el.clientWidth; const nh = el.clientHeight;
       if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh });
     });
     ro.observe(el);
+    return () => { ro.disconnect(); chart.remove(); apiRef.current = kRef.current = dRef.current = null; };
+  }, [ready]);
 
-    return () => { ro.disconnect(); chart.remove(); };
-  }, [ready, data]);
+  useEffect(() => {
+    if (!apiRef.current || !kRef.current || !data?.bars?.length) return;
+    const bars = data.bars; const stoch = data.indicators?.stochastic;
+    if (stoch) {
+      const mkData = (arr: number[]) =>
+        bars.map((b, i) => ({ time: b.time as unknown as Time, value: arr[i] }))
+            .filter((d: {value: number}) => d.value != null && !isNaN(d.value));
+      kRef.current.setData(mkData(stoch.k));
+      dRef.current.setData(mkData(stoch.d));
+    }
+    apiRef.current.timeScale().fitContent();
+  }, [data, ready]);
 
   const stoch = data?.indicators?.stochastic;
   const lastK = stoch?.k?.filter((v) => !isNaN(v)).slice(-1)[0];
