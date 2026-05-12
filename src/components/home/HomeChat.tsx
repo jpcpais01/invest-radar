@@ -12,10 +12,12 @@ export default function HomeChat({ ticker }: Props) {
   const { messages, isStreaming, clearHistory, pendingPrefill, clearPrefill } = useChatStore();
   const { sendMessage, stop } = useAIChat();
   const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLTextAreaElement>(null);
+  const bottomRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLTextAreaElement>(null);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
