@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { createChart, IChartApi, LineSeries, AreaSeries, ColorType } from "lightweight-charts";
+import { createChart, IChartApi, LineSeries, ColorType } from "lightweight-charts";
 import type { Time } from "lightweight-charts";
 import { Sparkles, RefreshCw, Minus, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -84,8 +84,8 @@ export default function AIPredPanel({ ticker }: Props) {
       width: w, height: h,
     });
     histRef.current  = chart.addSeries(LineSeries, { color: "#3a3748", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    upperRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "rgba(52,211,153,0.12)", bottomColor: "rgba(52,211,153,0.02)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    lowerRef.current = chart.addSeries(AreaSeries, { lineColor: "transparent", lineWidth: 1, topColor: "transparent", bottomColor: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    upperRef.current = chart.addSeries(LineSeries, { color: "rgba(52,211,153,0.25)", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    lowerRef.current = chart.addSeries(LineSeries, { color: "rgba(52,211,153,0.25)", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
     meanRef.current  = chart.addSeries(LineSeries, { color: "#34d399", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
     chartRef.current = chart;
     const ro = new ResizeObserver(() => { const nw = el.clientWidth, nh = el.clientHeight; if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh }); });
