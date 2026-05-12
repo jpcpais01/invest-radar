@@ -9,10 +9,10 @@ interface Props { ticker: string }
 
 function CardShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-[#1a2540] bg-[#0a1020] overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#1a2540]">
-        <span className="text-[#38b2cc] text-[8px]">◆</span>
-        <span className="text-[11px] font-semibold text-[#edf2f8] tracking-wide">{title}</span>
+    <div className="rounded-lg border border-[#1e1e1e] bg-[#101010] overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#1e1e1e]">
+        <span className="text-[#c0c0cc] text-[8px]">◆</span>
+        <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">{title}</span>
       </div>
       <div className="px-4 py-3">{children}</div>
     </div>
@@ -23,7 +23,7 @@ function Skeleton({ lines = 3 }: { lines?: number }) {
   return (
     <div className="flex flex-col gap-2 animate-pulse">
       {Array.from({ length: lines }).map((_, i) => (
-        <div key={i} className="h-2.5 rounded bg-[#1a2540]" style={{ width: `${60 + (i % 3) * 15}%` }} />
+        <div key={i} className="h-2.5 rounded bg-[#1e1e1e]" style={{ width: `${60 + (i % 3) * 15}%` }} />
       ))}
     </div>
   );
@@ -32,11 +32,11 @@ function Skeleton({ lines = 3 }: { lines?: number }) {
 // ── Signal Card ───────────────────────────────────────────────────────────────
 
 const SIG_CFG: Record<SignalValue, { label: string; text: string; bg: string; border: string }> = {
-  "strong-buy":  { label: "Strong Buy",  text: "text-[#5ecce8]", bg: "bg-[#5ecce80a]", border: "border-[#5ecce833]" },
-  "buy":         { label: "Buy",         text: "text-[#38b2cc]", bg: "bg-[#38b2cc08]", border: "border-[#38b2cc28]" },
-  "neutral":     { label: "Neutral",     text: "text-[#8aa4be]", bg: "bg-transparent", border: "border-[#2a3858]" },
-  "sell":        { label: "Sell",        text: "text-[#cc6464]", bg: "bg-[#cc64640a]", border: "border-[#cc646428]" },
-  "strong-sell": { label: "Strong Sell", text: "text-[#b05050]", bg: "bg-[#b050500a]", border: "border-[#b0505040]" },
+  "strong-buy":  { label: "Strong Buy",  text: "text-[#d8d8e4]", bg: "bg-[#d8d8e40a]", border: "border-[#d8d8e433]" },
+  "buy":         { label: "Buy",         text: "text-[#c0c0cc]", bg: "bg-[#c0c0cc08]", border: "border-[#c0c0cc28]" },
+  "neutral":     { label: "Neutral",     text: "text-[#767676]", bg: "bg-transparent", border: "border-[#2c2c2c]" },
+  "sell":        { label: "Sell",        text: "text-[#ef4444]", bg: "bg-[#ef44440a]", border: "border-[#ef444428]" },
+  "strong-sell": { label: "Strong Sell", text: "text-[#dc2626]", bg: "bg-[#dc26260a]", border: "border-[#dc262640]" },
 };
 
 export function SignalCard({ ticker }: Props) {
@@ -68,26 +68,26 @@ export function SignalCard({ ticker }: Props) {
       {isLoading ? <Skeleton /> : summary ? (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-[#4a6280] uppercase tracking-widest">Consensus</span>
+            <span className="text-[10px] text-[#3a3a3a] uppercase tracking-widest">Consensus</span>
             <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", cfg.text, cfg.bg, cfg.border)}>
               {cfg.label}
             </span>
           </div>
-          <div className="h-1 rounded-full overflow-hidden bg-[#0e1628]">
+          <div className="h-1 rounded-full overflow-hidden bg-[#161616]">
             <div className="h-full flex">
-              <div className="bg-[#5ecce8]" style={{ width: `${pct(summary.strongBuys)}%` }} />
-              <div className="bg-[#38b2cc]" style={{ width: `${pct(summary.buys)}%` }} />
-              <div className="bg-[#1a2e48]" style={{ width: `${pct(summary.neutrals)}%` }} />
-              <div className="bg-[#cc6464]" style={{ width: `${pct(summary.sells)}%` }} />
-              <div className="bg-[#b05050]" style={{ width: `${pct(summary.strongSells)}%` }} />
+              <div className="bg-[#d8d8e4]" style={{ width: `${pct(summary.strongBuys)}%` }} />
+              <div className="bg-[#c0c0cc]" style={{ width: `${pct(summary.buys)}%` }} />
+              <div className="bg-[#252525]" style={{ width: `${pct(summary.neutrals)}%` }} />
+              <div className="bg-[#ef4444]" style={{ width: `${pct(summary.sells)}%` }} />
+              <div className="bg-[#dc2626]" style={{ width: `${pct(summary.strongSells)}%` }} />
             </div>
           </div>
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-[#38b2cc]">{summary.strongBuys + summary.buys} Buy</span>
-            <span className="text-[#4a6280]">{summary.neutrals} Neutral</span>
-            <span className="text-[#cc6464]">{summary.sells + summary.strongSells} Sell</span>
+            <span className="text-[#c0c0cc]">{summary.strongBuys + summary.buys} Buy</span>
+            <span className="text-[#3a3a3a]">{summary.neutrals} Neutral</span>
+            <span className="text-[#ef4444]">{summary.sells + summary.strongSells} Sell</span>
           </div>
-          <div className="flex flex-wrap gap-1 pt-2 border-t border-[#1a2540]">
+          <div className="flex flex-wrap gap-1 pt-2 border-t border-[#1e1e1e]">
             {summary.signals.slice(0, 6).map((s) => {
               const sc = SIG_CFG[s.signal];
               return (
@@ -98,7 +98,7 @@ export function SignalCard({ ticker }: Props) {
             })}
           </div>
         </div>
-      ) : <p className="text-[11px] text-[#4a6280]">No data available</p>}
+      ) : <p className="text-[11px] text-[#3a3a3a]">No data available</p>}
     </CardShell>
   );
 }
@@ -107,15 +107,15 @@ export function SignalCard({ ticker }: Props) {
 
 interface QualityData { overall: number; profitability: number; growth: number; health: number; efficiency: number }
 
-function qColor(v: number) { return v >= 70 ? "#38b2cc" : v >= 45 ? "#8aa4be" : "#cc6464"; }
+function qColor(v: number) { return v >= 70 ? "#c0c0cc" : v >= 45 ? "#767676" : "#ef4444"; }
 function qLabel(v: number) { return v >= 75 ? "Excellent" : v >= 60 ? "Good" : v >= 45 ? "Fair" : v >= 30 ? "Weak" : "Poor"; }
 
 function MiniBar({ label, value }: { label: string; value: number }) {
   const color = qColor(value);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] text-[#8aa4be] w-20 shrink-0">{label}</span>
-      <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#0e1628]">
+      <span className="text-[10px] text-[#767676] w-20 shrink-0">{label}</span>
+      <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#161616]">
         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${value}%`, backgroundColor: color }} />
       </div>
       <span className="text-[10px] font-mono w-6 text-right tabular-nums" style={{ color }}>{value}</span>
@@ -129,7 +129,7 @@ export function QualityCard({ ticker }: Props) {
     queryFn: async () => { const r = await fetch(`/api/market/quality/${ticker}`); return r.json(); },
     staleTime: 15 * 60 * 1000,
   });
-  const color = data ? qColor(data.overall) : "#4a6280";
+  const color = data ? qColor(data.overall) : "#3a3a3a";
   return (
     <CardShell title="Business Quality">
       {isLoading ? <Skeleton lines={4} /> : data ? (
@@ -137,20 +137,20 @@ export function QualityCard({ ticker }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <span className="font-mono text-2xl font-bold tabular-nums" style={{ color }}>{data.overall}</span>
-              <span className="text-[10px] text-[#4a6280] ml-1">/100</span>
+              <span className="text-[10px] text-[#3a3a3a] ml-1">/100</span>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded-full border" style={{ color, background: `${color}0a`, borderColor: `${color}28` }}>
               {qLabel(data.overall)}
             </span>
           </div>
-          <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1a2540]">
+          <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
             <MiniBar label="Profitability" value={data.profitability} />
             <MiniBar label="Growth" value={data.growth} />
             <MiniBar label="Health" value={data.health} />
             <MiniBar label="Efficiency" value={data.efficiency} />
           </div>
         </div>
-      ) : <p className="text-[11px] text-[#4a6280]">No data available</p>}
+      ) : <p className="text-[11px] text-[#3a3a3a]">No data available</p>}
     </CardShell>
   );
 }
@@ -161,11 +161,11 @@ type Stage = "emerging" | "building" | "consensus" | "fading" | "unknown";
 interface NarrativeData { stage: Stage; totalArticles: number; positive: number; neutral: number; negative: number }
 
 const STAGE_CFG: Record<Stage, { label: string; desc: string; color: string; pos: number }> = {
-  emerging:  { label: "Emerging",  desc: "Story forming",     color: "#38b2cc", pos: 0.12 },
+  emerging:  { label: "Emerging",  desc: "Story forming",     color: "#c0c0cc", pos: 0.12 },
   building:  { label: "Building",  desc: "Gaining traction",  color: "#7c9ed4", pos: 0.38 },
   consensus: { label: "Consensus", desc: "Widely known",      color: "#9d8ec0", pos: 0.65 },
-  fading:    { label: "Fading",    desc: "Interest waning",   color: "#cc6464", pos: 0.88 },
-  unknown:   { label: "Unknown",   desc: "Insufficient data", color: "#4a6280", pos: 0.5  },
+  fading:    { label: "Fading",    desc: "Interest waning",   color: "#ef4444", pos: 0.88 },
+  unknown:   { label: "Unknown",   desc: "Insufficient data", color: "#3a3a3a", pos: 0.5  },
 };
 
 export function NarrativeCard({ ticker }: Props) {
@@ -186,38 +186,38 @@ export function NarrativeCard({ ticker }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm font-semibold" style={{ color: cfg.color }}>{cfg.label}</span>
-              <p className="text-[10px] text-[#4a6280] mt-0.5">{cfg.desc}</p>
+              <p className="text-[10px] text-[#3a3a3a] mt-0.5">{cfg.desc}</p>
             </div>
-            <span className="text-[10px] text-[#4a6280]">{data.totalArticles} articles</span>
+            <span className="text-[10px] text-[#3a3a3a]">{data.totalArticles} articles</span>
           </div>
           <div className="relative py-1">
-            <div className="h-0.5 rounded-full bg-[#1a2540]" />
+            <div className="h-0.5 rounded-full bg-[#1e1e1e]" />
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#060a12] transition-all"
+              className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#080808] transition-all"
               style={{ left: `calc(${cfg.pos * 100}% - 5px)`, backgroundColor: cfg.color }}
             />
           </div>
-          <div className="flex items-center justify-between text-[9px] text-[#4a6280]">
+          <div className="flex items-center justify-between text-[9px] text-[#3a3a3a]">
             <span>Emerging</span><span>Building</span><span>Consensus</span><span>Fading</span>
           </div>
           {total > 0 && (
-            <div className="flex flex-col gap-1 pt-2 border-t border-[#1a2540]">
-              <div className="h-1 rounded-full overflow-hidden bg-[#0e1628]">
+            <div className="flex flex-col gap-1 pt-2 border-t border-[#1e1e1e]">
+              <div className="h-1 rounded-full overflow-hidden bg-[#161616]">
                 <div className="h-full flex">
-                  <div className="bg-[#38b2cc]" style={{ width: `${posPct}%` }} />
-                  <div className="bg-[#1a2e48]" style={{ width: `${neuPct}%` }} />
-                  <div className="bg-[#cc6464]" style={{ width: `${negPct}%` }} />
+                  <div className="bg-[#c0c0cc]" style={{ width: `${posPct}%` }} />
+                  <div className="bg-[#252525]" style={{ width: `${neuPct}%` }} />
+                  <div className="bg-[#ef4444]" style={{ width: `${negPct}%` }} />
                 </div>
               </div>
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-[#38b2cc]">{data.positive} pos</span>
-                <span className="text-[#4a6280]">{data.neutral} neu</span>
-                <span className="text-[#cc6464]">{data.negative} neg</span>
+                <span className="text-[#c0c0cc]">{data.positive} pos</span>
+                <span className="text-[#3a3a3a]">{data.neutral} neu</span>
+                <span className="text-[#ef4444]">{data.negative} neg</span>
               </div>
             </div>
           )}
         </div>
-      ) : <p className="text-[11px] text-[#4a6280]">No data available</p>}
+      ) : <p className="text-[11px] text-[#3a3a3a]">No data available</p>}
     </CardShell>
   );
 }
@@ -232,9 +232,9 @@ function valPos(r: ValRange) {
   return Math.max(0, Math.min(1, (r.current - r.min) / (r.max - r.min)));
 }
 function valLabel(pos: number) {
-  if (pos < 0.25) return { text: "Cheap", color: "#38b2cc" };
-  if (pos < 0.55) return { text: "Fair",  color: "#8aa4be" };
-  return { text: "Rich", color: "#cc6464" };
+  if (pos < 0.25) return { text: "Cheap", color: "#c0c0cc" };
+  if (pos < 0.55) return { text: "Fair",  color: "#767676" };
+  return { text: "Rich", color: "#ef4444" };
 }
 
 function ValRow({ label, range }: { label: string; range: ValRange }) {
@@ -242,16 +242,16 @@ function ValRow({ label, range }: { label: string; range: ValRange }) {
   const { text, color } = valLabel(pos);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] text-[#8aa4be] w-10 shrink-0">{label}</span>
-      <div className="relative flex-1 h-1 rounded-full bg-[#0e1628]">
+      <span className="text-[10px] text-[#767676] w-10 shrink-0">{label}</span>
+      <div className="relative flex-1 h-1 rounded-full bg-[#161616]">
         <div className="absolute inset-y-0 left-0 rounded-full opacity-20"
-             style={{ width: `${pos * 100}%`, background: `linear-gradient(to right, #38b2cc, #cc6464)` }} />
-        <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-[#060a12]"
+             style={{ width: `${pos * 100}%`, background: `linear-gradient(to right, #c0c0cc, #ef4444)` }} />
+        <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-[#080808]"
              style={{ left: `calc(${pos * 100}% - 4px)`, backgroundColor: color }} />
       </div>
       <div className="flex items-center gap-1.5 w-20 justify-end">
         <span className="text-[9px] px-1 py-0.5 rounded" style={{ color, background: `${color}0a` }}>{text}</span>
-        <span className="font-mono text-[10px] text-[#edf2f8] tabular-nums">{range.current.toFixed(1)}x</span>
+        <span className="font-mono text-[10px] text-[#f0f0f0] tabular-nums">{range.current.toFixed(1)}x</span>
       </div>
     </div>
   );
@@ -274,9 +274,9 @@ export function ValuationCard({ ticker }: Props) {
       {isLoading ? <Skeleton lines={4} /> : rows.length > 0 ? (
         <div className="flex flex-col gap-2.5">
           {rows.map(r => <ValRow key={r.label} {...r} />)}
-          <p className="text-[9px] text-[#1a2540] pt-1 border-t border-[#1a2540]">Position within 5-year historical range</p>
+          <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">Position within 5-year historical range</p>
         </div>
-      ) : <p className="text-[11px] text-[#4a6280]">No valuation data</p>}
+      ) : <p className="text-[11px] text-[#3a3a3a]">No valuation data</p>}
     </CardShell>
   );
 }
@@ -305,24 +305,24 @@ export function InsiderCard({ ticker }: Props) {
     <CardShell title="Insider Activity">
       {isLoading ? <Skeleton lines={3} /> : txns.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between pb-2 border-b border-[#1a2540]">
-            <span className="text-[10px] text-[#4a6280]">Net {isNetBuy ? "buying" : "selling"}</span>
-            <span className={cn("text-xs font-semibold font-mono flex items-center gap-1", isNetBuy ? "text-[#38b2cc]" : "text-[#cc6464]")}>
+          <div className="flex items-center justify-between pb-2 border-b border-[#1e1e1e]">
+            <span className="text-[10px] text-[#3a3a3a]">Net {isNetBuy ? "buying" : "selling"}</span>
+            <span className={cn("text-xs font-semibold font-mono flex items-center gap-1", isNetBuy ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
               {isNetBuy ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {isNetBuy ? "+" : ""}{fmtNum(net)}
             </span>
           </div>
           {txns.map((t, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className={cn("mt-1 w-1 h-1 rounded-full shrink-0", t.isBuy ? "bg-[#38b2cc]" : "bg-[#cc6464]")} />
+              <span className={cn("mt-1 w-1 h-1 rounded-full shrink-0", t.isBuy ? "bg-[#c0c0cc]" : "bg-[#ef4444]")} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] font-medium text-[#edf2f8] truncate">{t.name}</span>
-                  <span className={cn("text-[9px] font-semibold shrink-0", t.isBuy ? "text-[#38b2cc]" : "text-[#cc6464]")}>
+                  <span className="text-[10px] font-medium text-[#f0f0f0] truncate">{t.name}</span>
+                  <span className={cn("text-[9px] font-semibold shrink-0", t.isBuy ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
                     {t.isBuy ? "Buy" : "Sell"}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[9px] text-[#4a6280]">
+                <div className="flex items-center gap-1.5 text-[9px] text-[#3a3a3a]">
                   <span className="font-mono">{fmtNum(Math.abs(t.shares))} sh</span>
                   {t.date && <><span>·</span><span>{new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>}
                 </div>
@@ -330,7 +330,7 @@ export function InsiderCard({ ticker }: Props) {
             </div>
           ))}
         </div>
-      ) : <p className="text-[11px] text-[#4a6280]">No recent activity</p>}
+      ) : <p className="text-[11px] text-[#3a3a3a]">No recent activity</p>}
     </CardShell>
   );
 }

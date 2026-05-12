@@ -46,15 +46,15 @@ export default function HomeChat({ ticker }: Props) {
   ];
 
   return (
-    <div className="rounded-lg border border-[#1a2540] bg-[#0a1020] overflow-hidden flex flex-col">
+    <div className="rounded-lg border border-[#1e1e1e] bg-[#101010] overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#1a2540] shrink-0">
-        <span className="text-[#38b2cc] text-[8px]">◆</span>
-        <span className="text-[11px] font-semibold text-[#edf2f8] tracking-wide">AI Assistant</span>
-        <span className="text-[9px] text-[#4a6280] ml-0.5">{ticker}</span>
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#1e1e1e] shrink-0">
+        <span className="text-[#c0c0cc] text-[8px]">◆</span>
+        <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">AI Assistant</span>
+        <span className="text-[9px] text-[#3a3a3a] ml-0.5">{ticker}</span>
         <button
           onClick={clearHistory}
-          className="ml-auto w-5 h-5 rounded flex items-center justify-center text-[#4a6280] hover:text-[#cc6464] transition-colors"
+          className="ml-auto w-5 h-5 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#ef4444] transition-colors"
           title="Clear history"
         >
           <Trash2 className="w-3 h-3" />
@@ -64,17 +64,17 @@ export default function HomeChat({ ticker }: Props) {
       {/* Messages */}
       <div
         className="overflow-y-auto px-4 py-3 flex flex-col gap-3"
-        style={{ minHeight: 180, maxHeight: 380, scrollbarWidth: "thin", scrollbarColor: "#1a2540 transparent" }}
+        style={{ minHeight: 180, maxHeight: 380, scrollbarWidth: "thin", scrollbarColor: "#1e1e1e transparent" }}
       >
         {messages.length === 0 ? (
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] text-[#4a6280] text-center py-2">Ask anything about {ticker}</p>
+            <p className="text-[10px] text-[#3a3a3a] text-center py-2">Ask anything about {ticker}</p>
             <div className="flex flex-col gap-1.5">
               {SUGGESTIONS.map(q => (
                 <button
                   key={q}
                   onClick={() => sendMessage(q)}
-                  className="w-full text-left px-3 py-2 rounded-md border border-[#1a2540] text-[11px] text-[#8aa4be] hover:text-[#edf2f8] hover:border-[#2a3858] hover:bg-[#0e1628] transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-md border border-[#1e1e1e] text-[11px] text-[#767676] hover:text-[#f0f0f0] hover:border-[#2c2c2c] hover:bg-[#161616] transition-colors"
                 >
                   {q}
                 </button>
@@ -85,22 +85,22 @@ export default function HomeChat({ ticker }: Props) {
           messages.map(msg => (
             <div key={msg.id} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
               {msg.role === "assistant" && (
-                <span className="text-[#38b2cc] text-[8px] shrink-0 mt-1">◆</span>
+                <span className="text-[#c0c0cc] text-[8px] shrink-0 mt-1">◆</span>
               )}
               <div className={cn(
                 "max-w-[88%] rounded-lg border px-3 py-2 text-xs leading-relaxed",
                 msg.role === "user"
-                  ? "bg-[#0e1628] border-[#2a3858] text-[#edf2f8]"
-                  : "bg-transparent border-[#1a2540] text-[#edf2f8]"
+                  ? "bg-[#161616] border-[#2c2c2c] text-[#f0f0f0]"
+                  : "bg-transparent border-[#1e1e1e] text-[#f0f0f0]"
               )}>
                 {msg.role === "assistant" ? (
                   <div className="prose prose-invert prose-xs max-w-none
                     [&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0
                     [&_ul]:my-1 [&_ul]:pl-3 [&_li]:my-0.5
                     [&_ol]:my-1 [&_ol]:pl-3
-                    [&_strong]:text-[#edf2f8] [&_strong]:font-semibold
-                    [&_code]:bg-[#0e1628] [&_code]:border [&_code]:border-[#1a2540] [&_code]:px-1 [&_code]:rounded [&_code]:font-mono [&_code]:text-[10px] [&_code]:text-[#38b2cc]
-                    [&_h3]:text-[11px] [&_h3]:font-semibold [&_h3]:text-[#edf2f8] [&_h3]:mt-2 [&_h3]:mb-1">
+                    [&_strong]:text-[#f0f0f0] [&_strong]:font-semibold
+                    [&_code]:bg-[#161616] [&_code]:border [&_code]:border-[#1e1e1e] [&_code]:px-1 [&_code]:rounded [&_code]:font-mono [&_code]:text-[10px] [&_code]:text-[#c0c0cc]
+                    [&_h3]:text-[11px] [&_h3]:font-semibold [&_h3]:text-[#f0f0f0] [&_h3]:mt-2 [&_h3]:mb-1">
                     <ReactMarkdown>{msg.content || (isStreaming ? "▋" : "")}</ReactMarkdown>
                   </div>
                 ) : msg.content}
@@ -112,8 +112,8 @@ export default function HomeChat({ ticker }: Props) {
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-[#1a2540] shrink-0">
-        <div className="flex items-end gap-2 rounded-md border border-[#1a2540] bg-[#060a12] px-3 py-2 focus-within:border-[#2a3858] transition-colors">
+      <div className="px-4 py-3 border-t border-[#1e1e1e] shrink-0">
+        <div className="flex items-end gap-2 rounded-md border border-[#1e1e1e] bg-[#080808] px-3 py-2 focus-within:border-[#2c2c2c] transition-colors">
           <textarea
             ref={inputRef}
             value={input}
@@ -121,11 +121,11 @@ export default function HomeChat({ ticker }: Props) {
             onKeyDown={handleKey}
             placeholder={`Ask about ${ticker}…`}
             rows={1}
-            className="flex-1 bg-transparent text-xs text-[#edf2f8] placeholder-[#4a6280] outline-none resize-none"
+            className="flex-1 bg-transparent text-xs text-[#f0f0f0] placeholder-[#3a3a3a] outline-none resize-none"
             style={{ maxHeight: 80 }}
           />
           {isStreaming ? (
-            <button onClick={stop} className="w-6 h-6 rounded border border-[#cc646428] bg-[#cc64640a] flex items-center justify-center text-[#cc6464] hover:bg-[#cc646415] transition-colors shrink-0">
+            <button onClick={stop} className="w-6 h-6 rounded border border-[#ef444428] bg-[#ef44440a] flex items-center justify-center text-[#ef4444] hover:bg-[#ef444415] transition-colors shrink-0">
               <Square className="w-3 h-3" />
             </button>
           ) : (
@@ -135,15 +135,15 @@ export default function HomeChat({ ticker }: Props) {
               className={cn(
                 "w-6 h-6 rounded border flex items-center justify-center transition-colors shrink-0",
                 input.trim()
-                  ? "border-[#38b2cc33] bg-[#38b2cc0a] text-[#38b2cc] hover:bg-[#38b2cc18]"
-                  : "border-[#1a2540] bg-transparent text-[#4a6280] cursor-not-allowed"
+                  ? "border-[#c0c0cc33] bg-[#c0c0cc0a] text-[#c0c0cc] hover:bg-[#c0c0cc18]"
+                  : "border-[#1e1e1e] bg-transparent text-[#3a3a3a] cursor-not-allowed"
               )}
             >
               <Send className="w-3 h-3" />
             </button>
           )}
         </div>
-        <p className="text-[9px] text-[#1a2540] mt-1.5 text-center">Enter to send · Shift+Enter for newline</p>
+        <p className="text-[9px] text-[#1e1e1e] mt-1.5 text-center">Enter to send · Shift+Enter for newline</p>
       </div>
     </div>
   );
