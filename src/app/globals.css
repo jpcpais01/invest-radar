@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "gridstack/dist/gridstack.min.css";
 
 :root {
   --background: #0d1117;
@@ -45,74 +46,50 @@ body {
   background: #484f58;
 }
 
-.react-grid-layout {
-  position: relative;
+/* ── GridStack overrides ────────────────────────────────────────────────── */
+
+/* Widget tile */
+.grid-stack-item-content {
+  border-radius: 0;
+  overflow: hidden;
+  inset: 3px !important; /* half of margin=6, keeps content inside the gap */
 }
 
-.react-grid-item {
-  transition: none !important;
-}
-
-.react-grid-item.react-grid-placeholder {
+/* Drop placeholder */
+.grid-stack-placeholder > .placeholder-content {
   background: #1f6feb22;
   border: 1px dashed #1f6feb;
   border-radius: 8px;
 }
 
-.react-resizable-handle {
+/* Resize handle — show only on hover */
+.grid-stack-item > .ui-resizable-handle {
   opacity: 0;
   transition: opacity 0.15s;
 }
-
-.react-grid-item:hover .react-resizable-handle {
+.grid-stack-item:hover > .ui-resizable-handle {
   opacity: 1;
 }
 
-/* Edge and corner handles — override react-grid-layout defaults */
-.react-resizable-handle::after {
-  border-color: #388bfd !important;
+/* Blue accent on handle corners */
+.ui-resizable-se,
+.ui-resizable-sw,
+.ui-resizable-ne,
+.ui-resizable-nw {
+  width: 12px !important;
+  height: 12px !important;
+  background: #388bfd;
+  border-radius: 2px;
+  opacity: 0;
+}
+.grid-stack-item:hover > .ui-resizable-se,
+.grid-stack-item:hover > .ui-resizable-sw,
+.grid-stack-item:hover > .ui-resizable-ne,
+.grid-stack-item:hover > .ui-resizable-nw {
+  opacity: 1;
 }
 
-.react-resizable-handle-s,
-.react-resizable-handle-n {
-  width: calc(100% - 20px) !important;
-  height: 8px !important;
-  left: 10px !important;
-  cursor: ns-resize !important;
-  bottom: 0;
-}
-
-.react-resizable-handle-n {
-  top: 0;
-  bottom: auto !important;
-}
-
-.react-resizable-handle-e,
-.react-resizable-handle-w {
-  width: 8px !important;
-  height: calc(100% - 20px) !important;
-  top: 10px !important;
-  cursor: ew-resize !important;
-  right: 0;
-}
-
-.react-resizable-handle-w {
-  left: 0;
-  right: auto !important;
-}
-
-.react-resizable-handle-se {
-  cursor: se-resize !important;
-}
-
-.react-resizable-handle-sw {
-  cursor: sw-resize !important;
-}
-
-.react-resizable-handle-ne {
-  cursor: ne-resize !important;
-}
-
-.react-resizable-handle-nw {
-  cursor: nw-resize !important;
+/* No transition during drag/resize — feels snappier */
+.grid-stack-item {
+  transition: none !important;
 }

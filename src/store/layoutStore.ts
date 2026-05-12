@@ -132,6 +132,6 @@ export const useLayoutStore = create<LayoutState>()(
           };
         }),
     }),
-    { name: "investradar-layout-v8" }
+    { name: "investradar-layout-v9" }
   )
 );

@@ -1,14 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import GridLayout from "react-grid-layout";
+import { createPortal } from "react-dom";
 import { Plus, X, RefreshCw, Lock, LockOpen, Trash2, Star } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLayoutStore } from "@/store/layoutStore";
 import { WidgetConfig, WidgetType } from "@/types/widgets";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
 
 import CandlestickChart from "@/components/widgets/price/CandlestickChart";
 import RSIWidget from "@/components/widgets/technicals/RSIWidget";
@@ -29,28 +27,6 @@ import ConvictionTrackerWidget from "@/components/widgets/investment/ConvictionT
 import NarrativeIndexWidget from "@/components/widgets/investment/NarrativeIndexWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
-// ─── Grid geometry ────────────────────────────────────────────────────────────
-//
-// We use 24 columns with containerPadding=[0,0] and margin=[GAP,GAP].
-// Per the RGL source (chunk-BPZQUJ7Y.js):
-//
-//   effectiveContainerPadding = containerPadding ?? margin   ← that's why we set it explicitly
-//   colWidth = (width - margin[0]*(cols-1) - containerPadding[0]*2) / cols
-//
-// With containerPadding=[0,0]:
-//   colWidth = (width - GAP*(COLS-1)) / COLS
-//
-// We set rowHeight = colWidth by computing it from the measured container width.
-// Result: both resize axes snap by the same pixel distance on every screen size.
-
-const COLS = 24;
-const GAP  = 6;   // px — used for both margin and containerPadding is 0
-
-// colWidth (== rowHeight) = (innerWidth - GAP*(COLS-1)) / COLS
-function calcRowHeight(innerWidth: number): number {
-  return Math.max(20, Math.round((innerWidth - GAP * (COLS - 1)) / COLS));
-}
-
 // ─── Widget catalogue ─────────────────────────────────────────────────────────
 interface CatalogEntry {
   type: WidgetType;
@@ -58,34 +34,33 @@ interface CatalogEntry {
   desc: string;
   defaultW: number;
   defaultH: number;
-  minW: number;
 }
 
 const CATALOG: CatalogEntry[] = [
-  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "rsi",                label: "RSI",                   desc: "Relative Strength Index",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "macd",               label: "MACD",                  desc: "Moving Average Convergence",           defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "stochastic",         label: "Stochastic",            desc: "Stochastic oscillator %K/%D",          defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "bollinger",          label: "Bollinger Bands",       desc: "Volatility bands",                     defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "ema",                label: "EMA Panel",             desc: "9 / 21 / 50 / 100 / 200 EMAs",        defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "signal-summary",     label: "Signal Summary",        desc: "Aggregate buy / sell signals",         defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "adx",                label: "ADX / DMI",             desc: "Trend strength & direction",           defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "cci",                label: "CCI (20)",              desc: "Commodity Channel Index",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "psar",               label: "Parabolic SAR",         desc: "Stop-and-reverse reversal dots",       defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "obv",                label: "OBV",                   desc: "On-Balance Volume trend",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "key-metrics",        label: "Key Metrics",           desc: "P/E, EV/EBITDA, market cap",          defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "earnings",           label: "Earnings",              desc: "EPS history & estimates",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "news-feed",          label: "News Feed",             desc: "Latest news with sentiment",           defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "iv-rank",            label: "IV Rank",               desc: "Implied volatility rank",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "put-call-ratio",     label: "Put / Call Ratio",      desc: "Options sentiment ratio",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "options-chain",      label: "Options Chain",         desc: "Full calls / puts table",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "max-pain",           label: "Max Pain",              desc: "Max pain strike calculator",           defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "prob-cone",          label: "Probability Cone",      desc: "1σ / 2σ price range at expiry",       defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "quality-score",      label: "Quality Score",         desc: "Business quality: margins, ROE, FCF", defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "valuation-context",  label: "Valuation Context",     desc: "Multiples vs own 1Y history",         defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "timeframe-heatmap",  label: "Timeframe Heatmap",     desc: "1M – 2Y agreement grid",              defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "conviction-tracker", label: "Management Conviction", desc: "Insider buy / sell trend",            defaultW: 8, defaultH: 2, minW: 1 },
-  { type: "narrative-index",    label: "Narrative Index",       desc: "News narrative lifecycle stage",      defaultW: 8, defaultH: 2, minW: 1 },
+  { type: "candlestick",        label: "Price Chart",           desc: "OHLCV candlestick chart",              defaultW: 8, defaultH: 2 },
+  { type: "rsi",                label: "RSI",                   desc: "Relative Strength Index",              defaultW: 8, defaultH: 2 },
+  { type: "macd",               label: "MACD",                  desc: "Moving Average Convergence",           defaultW: 8, defaultH: 2 },
+  { type: "stochastic",         label: "Stochastic",            desc: "Stochastic oscillator %K/%D",          defaultW: 8, defaultH: 2 },
+  { type: "bollinger",          label: "Bollinger Bands",       desc: "Volatility bands",                     defaultW: 8, defaultH: 2 },
+  { type: "ema",                label: "EMA Panel",             desc: "9 / 21 / 50 / 100 / 200 EMAs",        defaultW: 8, defaultH: 2 },
+  { type: "signal-summary",     label: "Signal Summary",        desc: "Aggregate buy / sell signals",         defaultW: 8, defaultH: 2 },
+  { type: "adx",                label: "ADX / DMI",             desc: "Trend strength & direction",           defaultW: 8, defaultH: 2 },
+  { type: "cci",                label: "CCI (20)",              desc: "Commodity Channel Index",              defaultW: 8, defaultH: 2 },
+  { type: "psar",               label: "Parabolic SAR",         desc: "Stop-and-reverse reversal dots",       defaultW: 8, defaultH: 2 },
+  { type: "obv",                label: "OBV",                   desc: "On-Balance Volume trend",              defaultW: 8, defaultH: 2 },
+  { type: "key-metrics",        label: "Key Metrics",           desc: "P/E, EV/EBITDA, market cap",          defaultW: 8, defaultH: 2 },
+  { type: "earnings",           label: "Earnings",              desc: "EPS history & estimates",              defaultW: 8, defaultH: 2 },
+  { type: "news-feed",          label: "News Feed",             desc: "Latest news with sentiment",           defaultW: 8, defaultH: 2 },
+  { type: "iv-rank",            label: "IV Rank",               desc: "Implied volatility rank",              defaultW: 8, defaultH: 2 },
+  { type: "put-call-ratio",     label: "Put / Call Ratio",      desc: "Options sentiment ratio",              defaultW: 8, defaultH: 2 },
+  { type: "options-chain",      label: "Options Chain",         desc: "Full calls / puts table",              defaultW: 8, defaultH: 2 },
+  { type: "max-pain",           label: "Max Pain",              desc: "Max pain strike calculator",           defaultW: 8, defaultH: 2 },
+  { type: "prob-cone",          label: "Probability Cone",      desc: "1σ / 2σ price range at expiry",       defaultW: 8, defaultH: 2 },
+  { type: "quality-score",      label: "Quality Score",         desc: "Business quality: margins, ROE, FCF", defaultW: 8, defaultH: 2 },
+  { type: "valuation-context",  label: "Valuation Context",     desc: "Multiples vs own 1Y history",         defaultW: 8, defaultH: 2 },
+  { type: "timeframe-heatmap",  label: "Timeframe Heatmap",     desc: "1M – 2Y agreement grid",              defaultW: 8, defaultH: 2 },
+  { type: "conviction-tracker", label: "Management Conviction", desc: "Insider buy / sell trend",            defaultW: 8, defaultH: 2 },
+  { type: "narrative-index",    label: "Narrative Index",       desc: "News narrative lifecycle stage",      defaultW: 8, defaultH: 2 },
 ];
 
 // ─── Widget renderer ──────────────────────────────────────────────────────────
@@ -151,21 +126,134 @@ function WidgetPicker({ onAdd, onClose }: { onAdd: (e: CatalogEntry) => void; on
   );
 }
 
-// ─── Canvas ───────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GL = GridLayout as any;
+// ─── GridStack inner canvas ───────────────────────────────────────────────────
+// Isolated so we can remount it (via key) when the widget set changes,
+// which is the cleanest way to sync gridstack's imperative DOM with React state.
 
+interface GridCanvasProps {
+  widgets: WidgetConfig[];
+  activeTicker: string;
+  locked: boolean;
+  onRemove: (id: string) => void;
+  onChange: (updates: Pick<WidgetConfig, "i" | "x" | "y" | "w" | "h">[]) => void;
+}
+
+function GridCanvas({ widgets, activeTicker, locked, onRemove, onChange }: GridCanvasProps) {
+  const elRef = useRef<HTMLDivElement>(null);
+  // Map from widget.i → the .grid-stack-item-content DOM node (for portals)
+  const [portals, setPortals] = useState<Record<string, Element>>({});
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const gridRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!elRef.current) return;
+    let canceled = false;
+
+    (async () => {
+      // Dynamic import avoids SSR issues
+      const { GridStack } = await import("gridstack");
+      if (canceled || !elRef.current) return;
+
+      const grid = GridStack.init(
+        {
+          // cellHeight "auto" = cell height always equals column width → square cells
+          // → identical resize step on both axes on every screen size
+          cellHeight: "auto",
+          column: 24,
+          margin: 6,
+          minRow: 1,
+          float: true,
+          animate: false,
+          draggable: { handle: ".widget-drag-handle", scroll: true },
+          resizable: { handles: "all" },
+          disableDrag: lockedRef.current,
+          disableResize: lockedRef.current,
+        },
+        elRef.current
+      );
+
+      gridRef.current = grid;
+
+      // Add all widgets and collect their content nodes for portals
+      const newPortals: Record<string, Element> = {};
+      for (const w of widgets) {
+        const el = grid.addWidget({
+          id: w.i,
+          x: w.x,
+          y: w.y,
+          w: w.w,
+          h: w.h,
+          minW: 1,
+          minH: 1,
+        });
+        const content = el?.querySelector(".grid-stack-item-content");
+        if (content) newPortals[w.i] = content;
+      }
+      if (!canceled) setPortals(newPortals);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      grid.on("change", (_e: Event, items: any[]) => {
+        onChangeRef.current(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          items.map((item: any) => ({
+            i: String(item.id),
+            x: item.x ?? 0,
+            y: item.y ?? 0,
+            w: item.w ?? 1,
+            h: item.h ?? 1,
+          }))
+        );
+      });
+    })();
+
+    return () => {
+      canceled = true;
+      if (gridRef.current) {
+        gridRef.current.destroy(false);
+        gridRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Toggle lock without remounting
+  useEffect(() => {
+    if (!gridRef.current) return;
+    if (locked) {
+      gridRef.current.disable();
+    } else {
+      gridRef.current.enable();
+    }
+  }, [locked]);
+
+  return (
+    <>
+      <div ref={elRef} className="grid-stack w-full" />
+      {Object.entries(portals).map(([id, contentEl]) => {
+        const w = widgets.find((x) => x.i === id);
+        if (!w) return null;
+        return createPortal(
+          <div className="w-full h-full overflow-hidden">
+            {renderWidget(w.type, activeTicker, w.id, onRemove)}
+          </div>,
+          contentEl,
+          id
+        );
+      })}
+    </>
+  );
+}
+
+// ─── Canvas ───────────────────────────────────────────────────────────────────
 export default function WidgetCanvas() {
   const { widgets, setLayout, addWidget, removeWidget } = useLayoutStore();
   const { activeTicker, watchlist, addToWatchlist, removeFromWatchlist } = useTickerStore();
   const queryClient = useQueryClient();
-
-  // gridRef sits on a div with NO padding so its clientWidth == the exact pixel
-  // budget we hand to <GL width={...}>.  This makes calcRowHeight() exact.
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  // Single state object so both values update in one React render (no flash).
-  const [grid, setGrid] = useState({ width: 1200, rowHeight: calcRowHeight(1200) });
 
   const [pickerOpen,   setPickerOpen]   = useState(false);
   const [locked,       setLocked]       = useState(false);
@@ -173,52 +261,19 @@ export default function WidgetCanvas() {
   const [clearConfirm, setClearConfirm] = useState(false);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Measure the grid container and keep rowHeight == colWidth at all times.
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const measure = () => {
-      const w = el.clientWidth;
-      setGrid({ width: w, rowHeight: calcRowHeight(w) });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  // Remount GridCanvas whenever the set of widget IDs changes (add / remove / preset switch)
+  const widgetKey = widgets.map((w) => w.i).sort().join(",");
 
-  // ── Skip the initial spurious onLayoutChange from RGL ──
-  // RGL fires onLayoutChange once on mount (and on remount after key flip).
-  // That call just reflects the props we already have — we must NOT write it
-  // back to the store or it can corrupt persisted custom positions.
-  const skipRef = useRef(true);
-
-  // Remount key for locking (forces GL to remount → skip its first callback).
-  const glKey = locked ? "locked" : "unlocked";
-  const prevKey = useRef(glKey);
-  if (prevKey.current !== glKey) {
-    prevKey.current = glKey;
-    skipRef.current = true;
-  }
-
-  // Also skip when the widget set changes (preset switch / add / remove).
-  const widgetSig = widgets.map((w) => w.i).join(",");
-  const prevSig = useRef(widgetSig);
-  if (prevSig.current !== widgetSig) {
-    prevSig.current = widgetSig;
-    skipRef.current = true;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleLayoutChange = useCallback((next: any[]) => {
-    if (skipRef.current) { skipRef.current = false; return; }
-    const updated: WidgetConfig[] = widgets.map((w) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const l = next.find((n: any) => n.i === w.i);
-      return l ? { ...w, x: l.x, y: l.y, w: l.w, h: l.h } : w;
-    });
-    setLayout(updated);
-  }, [widgets, setLayout]);
+  const handleChange = useCallback(
+    (updates: Pick<WidgetConfig, "i" | "x" | "y" | "w" | "h">[]) => {
+      const updated: WidgetConfig[] = widgets.map((w) => {
+        const u = updates.find((n) => n.i === w.i);
+        return u ? { ...w, ...u } : w;
+      });
+      setLayout(updated);
+    },
+    [widgets, setLayout]
+  );
 
   const handleRefreshAll = () => {
     setRefreshing(true);
@@ -237,21 +292,19 @@ export default function WidgetCanvas() {
     widgets.forEach((w) => removeWidget(w.id));
   };
 
-  const handleAddWidget = useCallback((entry: CatalogEntry) => {
-    const nextY = widgets.reduce((max, w) => Math.max(max, w.y + w.h), 0);
-    const id = `${entry.type}-${Date.now()}`;
-    addWidget({
-      id, type: entry.type, title: entry.label, i: id,
-      x: 0, y: nextY,
-      w: entry.defaultW, h: entry.defaultH,
-      minW: entry.minW, minH: 1,
-    });
-  }, [widgets, addWidget]);
-
-  const glLayout = widgets.map((w) => {
-    const cat = CATALOG.find((c) => c.type === w.type);
-    return { i: w.i, x: w.x, y: w.y, w: w.w, h: w.h, minW: cat?.minW ?? 1, minH: 1 };
-  });
+  const handleAddWidget = useCallback(
+    (entry: CatalogEntry) => {
+      const nextY = widgets.reduce((max, w) => Math.max(max, w.y + w.h), 0);
+      const id = `${entry.type}-${Date.now()}`;
+      addWidget({
+        id, type: entry.type, title: entry.label, i: id,
+        x: 0, y: nextY,
+        w: entry.defaultW, h: entry.defaultH,
+        minW: 1, minH: 1,
+      });
+    },
+    [widgets, addWidget]
+  );
 
   const inWatchlist = watchlist.includes(activeTicker);
 
@@ -317,19 +370,8 @@ export default function WidgetCanvas() {
         </div>
       </div>
 
-      {/* ── Scroll container (has padding for aesthetics — NOT the ref target) ── */}
-      <div
-        className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden relative p-2",
-          locked && "[&_.react-resizable-handle]:!hidden [&_.widget-drag-handle]:!cursor-default"
-        )}
-        onMouseDownCapture={locked ? (e: React.MouseEvent) => {
-          if ((e.target as HTMLElement).closest(".widget-drag-handle")) {
-            e.stopPropagation();
-            e.preventDefault();
-          }
-        } : undefined}
-      >
+      {/* ── Grid canvas ── */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden relative p-2">
         {widgets.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
             <button onClick={() => setPickerOpen(true)} className="flex flex-col items-center gap-2 group">
@@ -341,37 +383,16 @@ export default function WidgetCanvas() {
           </div>
         )}
 
-        {/*
-          gridRef is on this div — no padding, so clientWidth == the exact pixel budget.
-          We measure it and feed both `width` and `rowHeight` to GL from that one number.
-          containerPadding=[0,0] is EXPLICIT so RGL's colWidth formula is simply:
-            colWidth = (width - GAP*(COLS-1)) / COLS
-          which is exactly what calcRowHeight() computes — guaranteed equal steps.
-        */}
-        <div ref={gridRef}>
-          <GL
-            layout={glLayout}
-            cols={COLS}
-            rowHeight={grid.rowHeight}
-            width={grid.width}
-            margin={[GAP, GAP]}
-            containerPadding={[0, 0]}
-            onLayoutChange={handleLayoutChange}
-            key={glKey}
-            draggableHandle=".widget-drag-handle"
-            draggableCancel=".widget-body"
-            isDraggable={!locked}
-            isResizable={!locked}
-            resizeHandles={["se", "s", "e", "sw", "w", "n", "ne", "nw"]}
-            useCSSTransforms={false}
-          >
-            {widgets.map((w) => (
-              <div key={w.i} className="relative">
-                {renderWidget(w.type, activeTicker, w.id, removeWidget)}
-              </div>
-            ))}
-          </GL>
-        </div>
+        {widgets.length > 0 && (
+          <GridCanvas
+            key={widgetKey}
+            widgets={widgets}
+            activeTicker={activeTicker}
+            locked={locked}
+            onRemove={removeWidget}
+            onChange={handleChange}
+          />
+        )}
       </div>
     </div>
   );
