@@ -2,10 +2,11 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
-import { getTogetherClient } from "@/lib/ai/client";
+import Together from "together-ai";
 import { getHistory } from "@/lib/market/yahoo";
 
-const PREDICT_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+const together = new Together();
+const PREDICT_MODEL = "deepseek-ai/DeepSeek-V4-Pro";
 
 function nextTradingDays(fromSec: number, n: number): number[] {
   const days: number[] = [];
@@ -20,7 +21,7 @@ function nextTradingDays(fromSec: number, n: number): number[] {
 
 async function runPrediction(prices: number[], n: number): Promise<number[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resp: any = await (getTogetherClient().chat.completions.create as any)({
+  const resp: any = await (together.chat.completions.create as any)({
     model: PREDICT_MODEL,
     messages: [
       {
@@ -35,6 +36,7 @@ async function runPrediction(prices: number[], n: number): Promise<number[]> {
     max_tokens: Math.max(200, n * 20),
     temperature: 0.85,
     stream: false,
+    reasoning: { enabled: false },
   });
 
   const text: string = resp.choices?.[0]?.message?.content ?? "";
