@@ -52,11 +52,13 @@ interface LayoutState {
   activePreset: PresetLayout | null;
   activeCustomId: string | null;
   customLayouts: CustomLayout[];
+  locked: boolean;
 
   setLayout: (widgets: WidgetConfig[]) => void;
   applyPreset: (preset: PresetLayout) => void;
   addWidget: (widget: WidgetConfig) => void;
   removeWidget: (id: string) => void;
+  setLocked: (v: boolean) => void;
 
   addCustomLayout: (name: string) => void;
   applyCustomLayout: (id: string) => void;
@@ -81,6 +83,9 @@ export const useLayoutStore = create<LayoutState>()(
       activePreset: "overview",
       activeCustomId: null,
       customLayouts: [],
+      locked: false,
+
+      setLocked: (v) => set({ locked: v }),
 
       setLayout: (widgets) =>
         set((s) => ({

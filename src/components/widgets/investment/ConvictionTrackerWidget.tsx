@@ -93,7 +93,7 @@ export default function ConvictionTrackerWidget({ ticker, id }: Props) {
           {/* Net summary */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[10px] text-[#8b949e]">Net position (all time)</div>
+              <div className="text-[10px] text-[#8b949e]">Net shares (open-market)</div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-sm font-bold" style={{ color: netColor }}>
                   {netShares > 0 ? "+" : ""}{formatShares(netShares)}
@@ -143,7 +143,10 @@ export default function ConvictionTrackerWidget({ ticker, id }: Props) {
 
           {/* Transaction list */}
           <div className="flex flex-col gap-1 flex-1">
-            <div className="text-[9px] text-[#484f58] uppercase tracking-wider mb-0.5">Recent Transactions</div>
+            <div className="flex items-center justify-between mb-0.5">
+              <div className="text-[9px] text-[#484f58] uppercase tracking-wider">Recent Transactions</div>
+              <div className="text-[8px] text-[#30363d]">Sales include option exercises</div>
+            </div>
             {sorted.map((t, i) => (
               <div
                 key={i}

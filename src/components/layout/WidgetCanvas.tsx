@@ -12,6 +12,7 @@ import CandlestickChart from "@/components/widgets/price/CandlestickChart";
 import RSIWidget from "@/components/widgets/technicals/RSIWidget";
 import StochasticWidget from "@/components/widgets/technicals/StochasticWidget";
 import MACDWidget from "@/components/widgets/technicals/MACDWidget";
+import BollingerWidget from "@/components/widgets/technicals/BollingerWidget";
 import KeyMetrics from "@/components/widgets/fundamentals/KeyMetrics";
 import NewsFeed from "@/components/widgets/sentiment/NewsFeed";
 import EarningsWidget from "@/components/widgets/fundamentals/EarningsWidget";
@@ -70,6 +71,7 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
     case "rsi":                 return <RSIWidget           ticker={ticker} id={id} />;
     case "stochastic":          return <StochasticWidget    ticker={ticker} id={id} />;
     case "macd":                return <MACDWidget          ticker={ticker} id={id} />;
+    case "bollinger":           return <BollingerWidget     ticker={ticker} id={id} />;
     case "key-metrics":         return <KeyMetrics          ticker={ticker} id={id} />;
     case "news-feed":           return <NewsFeed            ticker={ticker} id={id} />;
     case "earnings":            return <EarningsWidget      ticker={ticker} id={id} />;
@@ -251,12 +253,11 @@ function GridCanvas({ widgets, activeTicker, locked, onRemove, onChange }: GridC
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 export default function WidgetCanvas() {
-  const { widgets, setLayout, addWidget, removeWidget } = useLayoutStore();
+  const { widgets, setLayout, addWidget, removeWidget, locked, setLocked } = useLayoutStore();
   const { activeTicker, watchlist, addToWatchlist, removeFromWatchlist } = useTickerStore();
   const queryClient = useQueryClient();
 
   const [pickerOpen,   setPickerOpen]   = useState(false);
-  const [locked,       setLocked]       = useState(false);
   const [refreshing,   setRefreshing]   = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -345,7 +346,7 @@ export default function WidgetCanvas() {
 
         <div className="ml-auto flex items-center gap-0.5">
           <button
-            onClick={() => setLocked((v) => !v)}
+            onClick={() => setLocked(!locked)}
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
               locked ? "text-[#388bfd] bg-[#1f6feb15] hover:bg-[#1f6feb22]" : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"

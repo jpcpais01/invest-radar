@@ -174,8 +174,12 @@ export async function getInsiderTransactions(ticker: string) {
     date: t.startDate ? new Date(t.startDate).toISOString().split("T")[0] : "",
     shares: safeNum(t.shares),
     value: safeNum(t.value),
-    isBuy: (t.transactionText ?? "").toLowerCase().includes("purchase") ||
-            (t.transactionText ?? "").toLowerCase().includes("acqui"),
+    isBuy: (() => {
+      const txt = (t.transactionText ?? "").toLowerCase();
+      const isBuyType = txt.includes("purchase") || txt.includes("acqui") || txt.includes("buy");
+      const isSellType = txt.includes("sale") || txt.includes("sell") || txt.includes("disposition");
+      return isBuyType && !isSellType;
+    })(),
   })).filter((t) => t.date);
 }
 
