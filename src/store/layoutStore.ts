@@ -9,30 +9,30 @@ import { WidgetConfig, PresetLayout } from "@/types/widgets";
 // At a ~1500px inner canvas that gives ~56px per unit.
 // h=5 → ~280px tall,  h=3 → ~168px tall,  w=16 → ~896px wide.
 const OVERVIEW_LAYOUT: WidgetConfig[] = [
-  { id: "chart",      type: "candlestick", title: "Price Chart",      i: "chart",      x: 0,  y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "rsi",        type: "rsi",         title: "RSI (14)",          i: "rsi",        x: 4,  y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "stochastic", type: "stochastic",  title: "Stochastic (14,3)", i: "stochastic", x: 8,  y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "metrics",    type: "key-metrics", title: "Key Metrics",       i: "metrics",    x: 0,  y: 4, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "news",       type: "news-feed",   title: "News Feed",         i: "news",       x: 4,  y: 4, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "earnings",   type: "earnings",    title: "Earnings",          i: "earnings",   x: 8,  y: 4, w: 4, h: 4, minW: 1, minH: 1 },
+  { id: "chart",      type: "candlestick", title: "Price Chart",      i: "chart",      x: 0,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "rsi",        type: "rsi",         title: "RSI (14)",          i: "rsi",        x: 8,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "stochastic", type: "stochastic",  title: "Stochastic (14,3)", i: "stochastic", x: 16, y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "metrics",    type: "key-metrics", title: "Key Metrics",       i: "metrics",    x: 0,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "news",       type: "news-feed",   title: "News Feed",         i: "news",       x: 8,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "earnings",   type: "earnings",    title: "Earnings",          i: "earnings",   x: 16, y: 8, w: 8, h: 8, minW: 1, minH: 1 },
 ];
 
 const OPTIONS_LAYOUT: WidgetConfig[] = [
-  { id: "chart",         type: "candlestick",   title: "Price Chart",      i: "chart",         x: 0, y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "iv-rank",       type: "iv-rank",       title: "IV Rank",          i: "iv-rank",       x: 4, y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "pcr",           type: "put-call-ratio", title: "Put/Call Ratio",  i: "pcr",           x: 8, y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "options-chain", type: "options-chain", title: "Options Chain",    i: "options-chain", x: 0, y: 4, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "max-pain",      type: "max-pain",      title: "Max Pain",         i: "max-pain",      x: 4, y: 4, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "prob-cone",     type: "prob-cone",     title: "Probability Cone", i: "prob-cone",     x: 8, y: 4, w: 4, h: 4, minW: 1, minH: 1 },
+  { id: "chart",         type: "candlestick",    title: "Price Chart",      i: "chart",         x: 0,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "iv-rank",       type: "iv-rank",        title: "IV Rank",          i: "iv-rank",       x: 8,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "pcr",           type: "put-call-ratio", title: "Put/Call Ratio",   i: "pcr",           x: 16, y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "options-chain", type: "options-chain",  title: "Options Chain",    i: "options-chain", x: 0,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "max-pain",      type: "max-pain",       title: "Max Pain",         i: "max-pain",      x: 8,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "prob-cone",     type: "prob-cone",      title: "Probability Cone", i: "prob-cone",     x: 16, y: 8, w: 8, h: 8, minW: 1, minH: 1 },
 ];
 
 const TECHNICAL_LAYOUT: WidgetConfig[] = [
-  { id: "chart",     type: "candlestick",    title: "Price Chart",     i: "chart",     x: 0, y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "rsi",       type: "rsi",            title: "RSI",             i: "rsi",       x: 4, y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "macd",      type: "macd",           title: "MACD",            i: "macd",      x: 8, y: 0, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "bollinger", type: "bollinger",      title: "Bollinger Bands", i: "bollinger", x: 0, y: 4, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "ema",       type: "ema",            title: "EMA Panel",       i: "ema",       x: 4, y: 4, w: 4, h: 4, minW: 1, minH: 1 },
-  { id: "signal",    type: "signal-summary", title: "Signal Summary",  i: "signal",    x: 8, y: 4, w: 4, h: 4, minW: 1, minH: 1 },
+  { id: "chart",     type: "candlestick",    title: "Price Chart",     i: "chart",     x: 0,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "rsi",       type: "rsi",            title: "RSI",             i: "rsi",       x: 8,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "macd",      type: "macd",           title: "MACD",            i: "macd",      x: 16, y: 0, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "bollinger", type: "bollinger",      title: "Bollinger Bands", i: "bollinger", x: 0,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "ema",       type: "ema",            title: "EMA Panel",       i: "ema",       x: 8,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "signal",    type: "signal-summary", title: "Signal Summary",  i: "signal",    x: 16, y: 8, w: 8, h: 8, minW: 1, minH: 1 },
 ];
 
 export const PRESET_LAYOUTS: Record<PresetLayout, WidgetConfig[]> = {
@@ -132,6 +132,6 @@ export const useLayoutStore = create<LayoutState>()(
           };
         }),
     }),
-    { name: "investradar-layout-v10" }
+    { name: "investradar-layout-v11" }
   )
 );
