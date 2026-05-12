@@ -63,6 +63,7 @@ interface LayoutState {
   addCustomLayout: (name: string) => void;
   applyCustomLayout: (id: string) => void;
   removeCustomLayout: (id: string) => void;
+  renameCustomLayout: (id: string, name: string) => void;
 }
 
 function saveToCustom(
@@ -136,6 +137,11 @@ export const useLayoutStore = create<LayoutState>()(
             ...(wasActive && { widgets: OVERVIEW_LAYOUT, activePreset: "overview", activeCustomId: null }),
           };
         }),
+
+      renameCustomLayout: (id, name) =>
+        set((s) => ({
+          customLayouts: s.customLayouts.map((l) => l.id === id ? { ...l, name } : l),
+        })),
     }),
     { name: "investradar-layout-v11" }
   )

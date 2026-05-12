@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, X, RefreshCw, Lock, LockOpen, Trash2, Star } from "lucide-react";
+import { Plus, X, RefreshCw, Lock, LockOpen, Trash2, Star, Pencil } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLayoutStore } from "@/store/layoutStore";
 import { WidgetConfig, WidgetType } from "@/types/widgets";
@@ -253,14 +253,34 @@ function GridCanvas({ widgets, activeTicker, locked, onRemove, onChange }: GridC
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 export default function WidgetCanvas() {
-  const { widgets, setLayout, addWidget, removeWidget, locked, setLocked } = useLayoutStore();
+  const { widgets, setLayout, addWidget, removeWidget, locked, setLocked,
+          activePreset, activeCustomId, customLayouts, renameCustomLayout } = useLayoutStore();
   const { activeTicker, watchlist, addToWatchlist, removeFromWatchlist } = useTickerStore();
   const queryClient = useQueryClient();
 
-  const [pickerOpen,   setPickerOpen]   = useState(false);
-  const [refreshing,   setRefreshing]   = useState(false);
-  const [clearConfirm, setClearConfirm] = useState(false);
+  const [pickerOpen,    setPickerOpen]    = useState(false);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [clearConfirm,  setClearConfirm]  = useState(false);
+  const [editingName,   setEditingName]   = useState(false);
+  const [nameValue,     setNameValue]     = useState("");
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const PRESET_LABELS: Record<string, string> = { overview: "Overview", technical: "Technical", options: "Options" };
+  const activeCustomLayout = customLayouts.find((l) => l.id === activeCustomId) ?? null;
+  const layoutName = activeCustomLayout?.name ?? (activePreset ? PRESET_LABELS[activePreset] : "Custom");
+  const canEditName = !!activeCustomId;
+
+  const startEditName = () => {
+    if (!canEditName) return;
+    setNameValue(activeCustomLayout?.name ?? "");
+    setEditingName(true);
+  };
+
+  const commitName = () => {
+    const trimmed = nameValue.trim();
+    if (trimmed && activeCustomId) renameCustomLayout(activeCustomId, trimmed);
+    setEditingName(false);
+  };
 
   // Remount GridCanvas whenever the set of widget IDs changes (add / remove / preset switch)
   const widgetKey = widgets.map((w) => w.i).sort().join(",");
@@ -344,7 +364,32 @@ export default function WidgetCanvas() {
           {inWatchlist ? activeTicker : `Watch ${activeTicker}`}
         </button>
 
-        <div className="ml-auto flex items-center gap-0.5">
+        {/* ── Layout name ── */}
+        <div className="flex-1 flex justify-center">
+          {editingName ? (
+            <input
+              autoFocus
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => { if (e.key === "Enter") commitName(); if (e.key === "Escape") setEditingName(false); }}
+              className="bg-[#161b22] border border-[#388bfd] rounded px-2 py-0.5 text-[11px] text-white outline-none w-36 text-center"
+            />
+          ) : (
+            <button
+              onClick={startEditName}
+              className={cn(
+                "flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-[#8b949e] transition-colors",
+                canEditName ? "hover:text-white hover:bg-[#161b22] cursor-text group" : "cursor-default"
+              )}
+            >
+              {layoutName}
+              {canEditName && <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 transition-opacity" />}
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-0.5 shrink-0">
           <button
             onClick={() => setLocked(!locked)}
             className={cn(
