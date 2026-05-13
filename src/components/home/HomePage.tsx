@@ -125,6 +125,7 @@ export default function HomePage() {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onSelect={selectTicker}
+        variant="home"
       />
     </div>
   );
