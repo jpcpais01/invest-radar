@@ -19,25 +19,19 @@ interface PredictionResponse {
 
 interface Props { ticker: string }
 
+const BG = "#101010";
+
 export default function AIPredPanel({ ticker }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef     = useRef<IChartApi | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const histRef      = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const upperRef     = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const lowerRef     = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const meanRef      = useRef<any>(null);
   const [ready, setReady] = useState(false);
 
-  const [nDays,    setNDays]    = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-days`)    ?? "7");  } catch { return 7;  } });
-  const [nRuns,    setNRuns]    = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-runs`)    ?? "4");  } catch { return 4;  } });
-  const [nHistory, setNHistory] = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-history`) ?? "90"); } catch { return 90; } });
-  const [data, setData]     = useState<PredictionResponse | null>(null);
+  const [nDays,    setNDays]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-days")    ?? "7");  } catch { return 7;  } });
+  const [nRuns,    setNRuns]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-runs")    ?? "4");  } catch { return 4;  } });
+  const [nHistory, setNHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-history") ?? "90"); } catch { return 90; } });
+  const [data,    setData]    = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
   const cacheKey = `home-pred-${ticker}`;
 
@@ -73,44 +67,115 @@ export default function AIPredPanel({ ticker }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // Chart creation
+  // Rebuild chart whenever data changes
   useEffect(() => {
-    if (!ready || !containerRef.current) return;
+    if (!ready || !containerRef.current || !data) return;
     const el = containerRef.current;
-    const w = el.clientWidth; const h = el.clientHeight;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
     if (w <= 0 || h <= 0) return;
+
+    // Tear down previous chart
+    chartRef.current?.remove();
+    chartRef.current = null;
+
     const chart = createChart(el, {
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#767676", fontSize: 10 },
-      grid: { vertLines: { color: "#1e1e1e" }, horzLines: { color: "#1e1e1e" } },
+      layout: {
+        background: { type: ColorType.Solid, color: BG },
+        textColor: "#767676",
+        fontSize: 10,
+      },
+      grid: { vertLines: { color: "#1a1a1a" }, horzLines: { color: "#1a1a1a" } },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "#1e1e1e" },
       timeScale: { borderColor: "#1e1e1e", timeVisible: true, secondsVisible: false },
-      width: w, height: h,
+      width: w,
+      height: h,
     });
-    histRef.current  = chart.addSeries(LineSeries,  { color: "#505058", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    upperRef.current = chart.addSeries(AreaSeries,  { lineColor: "transparent", topColor: "rgba(192,192,204,0.12)", bottomColor: "rgba(192,192,204,0.04)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    lowerRef.current = chart.addSeries(AreaSeries,  { lineColor: "transparent", topColor: "#080808", bottomColor: "#080808", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    meanRef.current  = chart.addSeries(LineSeries,  { color: "#c0c0cc", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
-    chartRef.current = chart;
-    const ro = new ResizeObserver(() => { const nw = el.clientWidth, nh = el.clientHeight; if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh }); });
-    ro.observe(el);
-    return () => { ro.disconnect(); chart.remove(); chartRef.current = histRef.current = upperRef.current = lowerRef.current = meanRef.current = null; };
-  }, [ready]);
 
-  // Data update
-  useEffect(() => {
-    if (!chartRef.current || !histRef.current || !data) return;
-    const lastH = data.historical[data.historical.length - 1];
-    const times = [lastH.time, ...data.futureDates] as unknown as Time[];
+    // ── Historical line ────────────────────────────────────────────────────
+    const histSeries = chart.addSeries(LineSeries, {
+      color: "#505058",
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    histSeries.setData(
+      data.historical.map(p => ({ time: p.time as unknown as Time, value: p.close }))
+    );
+
+    // ── Anchor values (bridge historical → prediction) ─────────────────────
+    const lastH      = data.historical[data.historical.length - 1];
+    const times      = [lastH.time, ...data.futureDates] as unknown as Time[];
     const medianVals = [lastH.close, ...data.median];
     const p75Vals    = [lastH.close, ...data.p75];
     const p25Vals    = [lastH.close, ...data.p25];
-    histRef.current.setData(data.historical.map(p => ({ time: p.time as unknown as Time, value: p.close })));
-    upperRef.current.setData(times.map((t, i) => ({ time: t, value: p75Vals[i] })));
-    lowerRef.current.setData(times.map((t, i) => ({ time: t, value: p25Vals[i] })));
-    meanRef.current.setData(times.map((t, i) => ({ time: t, value: medianVals[i] })));
-    chartRef.current.timeScale().fitContent();
-  }, [data, ready]);
+
+    // ── P25–P75 confidence band (upper area + lower mask) ─────────────────
+    const upperArea = chart.addSeries(AreaSeries, {
+      lineColor: "transparent",
+      topColor:    "rgba(192,192,204,0.14)",
+      bottomColor: "rgba(192,192,204,0.03)",
+      priceLineVisible:       false,
+      lastValueVisible:       false,
+      crosshairMarkerVisible: false,
+    });
+    upperArea.setData(times.map((t, i) => ({ time: t, value: p75Vals[i] })));
+
+    const lowerMask = chart.addSeries(AreaSeries, {
+      lineColor:   "transparent",
+      topColor:    BG,
+      bottomColor: BG,
+      priceLineVisible:       false,
+      lastValueVisible:       false,
+      crosshairMarkerVisible: false,
+    });
+    lowerMask.setData(times.map((t, i) => ({ time: t, value: p25Vals[i] })));
+
+    // ── Spaghetti runs ─────────────────────────────────────────────────────
+    for (const run of data.runs) {
+      const s = chart.addSeries(LineSeries, {
+        color: "rgba(192,192,204,0.2)",
+        lineWidth: 1,
+        priceLineVisible:       false,
+        lastValueVisible:       false,
+        crosshairMarkerVisible: false,
+      });
+      s.setData([
+        { time: lastH.time as unknown as Time, value: lastH.close },
+        ...run.map((v, i) => ({ time: data.futureDates[i] as unknown as Time, value: v })),
+      ]);
+    }
+
+    // ── Median line (dashed, on top) ───────────────────────────────────────
+    const medianLine = chart.addSeries(LineSeries, {
+      color: "#c0c0cc",
+      lineWidth: 2,
+      lineStyle: 2,
+      priceLineVisible:       false,
+      lastValueVisible:       true,
+      crosshairMarkerVisible: true,
+      crosshairMarkerRadius:  4,
+    });
+    medianLine.setData(times.map((t, i) => ({ time: t, value: medianVals[i] })));
+
+    chart.timeScale().fitContent();
+    chartRef.current = chart;
+
+    const ro = new ResizeObserver(() => {
+      if (!chartRef.current) return;
+      const nw = el.clientWidth, nh = el.clientHeight;
+      if (nw > 0 && nh > 0) chartRef.current.applyOptions({ width: nw, height: nh });
+    });
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      chart.remove();
+      chartRef.current = null;
+    };
+  }, [ready, data]);
 
   const lastClose  = data?.historical.at(-1)?.close ?? null;
   const predFinal  = data?.median.at(-1) ?? null;
@@ -130,9 +195,7 @@ export default function AIPredPanel({ ticker }: Props) {
         </div>
         {data && lastClose && predFinal && (
           <div className="text-right">
-            <div
-              className={cn("text-xl font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}
-            >
+            <div className={cn("text-xl font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
               ${predFinal.toFixed(2)}
             </div>
             <div className={cn("text-[10px] font-medium flex items-center gap-1 justify-end", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
@@ -146,7 +209,7 @@ export default function AIPredPanel({ ticker }: Props) {
       {/* Chart */}
       <div ref={containerRef} className="relative w-full overflow-hidden" style={{ height: 260 }}>
         {loading && !data && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: BG }}>
             <div className="relative">
               <div className="w-10 h-10 rounded-full border-2 border-[#c0c0cc22] border-t-[#c0c0cc] animate-spin" />
               <Sparkles className="w-4 h-4 text-[#c0c0cc] absolute inset-0 m-auto" />
@@ -155,7 +218,7 @@ export default function AIPredPanel({ ticker }: Props) {
           </div>
         )}
         {error && !data && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: BG }}>
             <p className="text-[10px] text-[#ef4444]">{error}</p>
           </div>
         )}
