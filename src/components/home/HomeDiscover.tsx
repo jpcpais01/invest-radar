@@ -6,9 +6,32 @@ import { RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
 interface Props { onSelectTicker: (t: string) => void }
 
 const PRESET_TICKERS = [
-  "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","JPM","V","UNH",
-  "MA","HD","PG","JNJ","COST","AVGO","MRK","CVX","ABBV","KO",
-  "PEP","WMT","LLY","NFLX","AMD","QCOM","ADBE","GS","BA","NKE",
+  // Mega-cap tech
+  "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","AVGO","ORCL","CRM",
+  "ADBE","NOW","INTU","PANW","CSCO","IBM","TXN","AMAT","LRCX","KLAC",
+  "MU","INTC","QCOM","AMD","NFLX","ACN","FTNT","SNOW","PLTR","NET",
+  // Consumer internet / fintech
+  "UBER","SHOP","PYPL","COIN","SQ","ABNB","DASH","RBLX","SNAP","PINS",
+  // Large-cap finance
+  "JPM","V","MA","GS","MS","BAC","WFC","C","AXP","BLK",
+  "SCHW","COF","USB","PNC","TFC","SPGI","MCO","ICE","CME","CB",
+  // Healthcare / biotech
+  "UNH","LLY","JNJ","MRK","ABBV","TMO","ABT","BMY","AMGN","ISRG",
+  "ELV","BIIB","REGN","VRTX","ZTS","DXCM","ILMN","MRNA","GILD","CVS",
+  // Consumer staples & discretionary
+  "WMT","COST","HD","PG","KO","PEP","MCD","SBUX","NKE","TGT",
+  "LOW","TJX","YUM","CMG","DG","PM","MO","EL","CL","MNST",
+  // Industrials & defense
+  "HON","GE","CAT","DE","MMM","RTX","LMT","NOC","GD","UPS",
+  "FDX","WM","RSG","EMR","ETN","PH","ITW","ROK","CARR","OTIS",
+  // Energy
+  "XOM","CVX","OXY","SLB","EOG","COP","PSX","VLO","MPC","HES",
+  // Real estate
+  "AMT","PLD","EQIX","SPG","O","PSA","WELL","DLR","CCI","VICI",
+  // International ADRs
+  "TSM","ASML","SAP","NVO","AZN","BABA","JD","PDD","NIO","BIDU",
+  // ETFs
+  "SPY","QQQ","IWM","GLD","TLT","VTI","ARKK","XLF","XLK","XLE",
 ];
 
 type SignalValue = "strong-buy" | "buy" | "neutral" | "sell" | "strong-sell";

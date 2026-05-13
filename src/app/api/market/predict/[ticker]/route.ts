@@ -59,13 +59,15 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   const { ticker } = await params;
-  const n    = Math.min(30, Math.max(1, parseInt(req.nextUrl.searchParams.get("n")    ?? "7")));
-  const runs = Math.min(20, Math.max(1, parseInt(req.nextUrl.searchParams.get("runs") ?? "5")));
+  const n       = Math.min(30,  Math.max(1,  parseInt(req.nextUrl.searchParams.get("n")       ?? "7")));
+  const runs    = Math.min(20,  Math.max(1,  parseInt(req.nextUrl.searchParams.get("runs")    ?? "5")));
+  const history = Math.min(252, Math.max(20, parseInt(req.nextUrl.searchParams.get("history") ?? "90")));
 
   try {
-    const from = new Date(Date.now() - 160 * 86400000);
+    const calendarDays = Math.ceil(history * 1.5) + 30;
+    const from = new Date(Date.now() - calendarDays * 86400000);
     const bars = await getHistory(ticker.toUpperCase(), "1d", from);
-    const closes = bars.map((b) => b.close).slice(-100);
+    const closes = bars.map((b) => b.close).slice(-history);
 
     if (closes.length < 10) {
       return NextResponse.json({ error: "Insufficient historical data" }, { status: 400 });
@@ -98,7 +100,7 @@ export async function GET(
     const futureDates = nextTradingDays(bars[bars.length - 1].time, n);
 
     return NextResponse.json({
-      historical:     bars.slice(-60).map((b) => ({ time: b.time, close: b.close })),
+      historical:     bars.slice(-Math.min(history, 120)).map((b) => ({ time: b.time, close: b.close })),
       futureDates,
       runs:           successful,
       mean,

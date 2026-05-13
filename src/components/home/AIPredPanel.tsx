@@ -30,22 +30,24 @@ export default function AIPredPanel({ ticker }: Props) {
   const meanRef      = useRef<any>(null);
   const [ready, setReady] = useState(false);
 
-  const [nDays, setNDays] = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-days`) ?? "7"); } catch { return 7; } });
-  const [nRuns, setNRuns] = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-runs`) ?? "4"); } catch { return 4; } });
+  const [nDays,    setNDays]    = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-days`)    ?? "7");  } catch { return 7;  } });
+  const [nRuns,    setNRuns]    = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-runs`)    ?? "4");  } catch { return 4;  } });
+  const [nHistory, setNHistory] = useState(() => { try { return JSON.parse(localStorage.getItem(`home-pred-history`) ?? "90"); } catch { return 90; } });
   const [data, setData]     = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
   const cacheKey = `home-pred-${ticker}`;
 
-  useEffect(() => { localStorage.setItem("home-pred-days", String(nDays)); }, [nDays]);
-  useEffect(() => { localStorage.setItem("home-pred-runs", String(nRuns)); }, [nRuns]);
+  useEffect(() => { localStorage.setItem("home-pred-days",    String(nDays));    }, [nDays]);
+  useEffect(() => { localStorage.setItem("home-pred-runs",    String(nRuns));    }, [nRuns]);
+  useEffect(() => { localStorage.setItem("home-pred-history", String(nHistory)); }, [nHistory]);
 
-  const predict = useCallback(async (days: number, runs: number) => {
+  const predict = useCallback(async (days: number, runs: number, history: number) => {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch(`/api/market/predict/${ticker}?n=${days}&runs=${runs}`);
+      const res  = await fetch(`/api/market/predict/${ticker}?n=${days}&runs=${runs}&history=${history}`);
       const json = await res.json();
       if (json.error) throw new Error(json.details?.[0] ?? json.error);
       setData(json);
@@ -57,7 +59,7 @@ export default function AIPredPanel({ ticker }: Props) {
   useEffect(() => {
     setData(null); setError(null);
     try { const c = localStorage.getItem(cacheKey); if (c) { setData(JSON.parse(c)); return; } } catch { /* ignore */ }
-    predict(nDays, nRuns);
+    predict(nDays, nRuns, nHistory);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
@@ -186,8 +188,17 @@ export default function AIPredPanel({ ticker }: Props) {
               <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Plus className="w-3 h-3" /></button>
             </div>
           </div>
+          <div className="w-px h-3 bg-[#1e1e1e]" />
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">Hist</span>
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => setNHistory((v: number) => Math.max(20, v - 10))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Minus className="w-3 h-3" /></button>
+              <span className="text-xs text-[#f0f0f0] w-7 text-center tabular-nums font-mono">{nHistory}</span>
+              <button onClick={() => setNHistory((v: number) => Math.min(252, v + 10))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Plus className="w-3 h-3" /></button>
+            </div>
+          </div>
           <button
-            onClick={() => predict(nDays, nRuns)}
+            onClick={() => predict(nDays, nRuns, nHistory)}
             disabled={loading}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",

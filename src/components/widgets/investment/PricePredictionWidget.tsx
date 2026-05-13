@@ -31,11 +31,14 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
   const { removeWidget } = useLayoutStore();
 
   const [ready,   setReady]   = useState(false);
-  const [nDays,   setNDays]   = useState(() => {
-    try { return JSON.parse(localStorage.getItem(`pp-days-${id}`) ?? "7"); } catch { return 7; }
+  const [nDays,    setNDays]    = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`pp-days-${id}`)    ?? "7");  } catch { return 7;  }
   });
-  const [nRuns,   setNRuns]   = useState(() => {
-    try { return JSON.parse(localStorage.getItem(`pp-runs-${id}`) ?? "5"); } catch { return 5; }
+  const [nRuns,    setNRuns]    = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`pp-runs-${id}`)    ?? "5");  } catch { return 5;  }
+  });
+  const [nHistory, setNHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`pp-history-${id}`) ?? "90"); } catch { return 90; }
   });
   const [data,    setData]    = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,16 +54,17 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
   }, []);
 
   // Persist settings
-  useEffect(() => { localStorage.setItem(`pp-days-${id}`, String(nDays)); }, [id, nDays]);
-  useEffect(() => { localStorage.setItem(`pp-runs-${id}`, String(nRuns)); }, [id, nRuns]);
+  useEffect(() => { localStorage.setItem(`pp-days-${id}`,    String(nDays));    }, [id, nDays]);
+  useEffect(() => { localStorage.setItem(`pp-runs-${id}`,    String(nRuns));    }, [id, nRuns]);
+  useEffect(() => { localStorage.setItem(`pp-history-${id}`, String(nHistory)); }, [id, nHistory]);
 
   const cacheKey = `pp-result-${id}-${ticker}`;
 
-  const predict = useCallback(async (days: number, runs: number) => {
+  const predict = useCallback(async (days: number, runs: number, history: number) => {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch(`/api/market/predict/${ticker}?n=${days}&runs=${runs}`);
+      const res  = await fetch(`/api/market/predict/${ticker}?n=${days}&runs=${runs}&history=${history}`);
       const json = await res.json();
       if (json.error) throw new Error(json.details?.[0] ?? json.error);
       setData(json);
@@ -80,7 +84,7 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
       const cached = localStorage.getItem(cacheKey);
       if (cached) { setData(JSON.parse(cached)); return; }
     } catch { /* ignore */ }
-    predict(nDays, nRuns);
+    predict(nDays, nRuns, nHistory);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
@@ -221,7 +225,7 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
       title={`${ticker} — AI Price Prediction`}
       id={id}
       onRemove={removeWidget}
-      onRefresh={() => predict(nDays, nRuns)}
+      onRefresh={() => predict(nDays, nRuns, nHistory)}
       loading={loading && !data}
       error={error ?? null}
       askAIContext={askAICtx}
@@ -296,9 +300,29 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
           </button>
         </div>
 
+        <div className="w-px h-3 bg-[#21262d] mx-0.5" />
+
+        {/* History stepper */}
+        <span className="text-[9px] font-semibold tracking-widest text-[#484f58] uppercase">Hist</span>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => setNHistory((v: number) => Math.max(20, v - 10))}
+            className="w-5 h-5 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors"
+          >
+            <Minus className="w-2.5 h-2.5" />
+          </button>
+          <span className="text-[11px] font-mono text-white w-7 text-center select-none">{nHistory}</span>
+          <button
+            onClick={() => setNHistory((v: number) => Math.min(252, v + 10))}
+            className="w-5 h-5 rounded flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors"
+          >
+            <Plus className="w-2.5 h-2.5" />
+          </button>
+        </div>
+
         {/* Predict button */}
         <button
-          onClick={() => predict(nDays, nRuns)}
+          onClick={() => predict(nDays, nRuns, nHistory)}
           disabled={loading}
           className={cn(
             "ml-auto flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all border",
