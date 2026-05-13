@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { createChart, IChartApi, LineSeries, AreaSeries, ColorType } from "lightweight-charts";
+import { createChart, IChartApi, LineSeries, ColorType } from "lightweight-charts";
 import type { Time } from "lightweight-charts";
 import { Sparkles, RefreshCw, Minus, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -109,29 +109,6 @@ export default function AIPredPanel({ ticker }: Props) {
     const lastH      = data.historical[data.historical.length - 1];
     const times      = [lastH.time, ...data.futureDates] as unknown as Time[];
     const medianVals = [lastH.close, ...data.median];
-    const p75Vals    = [lastH.close, ...data.p75];
-    const p25Vals    = [lastH.close, ...data.p25];
-
-    // ── P25–P75 confidence band (upper area + lower mask) ─────────────────
-    const upperArea = chart.addSeries(AreaSeries, {
-      lineColor: "transparent",
-      topColor:    "rgba(192,192,204,0.14)",
-      bottomColor: "rgba(192,192,204,0.03)",
-      priceLineVisible:       false,
-      lastValueVisible:       false,
-      crosshairMarkerVisible: false,
-    });
-    upperArea.setData(times.map((t, i) => ({ time: t, value: p75Vals[i] })));
-
-    const lowerMask = chart.addSeries(AreaSeries, {
-      lineColor:   "transparent",
-      topColor:    BG,
-      bottomColor: BG,
-      priceLineVisible:       false,
-      lastValueVisible:       false,
-      crosshairMarkerVisible: false,
-    });
-    lowerMask.setData(times.map((t, i) => ({ time: t, value: p25Vals[i] })));
 
     // ── Spaghetti runs ─────────────────────────────────────────────────────
     for (const run of data.runs) {
