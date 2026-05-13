@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
-import { Search, Terminal, Compass, X } from "lucide-react";
+import { Search, Terminal, Compass } from "lucide-react";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
@@ -10,31 +10,32 @@ import { SignalCard, QualityCard, NarrativeCard, ValuationCard, InsiderCard } fr
 import NewsPanel from "./NewsPanel";
 import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
+import CommandPalette from "@/components/search/CommandPalette";
 
-const POPULAR = ["AAPL","NVDA","MSFT","TSLA","AMZN","META","GOOGL","AMD","NFLX","JPM","SPY","QQQ"];
 type Tab = "overview" | "discover";
 
 export default function HomePage() {
-  const { activeTicker, setActiveTicker, watchlist } = useTickerStore();
+  const { activeTicker, setActiveTicker } = useTickerStore();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const suggestions = query.length > 0
-    ? [...new Set([...watchlist, ...POPULAR])].filter(t => t.startsWith(query.toUpperCase())).slice(0, 8)
-    : [...new Set([...watchlist, ...POPULAR])].slice(0, 8);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const selectTicker = (t: string) => {
     setActiveTicker(t.toUpperCase());
-    setSearchOpen(false);
-    setQuery("");
+    setPaletteOpen(false);
     setActiveTab("overview");
   };
 
-  const handleSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && query.trim()) selectTicker(query.trim());
-    if (e.key === "Escape") { setSearchOpen(false); setQuery(""); }
-  };
+  // ⌘K / Ctrl+K to open search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <div
@@ -60,51 +61,14 @@ export default function HomePage() {
           </a>
 
           {/* Ticker search */}
-          <div className="relative flex-1 min-w-0">
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors text-left"
-            >
-              <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
-              <span className="text-sm font-semibold text-[#f0f0f0] truncate font-mono">{activeTicker}</span>
-              <span className="text-[10px] text-[#3a3a3a] ml-auto hidden sm:block">Search ticker</span>
-            </button>
-
-            {searchOpen && (
-              <div className="absolute top-full left-0 mt-1 rounded-md border border-[#2c2c2c] bg-[#101010] shadow-2xl overflow-hidden z-50 w-64 sm:w-full sm:min-w-[260px]"
-                   style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.08)" }}>
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1e1e1e]">
-                  <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
-                  <input
-                    autoFocus
-                    value={query}
-                    onChange={e => setQuery(e.target.value.toUpperCase())}
-                    onKeyDown={handleSearchKey}
-                    placeholder="Type ticker…"
-                    className="flex-1 bg-transparent text-sm font-mono text-[#f0f0f0] placeholder-[#3a3a3a] outline-none min-w-0"
-                  />
-                  <button onClick={() => { setSearchOpen(false); setQuery(""); }}>
-                    <X className="w-3.5 h-3.5 text-[#3a3a3a] hover:text-[#f0f0f0] transition-colors" />
-                  </button>
-                </div>
-                <div className="py-1 max-h-64 overflow-y-auto">
-                  {suggestions.map(t => (
-                    <button
-                      key={t}
-                      onClick={() => selectTicker(t)}
-                      className={cn(
-                        "w-full text-left px-4 py-2 text-sm hover:bg-[#161616] transition-colors flex items-center gap-2",
-                        t === activeTicker ? "text-[#c0c0cc]" : "text-[#f0f0f0]"
-                      )}
-                    >
-                      <span className="font-mono font-medium">{t}</span>
-                      {watchlist.includes(t) && <span className="text-[9px] text-[#3a3a3a] ml-auto">watchlist</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors text-left"
+          >
+            <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
+            <span className="text-sm font-semibold text-[#f0f0f0] truncate font-mono">{activeTicker}</span>
+            <kbd className="ml-auto text-[10px] text-[#3a3a3a] font-mono hidden sm:block">⌘K</kbd>
+          </button>
 
           {/* Tabs */}
           <div className="flex items-center border border-[#1e1e1e] rounded-md p-0.5 shrink-0 bg-[#101010]">
@@ -157,9 +121,11 @@ export default function HomePage() {
         </main>
       )}
 
-      {searchOpen && (
-        <div className="fixed inset-0 z-30" onClick={() => { setSearchOpen(false); setQuery(""); }} />
-      )}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onSelect={selectTicker}
+      />
     </div>
   );
 }
