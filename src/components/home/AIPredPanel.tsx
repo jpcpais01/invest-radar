@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { createChart, IChartApi, LineSeries, ColorType } from "lightweight-charts";
+import { createChart, IChartApi, LineSeries, AreaSeries, ColorType } from "lightweight-charts";
 import type { Time } from "lightweight-charts";
 import { Sparkles, RefreshCw, Minus, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,9 @@ interface PredictionResponse {
   historical: { time: number; close: number }[];
   futureDates: number[];
   runs: number[][];
-  mean: number[];
+  median: number[];
+  p25: number[];
+  p75: number[];
   n: number;
   successfulRuns: number;
   totalRuns: number;
@@ -85,10 +87,10 @@ export default function AIPredPanel({ ticker }: Props) {
       timeScale: { borderColor: "#1e1e1e", timeVisible: true, secondsVisible: false },
       width: w, height: h,
     });
-    histRef.current  = chart.addSeries(LineSeries, { color: "#505058", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    upperRef.current = chart.addSeries(LineSeries, { color: "rgba(192,192,204,0.25)", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    lowerRef.current = chart.addSeries(LineSeries, { color: "rgba(192,192,204,0.25)", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    meanRef.current  = chart.addSeries(LineSeries, { color: "#c0c0cc", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
+    histRef.current  = chart.addSeries(LineSeries,  { color: "#505058", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    upperRef.current = chart.addSeries(AreaSeries,  { lineColor: "transparent", topColor: "rgba(192,192,204,0.12)", bottomColor: "rgba(192,192,204,0.04)", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    lowerRef.current = chart.addSeries(AreaSeries,  { lineColor: "transparent", topColor: "#080808", bottomColor: "#080808", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    meanRef.current  = chart.addSeries(LineSeries,  { color: "#c0c0cc", lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true, crosshairMarkerRadius: 4 });
     chartRef.current = chart;
     const ro = new ResizeObserver(() => { const nw = el.clientWidth, nh = el.clientHeight; if (nw > 0 && nh > 0) chart.applyOptions({ width: nw, height: nh }); });
     ro.observe(el);
@@ -100,18 +102,18 @@ export default function AIPredPanel({ ticker }: Props) {
     if (!chartRef.current || !histRef.current || !data) return;
     const lastH = data.historical[data.historical.length - 1];
     const times = [lastH.time, ...data.futureDates] as unknown as Time[];
-    const meanVals  = [lastH.close, ...data.mean];
-    const upperVals = [lastH.close, ...data.futureDates.map((_, i) => Math.max(...data.runs.map(r => r[i])))];
-    const lowerVals = [lastH.close, ...data.futureDates.map((_, i) => Math.min(...data.runs.map(r => r[i])))];
+    const medianVals = [lastH.close, ...data.median];
+    const p75Vals    = [lastH.close, ...data.p75];
+    const p25Vals    = [lastH.close, ...data.p25];
     histRef.current.setData(data.historical.map(p => ({ time: p.time as unknown as Time, value: p.close })));
-    upperRef.current.setData(times.map((t, i) => ({ time: t, value: upperVals[i] })));
-    lowerRef.current.setData(times.map((t, i) => ({ time: t, value: lowerVals[i] })));
-    meanRef.current.setData(times.map((t, i) => ({ time: t, value: meanVals[i] })));
+    upperRef.current.setData(times.map((t, i) => ({ time: t, value: p75Vals[i] })));
+    lowerRef.current.setData(times.map((t, i) => ({ time: t, value: p25Vals[i] })));
+    meanRef.current.setData(times.map((t, i) => ({ time: t, value: medianVals[i] })));
     chartRef.current.timeScale().fitContent();
   }, [data, ready]);
 
   const lastClose  = data?.historical.at(-1)?.close ?? null;
-  const predFinal  = data?.mean.at(-1) ?? null;
+  const predFinal  = data?.median.at(-1) ?? null;
   const predChange = lastClose && predFinal ? ((predFinal - lastClose) / lastClose) * 100 : null;
   const isUp       = (predChange ?? 0) >= 0;
 

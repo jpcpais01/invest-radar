@@ -8,6 +8,22 @@ import { getHistory } from "@/lib/market/yahoo";
 const together = new Together();
 const PREDICT_MODEL = "deepseek-ai/DeepSeek-V4-Pro";
 
+function pct(sorted: number[], p: number): number {
+  if (sorted.length === 1) return sorted[0];
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function stats(runs: number[][], i: number) {
+  const vals = [...runs.map(r => r[i])].sort((a, b) => a - b);
+  return {
+    median: pct(vals, 50),
+    p25:    pct(vals, 25),
+    p75:    pct(vals, 75),
+  };
+}
+
 function nextTradingDays(fromSec: number, n: number): number[] {
   const days: number[] = [];
   let d = new Date(fromSec * 1000);
@@ -93,9 +109,10 @@ export async function GET(
       );
     }
 
-    const mean = Array.from({ length: n }, (_, i) =>
-      successful.reduce((s, run) => s + run[i], 0) / successful.length
-    );
+    const s = Array.from({ length: n }, (_, i) => stats(successful, i));
+    const median = s.map(x => x.median);
+    const p25    = s.map(x => x.p25);
+    const p75    = s.map(x => x.p75);
 
     const futureDates = nextTradingDays(bars[bars.length - 1].time, n);
 
@@ -103,7 +120,9 @@ export async function GET(
       historical:     bars.slice(-Math.min(history, 120)).map((b) => ({ time: b.time, close: b.close })),
       futureDates,
       runs:           successful,
-      mean,
+      median,
+      p25,
+      p75,
       n,
       successfulRuns: successful.length,
       totalRuns:      runs,

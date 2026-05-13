@@ -19,7 +19,9 @@ interface PredictionResponse {
   historical: { time: number; close: number }[];
   futureDates: number[];
   runs: number[][];
-  mean: number[];
+  median: number[];
+  p25: number[];
+  p75: number[];
   n: number;
   successfulRuns: number;
   totalRuns: number;
@@ -129,47 +131,40 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
     );
 
     // ── Prediction data arrays (anchor = last historical point) ───────────────
-    const lastH  = data.historical[data.historical.length - 1];
-    const times  = [lastH.time, ...data.futureDates] as unknown as Time[];
+    const lastH      = data.historical[data.historical.length - 1];
+    const times      = [lastH.time, ...data.futureDates] as unknown as Time[];
+    const medianVals = [lastH.close, ...data.median];
+    const p75Vals    = [lastH.close, ...data.p75];
+    const p25Vals    = [lastH.close, ...data.p25];
 
-    const meanVals  = [lastH.close, ...data.mean];
-    const upperVals = [lastH.close, ...data.futureDates.map((_, i) =>
-      Math.max(...data.runs.map((r) => r[i]))
-    )];
-    const lowerVals = [lastH.close, ...data.futureDates.map((_, i) =>
-      Math.min(...data.runs.map((r) => r[i]))
-    )];
-
-    // ── Confidence band: upper area (purple fill) then lower mask ─────────────
+    // ── P25–P75 confidence band ───────────────────────────────────────────────
     const upperArea = chart.addSeries(AreaSeries, {
       lineColor: "transparent",
-      lineWidth: 1,
-      topColor:    "rgba(139,92,246,0.20)",
-      bottomColor: "rgba(139,92,246,0.04)",
-      priceLineVisible:      false,
-      lastValueVisible:      false,
+      topColor:    "rgba(167,139,250,0.18)",
+      bottomColor: "rgba(167,139,250,0.04)",
+      priceLineVisible:       false,
+      lastValueVisible:       false,
       crosshairMarkerVisible: false,
     });
-    upperArea.setData(times.map((t, i) => ({ time: t, value: upperVals[i] })));
+    upperArea.setData(times.map((t, i) => ({ time: t, value: p75Vals[i] })));
 
     const lowerMask = chart.addSeries(AreaSeries, {
       lineColor: "transparent",
-      lineWidth: 1,
       topColor:    "#0d1117",
       bottomColor: "#0d1117",
-      priceLineVisible:      false,
-      lastValueVisible:      false,
+      priceLineVisible:       false,
+      lastValueVisible:       false,
       crosshairMarkerVisible: false,
     });
-    lowerMask.setData(times.map((t, i) => ({ time: t, value: lowerVals[i] })));
+    lowerMask.setData(times.map((t, i) => ({ time: t, value: p25Vals[i] })));
 
     // ── Individual run lines (spaghetti) ──────────────────────────────────────
     for (const run of data.runs) {
       const s = chart.addSeries(LineSeries, {
-        color: "rgba(139,92,246,0.22)",
+        color: "rgba(139,92,246,0.18)",
         lineWidth: 1,
-        priceLineVisible:      false,
-        lastValueVisible:      false,
+        priceLineVisible:       false,
+        lastValueVisible:       false,
         crosshairMarkerVisible: false,
       });
       s.setData([
@@ -178,17 +173,17 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
       ]);
     }
 
-    // ── Mean prediction line (dashed, on top) ─────────────────────────────────
-    const meanLine = chart.addSeries(LineSeries, {
+    // ── Median line (dashed, on top) ──────────────────────────────────────────
+    const medianLine = chart.addSeries(LineSeries, {
       color: "#a78bfa",
       lineWidth: 2,
-      lineStyle: 2, // dashed
-      priceLineVisible: false,
-      lastValueVisible: true,
+      lineStyle: 2,
+      priceLineVisible:       false,
+      lastValueVisible:       true,
       crosshairMarkerVisible: true,
-      crosshairMarkerRadius: 4,
+      crosshairMarkerRadius:  4,
     });
-    meanLine.setData(times.map((t, i) => ({ time: t, value: meanVals[i] })));
+    medianLine.setData(times.map((t, i) => ({ time: t, value: medianVals[i] })));
 
     chart.timeScale().fitContent();
     chartRef.current = chart;
@@ -210,14 +205,14 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
 
   // Header stats
   const lastClose  = data?.historical.at(-1)?.close ?? null;
-  const predFinal  = data?.mean.at(-1) ?? null;
+  const predFinal  = data?.median.at(-1) ?? null;
   const predChange = lastClose && predFinal
     ? ((predFinal - lastClose) / lastClose) * 100
     : null;
   const isUp = (predChange ?? 0) >= 0;
 
   const askAICtx = data && lastClose && predFinal
-    ? `AI Price Prediction for ${ticker}. Current price: $${lastClose.toFixed(2)}. ${data.n}-day mean prediction: $${predFinal.toFixed(2)} (${isUp ? "+" : ""}${predChange?.toFixed(2)}%). Based on ${data.successfulRuns} independent LLM runs.`
+    ? `AI Price Prediction for ${ticker}. Current price: $${lastClose.toFixed(2)}. ${data.n}-day median prediction: $${predFinal.toFixed(2)} (${isUp ? "+" : ""}${predChange?.toFixed(2)}%). Based on ${data.successfulRuns} independent LLM runs.`
     : undefined;
 
   return (
