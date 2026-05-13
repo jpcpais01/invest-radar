@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Search, TrendingUp, Radar, LayoutDashboard } from "lucide-react";
+import { Search, Radar, LayoutDashboard } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTickerStore } from "@/store/tickerStore";
 import { useRouter, usePathname } from "next/navigation";
@@ -62,10 +62,15 @@ export default function TopBar() {
     <>
       <div className="flex items-center h-12 px-4 gap-4 border-b border-[#21262d] bg-[#0d1117] shrink-0">
         {/* Logo */}
-        <div className="flex items-center gap-2 mr-1 shrink-0">
-          <TrendingUp className="w-4 h-4 text-[#388bfd]" />
-          <span className="font-semibold text-sm tracking-tight text-white">InvestRadar</span>
-        </div>
+        <button
+          onClick={() => router.push("/")}
+          className="flex items-center gap-2 mr-1 shrink-0 group"
+        >
+          <div className="w-6 h-6 rounded-md border border-[#c0c0cc33] bg-[#c0c0cc08] flex items-center justify-center group-hover:border-[#c0c0cc66] transition-colors">
+            <span className="text-[#c0c0cc] text-[9px] font-bold">◆</span>
+          </div>
+          <span className="font-semibold text-sm tracking-tight text-white group-hover:text-[#c0c0cc] transition-colors">Open Terminal</span>
+        </button>
 
         {/* Desk link */}
         <button

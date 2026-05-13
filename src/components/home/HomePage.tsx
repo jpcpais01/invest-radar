@@ -56,7 +56,6 @@ export default function HomePage() {
             </div>
             <div className="hidden sm:flex flex-col leading-none">
               <span className="text-xs font-semibold text-[#f0f0f0] tracking-wide">Open Terminal</span>
-              <span className="text-[8px] text-[#3a3a3a] tracking-widest uppercase">by open source</span>
             </div>
           </a>
 
