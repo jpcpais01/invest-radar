@@ -73,6 +73,24 @@ export default function ForecastPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef     = useRef<IChartApi | null>(null);
 
+  // ── Cache helpers ────────────────────────────────────────────────────────────
+  const cacheKey = (t: string) => `forecast-${t}`;
+
+  const loadCache = (t: string): ForecastData | null => {
+    try {
+      const raw = localStorage.getItem(cacheKey(t));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as ForecastData;
+      // Validate it has the shape we expect
+      if (!parsed.predictions || !parsed.scenarios) return null;
+      return parsed;
+    } catch { return null; }
+  };
+
+  const saveCache = (d: ForecastData) => {
+    try { localStorage.setItem(cacheKey(d.ticker), JSON.stringify(d)); } catch { /* quota */ }
+  };
+
   // ── API call ────────────────────────────────────────────────────────────────
   const runForecast = useCallback(async (t: string, hist: number, fore: number) => {
     setLoading(true);
@@ -81,12 +99,15 @@ export default function ForecastPage() {
       const res  = await fetch(`/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      setData(json as ForecastData);
+      const d = json as ForecastData;
+      setData(d);
+      saveCache(d);
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Build / rebuild chart when data arrives ─────────────────────────────────
@@ -198,13 +219,24 @@ export default function ForecastPage() {
     return () => { ro.disconnect(); chart.remove(); chartRef.current = null; };
   }, [data]);
 
+  // ── Restore cache when ticker changes ──────────────────────────────────────
+  useEffect(() => {
+    const cached = loadCache(ticker);
+    if (cached) {
+      setData(cached);
+      setError(null);
+    } else {
+      setData(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker]);
+
   // ── Ticker select handler ───────────────────────────────────────────────────
   const handleTickerSelect = (t: string) => {
     const upper = t.toUpperCase();
     setTicker(upper);
     setActiveTicker(upper);
     setPaletteOpen(false);
-    setData(null);
   };
 
   // ── Derived stats ───────────────────────────────────────────────────────────
