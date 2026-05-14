@@ -8,50 +8,83 @@ import * as ti from "technicalindicators";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-function nextTradingDays(fromSec: number, n: number): number[] {
-  const days: number[] = [];
-  let d = new Date(fromSec * 1000);
-  while (days.length < n) {
-    d = new Date(d.getTime() + 86400000);
-    if (d.getDay() !== 0 && d.getDay() !== 6)
-      days.push(Math.floor(d.getTime() / 1000));
-  }
-  return days;
+// ── timeframe helpers ────────────────────────────────────────────────────────
+type TF = "5m" | "1h" | "1d";
+
+const INTERVAL_SEC: Record<TF, number>      = { "5m": 300,  "1h": 3600, "1d": 86400 };
+const CANDLES_PER_DAY: Record<TF, number>   = { "5m": 78,   "1h": 7,    "1d": 1 };
+const TF_LABEL: Record<TF, string>          = { "5m": "5-minute", "1h": "hourly", "1d": "daily" };
+
+/** Human-readable label for an individual candle */
+function candleLabel(tf: TF) {
+  return tf === "1d" ? "day" : tf === "1h" ? "hour" : "5 minutes";
 }
 
+/**
+ * Generate the next `n` future candle timestamps after `fromSec`.
+ * Skips UTC weekends for all timeframes; daily also skips by exact day boundary.
+ */
+function nextCandleTimes(fromSec: number, n: number, tf: TF): number[] {
+  const step = INTERVAL_SEC[tf];
+  const times: number[] = [];
+  let t = fromSec;
+  while (times.length < n) {
+    t += step;
+    const day = new Date(t * 1000).getUTCDay(); // 0 = Sun, 6 = Sat
+    if (day !== 0 && day !== 6) times.push(t);
+  }
+  return times;
+}
+
+/** Format a bar timestamp for the price table */
+function fmtTime(sec: number, tf: TF): string {
+  const d = new Date(sec * 1000);
+  if (tf === "1d") return d.toISOString().split("T")[0];
+  // "2024-01-15 14:30" UTC
+  return d.toISOString().replace("T", " ").slice(0, 16);
+}
+
+// ── AI call ──────────────────────────────────────────────────────────────────
 interface RunResult { predictions: number[][]; confidence: number; analysis: string }
 
 async function runOnce(
   ticker: string,
-  lastDate: string,
+  lastTimestamp: string,
   lastClose: number,
   nForecast: number,
   priceTable: string,
   nHistory: number,
+  tf: TF,
   technicalsNote: string,
 ): Promise<RunResult> {
-  const systemPrompt = `You are a quantitative price forecasting model. Analyze the daily closing price history and produce 3 independent price predictions.
+  const tfLabel    = TF_LABEL[tf];
+  const unitLabel  = candleLabel(tf);
+
+  const systemPrompt = `You are a quantitative price forecasting model. Analyze the ${tfLabel} closing price history and produce 3 independent price predictions.
 
 Output ONLY valid JSON — no other text, no markdown fences:
 {"predictions":[[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers]],"confidence":<integer 0-100>,"analysis":"one concise sentence"}
 
 Rules:
-- predictions: exactly 3 arrays, each with exactly ${nForecast} positive numbers (daily closing prices, oldest first)
+- predictions: exactly 3 arrays, each with exactly ${nForecast} positive numbers (${tfLabel} closing prices, oldest first)
+- Each array represents a sequence of future closing prices, one per ${unitLabel}
 - Each prediction must be a genuinely independent plausible path — vary them meaningfully, not just noise
 - Prices must be realistic and anchored to the last close of $${lastClose.toFixed(2)}
-- confidence: your 0-100 estimate of how predictable this stock is (100 = very high conviction)
-- analysis: one sentence summarising the dominant signal driving your forecast`;
+- confidence: your 0-100 estimate of how predictable this asset is at the ${tfLabel} timeframe (100 = very high conviction)
+- analysis: one sentence summarising the dominant signal driving your ${tfLabel} forecast`;
 
   const techSection = technicalsNote
-    ? `\nLast-day technical indicators:\n${technicalsNote}\n`
+    ? `\nLast-candle technical indicators (${tfLabel}):\n${technicalsNote}\n`
     : "";
 
+  const colHeader = tf === "1d" ? "Date       " : "Datetime        ";
+
   const userMessage = `Stock: ${ticker}
-Last close (${lastDate}): $${lastClose.toFixed(2)}
-Predict the next ${nForecast} trading day closing prices.
+Last close (${lastTimestamp}): $${lastClose.toFixed(2)}
+Predict the next ${nForecast} ${tfLabel} candle closing prices.
 ${techSection}
-Historical daily closing prices — ${nHistory} trading days, oldest to newest:
-Date       | Close
+Historical ${tfLabel} closing prices — ${nHistory} candles, oldest to newest:
+${colHeader}| Close
 ${priceTable}`;
 
   const msg = await anthropic.messages.create({
@@ -87,6 +120,7 @@ ${priceTable}`;
   };
 }
 
+// ── GET handler ──────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const sp          = req.nextUrl.searchParams;
   const ticker      = (sp.get("ticker")     ?? "AAPL").toUpperCase();
@@ -95,36 +129,42 @@ export async function GET(req: NextRequest) {
   const nRuns       = Math.min(10,  Math.max(1,  parseInt(sp.get("nRuns")       ?? "3")));
   const withTech    = sp.get("technicals") === "true";
 
-  try {
-    // Fetch enough calendar days to cover nHistory trading days
-    const calDays = Math.ceil(nHistory * 1.5) + 30;
-    const from    = new Date(Date.now() - calDays * 86400000);
-    const bars    = await getHistory(ticker, "1d", from);
+  // Validate timeframe
+  const rawTF = sp.get("timeframe") ?? "1d";
+  const tf: TF = (rawTF === "5m" || rawTF === "1h" || rawTF === "1d") ? rawTF : "1d";
 
-    if (bars.length < 20)
+  try {
+    // Fetch enough calendar days to cover nHistory candles
+    // e.g. for 5m (78 candles/day): 90 candles → ~2 days needed; fetch 10× buffer + 10 to be safe
+    const candlesPerDay = CANDLES_PER_DAY[tf];
+    const calDays = Math.ceil(nHistory / candlesPerDay * 1.6) + 10;
+    const from    = new Date(Date.now() - calDays * 86400000);
+
+    const yahooInterval = tf; // "5m" | "1h" | "1d" all accepted by getHistory
+    const bars = await getHistory(ticker, yahooInterval, from);
+
+    if (bars.length < 10)
       return NextResponse.json({ error: "Insufficient historical data" }, { status: 400 });
 
     const slice     = bars.slice(-nHistory);
     const closes    = slice.map(b => b.close);
     const lastClose = closes[closes.length - 1];
-    const lastDate  = new Date(slice[slice.length - 1].time * 1000).toISOString().split("T")[0];
+    const lastTimestamp = fmtTime(slice[slice.length - 1].time, tf);
 
-    // Build compact price-only table
+    // Build price table
     const priceTable = slice
-      .map(b => `${new Date(b.time * 1000).toISOString().split("T")[0]} | ${b.close.toFixed(2)}`)
+      .map(b => `${fmtTime(b.time, tf)} | ${b.close.toFixed(2)}`)
       .join("\n");
 
-    // ── optional last-bar technicals ─────────────────────────────────────────
+    // ── optional last-candle technicals ──────────────────────────────────────
     let technicalsNote = "";
-    if (withTech && closes.length >= 26) {
+    if (withTech && closes.length >= 15) {
       const lines: string[] = [];
 
       // RSI(14)
-      if (closes.length >= 15) {
-        const rsiVals = ti.RSI.calculate({ values: closes, period: 14 });
-        if (rsiVals.length > 0)
-          lines.push(`RSI(14): ${rsiVals[rsiVals.length - 1].toFixed(2)}`);
-      }
+      const rsiVals = ti.RSI.calculate({ values: closes, period: 14 });
+      if (rsiVals.length > 0)
+        lines.push(`RSI(14): ${rsiVals[rsiVals.length - 1].toFixed(2)}`);
 
       // EMA(50)
       if (closes.length >= 50) {
@@ -140,9 +180,9 @@ export async function GET(req: NextRequest) {
           lines.push(`EMA(200): ${ema200[ema200.length - 1].toFixed(2)}`);
       }
 
-      // ADX(14) — needs high/low/close
-      const highs  = slice.map(b => b.high  ?? b.close);
-      const lows   = slice.map(b => b.low   ?? b.close);
+      // ADX(14)
+      const highs = slice.map(b => b.high ?? b.close);
+      const lows  = slice.map(b => b.low  ?? b.close);
       if (closes.length >= 28) {
         const adxVals = ti.ADX.calculate({ high: highs, low: lows, close: closes, period: 14 });
         if (adxVals.length > 0) {
@@ -157,15 +197,14 @@ export async function GET(req: NextRequest) {
     // Run nRuns independent requests in parallel (each returns 3 paths → nRuns×3 total)
     const results = await Promise.all(
       Array.from({ length: nRuns }, () =>
-        runOnce(ticker, lastDate, lastClose, nForecast, priceTable, slice.length, technicalsNote)
+        runOnce(ticker, lastTimestamp, lastClose, nForecast, priceTable, slice.length, tf, technicalsNote)
       )
     );
 
     // Flatten to nRuns×3 predictions
     const allPredictions: number[][] = results.flatMap(r => r.predictions);
 
-    // Geometric mean in log-space: average log-returns from lastClose,
-    // then exponentiate back. Eliminates arithmetic upside bias.
+    // Geometric mean in log-space
     const geoMean = (group: number[][]) =>
       Array.from({ length: nForecast }, (_, i) => {
         const avgLogReturn = group.reduce(
@@ -174,26 +213,23 @@ export async function GET(req: NextRequest) {
         return lastClose * Math.exp(avgLogReturn);
       });
 
-    // Sort by final price to pick bull / bear
-    const sorted = [...allPredictions].sort(
-      (a, b) => a[a.length - 1] - b[b.length - 1]
-    );
-    const third = Math.max(1, Math.floor(sorted.length / 3));
-    const bear  = geoMean(sorted.slice(0, third));        // worst third
-    const bull  = geoMean(sorted.slice(-third));          // best third
-    const base  = geoMean(allPredictions);                // all paths
+    const sorted = [...allPredictions].sort((a, b) => a[a.length - 1] - b[b.length - 1]);
+    const third  = Math.max(1, Math.floor(sorted.length / 3));
+    const bear   = geoMean(sorted.slice(0, third));
+    const bull   = geoMean(sorted.slice(-third));
+    const base   = geoMean(allPredictions);
 
     const confidence = Math.round(
       results.reduce((s, r) => s + r.confidence, 0) / results.length
     );
 
-    // Pick the analysis from the most confident run
     const bestRun = results.reduce((best, r) =>
       r.confidence > best.confidence ? r : best
     );
 
-    const futureDates = nextTradingDays(slice[slice.length - 1].time, nForecast);
-    const historical  = bars.slice(-Math.min(nHistory, 120)).map(b => ({ time: b.time, close: b.close }));
+    const futureDates = nextCandleTimes(slice[slice.length - 1].time, nForecast, tf);
+    // Show up to 120 historical candles in the chart
+    const historical = bars.slice(-Math.min(nHistory, 120)).map(b => ({ time: b.time, close: b.close }));
 
     return NextResponse.json({
       ticker,
@@ -206,6 +242,7 @@ export async function GET(req: NextRequest) {
       analysis: bestRun.analysis,
       nHistory: slice.length,
       nForecast,
+      timeframe: tf,
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

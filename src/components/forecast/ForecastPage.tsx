@@ -21,9 +21,15 @@ interface ForecastData {
   nForecast: number;
 }
 
+type Timeframe = "5m" | "1h" | "1d";
+const TIMEFRAME_OPTS: Timeframe[] = ["5m", "1h", "1d"];
 const HISTORY_OPTS  = [30, 60, 90, 120, 252];
 const FORECAST_OPTS = [5, 10, 15, 20, 30];
 const RUNS_OPTS     = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+function tfCandleLabel(tf: Timeframe) {
+  return tf === "1d" ? "day" : tf === "1h" ? "1h candle" : "5m candle";
+}
 
 function pct(from: number, to: number) {
   const p = ((to - from) / from) * 100;
@@ -100,6 +106,35 @@ function TechnicalsToggle({ active, onChange }: { active: boolean; onChange: (v:
   );
 }
 
+// ─── timeframe pill ───────────────────────────────────────────────────────────
+function TimeframePill({ active, onChange }: { active: Timeframe; onChange: (v: Timeframe) => void }) {
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>TF</span>
+      <div className="flex rounded-lg overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        {TIMEFRAME_OPTS.map(tf => (
+          <button key={tf} onClick={() => onChange(tf)}
+            className={cn(
+              "px-2.5 py-1.5 text-[10px] font-medium font-mono tracking-wide transition-all duration-150",
+              "border-r last:border-r-0",
+              active === tf
+                ? "text-[#e0e0e8]"
+                : "text-[rgba(255,255,255,0.28)] hover:text-[rgba(255,255,255,0.55)]",
+            )}
+            style={{
+              borderColor: "rgba(255,255,255,0.06)",
+              background: active === tf ? "rgba(255,255,255,0.09)" : "transparent",
+            }}
+          >
+            {tf}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── scenario stat ─────────────────────────────────────────────────────────────
 function ScenStat({
   label, price, from, color, icon,
@@ -162,6 +197,7 @@ export default function ForecastPage() {
   const [nForecast,   setNForecast]   = useState(15);
   const [nRuns,       setNRuns]       = useState(3);
   const [technicals,  setTechnicals]  = useState(false);
+  const [timeframe,   setTimeframe]   = useState<Timeframe>("1d");
   const [loading,     setLoading]     = useState(false);
   const [data,      setData]      = useState<ForecastData | null>(null);
   const [error,     setError]     = useState<string | null>(null);
@@ -182,11 +218,11 @@ export default function ForecastPage() {
 
   // ── API ──────────────────────────────────────────────────────────────────────
   const runForecast = useCallback(async (
-    t: string, hist: number, fore: number, runs: number, tech: boolean
+    t: string, hist: number, fore: number, runs: number, tech: boolean, tf: Timeframe
   ) => {
     setLoading(true); setError(null);
     try {
-      const url = `/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}&nRuns=${runs}&technicals=${tech}`;
+      const url = `/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}&nRuns=${runs}&technicals=${tech}&timeframe=${tf}`;
       const res  = await fetch(url);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -262,7 +298,7 @@ export default function ForecastPage() {
             </button>
           );
           const runBtn = (
-            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals)} disabled={loading}
+            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe)} disabled={loading}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
               style={{
                 background: loading ? "rgba(255,255,255,0.04)" : "rgba(192,192,204,0.10)",
@@ -276,16 +312,19 @@ export default function ForecastPage() {
             </button>
           );
           const div = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
+          const histSuffix = timeframe === "1d" ? "d" : "";
           const controls = (
             <>
+              <TimeframePill active={timeframe} onChange={setTimeframe} />
+              {div}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.2)" }}>Hist</span>
-                <SegPill options={HISTORY_OPTS} active={nHistory} onChange={setNHistory} suffix="d" />
+                <SegPill options={HISTORY_OPTS} active={nHistory} onChange={setNHistory} suffix={histSuffix} />
               </div>
               {div}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.2)" }}>Fcst</span>
-                <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} suffix="d" />
+                <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} suffix={histSuffix} />
               </div>
               {div}
               <RunsStepper value={nRuns} onChange={setNRuns} />
@@ -337,11 +376,11 @@ export default function ForecastPage() {
               <div>
                 <p className="text-base font-semibold text-white/60 mb-1.5">AI Price Forecast</p>
                 <p className="text-sm text-white/20 max-w-[280px] leading-relaxed">
-                  Claude analyzes {nHistory}d of history with RSI, EMA crossover &amp; ADX
-                  to produce {nForecast}-day bear / base / bull scenarios.
+                  Claude analyzes {nHistory} {timeframe} candles{technicals ? " with RSI, EMA crossover & ADX" : ""}
+                  {" "}to produce {nForecast}-{tfCandleLabel(timeframe)} bear / base / bull scenarios.
                 </p>
               </div>
-              <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals)}
+              <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
                 style={{
                   background: "rgba(192,192,204,0.08)",
@@ -376,7 +415,8 @@ export default function ForecastPage() {
               <div className="text-center">
                 <p className="text-sm font-medium text-white/50 mb-1">Analyzing {ticker}</p>
                 <p className="text-xs text-white/20">
-                  {nHistory}d history{technicals ? " · RSI · EMA 50/200 · ADX" : ""} · {nForecast}-day outlook
+                  {timeframe === "1d" ? `${nHistory}d` : `${nHistory} × ${timeframe}`} history
+                  {technicals ? " · RSI · EMA 50/200 · ADX" : ""} · {nForecast}-{tfCandleLabel(timeframe)} outlook
                 </p>
               </div>
             </div>
@@ -387,7 +427,7 @@ export default function ForecastPage() {
         {error && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
             <p className="text-sm text-red-400/80 text-center max-w-sm">{error}</p>
-            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals)}
+            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe)}
               className="text-xs px-4 py-1.5 rounded-lg transition-all"
               style={{ color: "rgba(192,192,204,0.6)", border: "1px solid rgba(192,192,204,0.15)" }}
             >
