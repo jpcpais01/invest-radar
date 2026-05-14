@@ -88,7 +88,7 @@ export function SignalCard({ ticker }: Props) {
             <span className="text-[#ef4444]">{summary.sells + summary.strongSells} Sell</span>
           </div>
           <div className="flex flex-wrap gap-1 pt-2 border-t border-[#1e1e1e]">
-            {summary.signals.slice(0, 6).map((s) => {
+            {summary.signals.map((s) => {
               const sc = SIG_CFG[s.signal];
               return (
                 <span key={s.name} className={cn("text-[9px] px-1.5 py-0.5 rounded border", sc.text, sc.bg, sc.border)}>
