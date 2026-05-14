@@ -6,15 +6,41 @@ interface Props {
   futureDates: number[];
   lastClose: number;
   scenarios: { bear: number[]; base: number[]; bull: number[] };
+  timeframe?: string; // "5m" | "1h" | "1d"
 }
 
 // ─── margins ──────────────────────────────────────────────────────────────────
 const M = { top: 28, right: 72, bottom: 36, left: 16 };
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-function fmtDate(ts: number) {
+const isIntraday = (tf: string) => tf === "5m" || tf === "1h";
+
+function fmtDateShort(ts: number) {
   return new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+/** UTC HH:MM string */
+function fmtUTCTime(ts: number) {
+  const d = new Date(ts * 1000);
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+/**
+ * X-axis tick label.
+ * - daily: "Jan 15"
+ * - intraday: "HH:MM" on same-day ticks; "Jan 15" on day-boundary ticks.
+ */
+function fmtXTick(ts: number, tf: string, prevTs: number | null): string {
+  if (!isIntraday(tf)) return fmtDateShort(ts);
+  if (prevTs !== null) {
+    const sameDay =
+      new Date(ts * 1000).toISOString().slice(0, 10) ===
+      new Date(prevTs * 1000).toISOString().slice(0, 10);
+    if (!sameDay) return fmtDateShort(ts);
+  }
+  return fmtUTCTime(ts);
+}
+
 function fmtPrice(p: number) {
   if (p >= 10000) return `$${(p / 1000).toFixed(1)}k`;
   if (p >= 1000)  return `$${p.toFixed(0)}`;
@@ -44,7 +70,7 @@ function evenIdxs(total: number, n: number): number[] {
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
-export default function ForecastChart({ historical, futureDates, lastClose, scenarios }: Props) {
+export default function ForecastChart({ historical, futureDates, lastClose, scenarios, timeframe = "1d" }: Props) {
   const uid      = useId().replace(/:/g, "");
   const wrapRef  = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -134,12 +160,15 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mouseX, allTimes, cW]);
 
-  // tooltip positioning: keep inside chart
-  const tipW = 96, tipH = crosshair?.bull !== null ? 80 : 36;
-  const tipX = crosshair
+  // tooltip sizing — intraday adds a time row under the date
+  const intra   = isIntraday(timeframe);
+  const tipW    = intra ? 108 : 96;
+  const headerH = intra ? 40 : 24;   // space for date + optional time line
+  const tipH    = crosshair?.bull !== null ? headerH + 56 : headerH + 14;
+  const tipX    = crosshair
     ? (crosshair.x + tipW + 16 > w - M.right ? crosshair.x - tipW - 8 : crosshair.x + 12)
     : 0;
-  const tipY = M.top + 12;
+  const tipY    = M.top + 12;
 
   return (
     <div ref={wrapRef} className="w-full h-full" style={{ background: "#080808" }}>
@@ -204,7 +233,7 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
             fontFamily="'Inter','ui-sans-serif',sans-serif"
             textAnchor="middle"
           >
-            {fmtDate(ts)}
+            {fmtXTick(ts, timeframe, i > 0 ? xTicks[i - 1] : null)}
           </text>
         ))}
 
@@ -311,48 +340,70 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
             })()}
 
             {/* glass tooltip */}
-            <g transform={`translate(${tipX.toFixed(2)},${tipY})`}>
-              <rect
-                x="0" y="0" rx="8" ry="8"
-                width={tipW} height={tipH}
-                fill="rgba(10,10,12,0.82)"
-                stroke="rgba(255,255,255,0.07)" strokeWidth="1"
-              />
-              {/* date label */}
-              <text x="10" y="17" fill="rgba(255,255,255,0.30)" fontSize="9.5"
-                fontFamily="'Inter','ui-sans-serif',sans-serif">
-                {fmtDate(crosshair.time)}
-              </text>
+            {(() => {
+              // price rows start after the header block
+              const p1y = headerH + 2;   // first price row
+              const p2y = p1y + 18;
+              const p3y = p2y + 18;
+              return (
+                <g transform={`translate(${tipX.toFixed(2)},${tipY})`}>
+                  <rect
+                    x="0" y="0" rx="8" ry="8"
+                    width={tipW} height={tipH}
+                    fill="rgba(10,10,12,0.82)"
+                    stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+                  />
 
-              {/* historical price */}
-              {crosshair.histPrice !== null && (
-                <text x="10" y="34" fill="rgba(192,192,204,0.85)" fontSize="11"
-                  fontWeight="500"
-                  fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                  {fmtPrice(crosshair.histPrice)}
-                </text>
-              )}
+                  {/* date line — always shown, slightly dim */}
+                  <text x="10" y="15" fill="rgba(255,255,255,0.28)" fontSize="9"
+                    fontFamily="'Inter','ui-sans-serif',sans-serif">
+                    {fmtDateShort(crosshair.time)}
+                  </text>
 
-              {/* scenario prices */}
-              {crosshair.bull !== null && (
-                <text x="10" y="34" fill="rgba(34,197,94,0.85)" fontSize="10"
-                  fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                  ↑ {fmtPrice(crosshair.bull)}
-                </text>
-              )}
-              {crosshair.base !== null && (
-                <text x="10" y="52" fill="rgba(192,192,204,0.85)" fontSize="10"
-                  fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                  — {fmtPrice(crosshair.base)}
-                </text>
-              )}
-              {crosshair.bear !== null && (
-                <text x="10" y="70" fill="rgba(239,68,68,0.85)" fontSize="10"
-                  fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                  ↓ {fmtPrice(crosshair.bear)}
-                </text>
-              )}
-            </g>
+                  {/* time line — intraday only, brighter */}
+                  {intra && (
+                    <text x="10" y="30" fill="rgba(255,255,255,0.70)" fontSize="12"
+                      fontWeight="500"
+                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
+                      {fmtUTCTime(crosshair.time)}
+                    </text>
+                  )}
+
+                  {/* thin separator between header and prices */}
+                  <line x1="10" y1={headerH - 4} x2={tipW - 10} y2={headerH - 4}
+                    stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+
+                  {/* historical price */}
+                  {crosshair.histPrice !== null && (
+                    <text x="10" y={p1y} fill="rgba(192,192,204,0.85)" fontSize="11"
+                      fontWeight="500"
+                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
+                      {fmtPrice(crosshair.histPrice)}
+                    </text>
+                  )}
+
+                  {/* scenario prices */}
+                  {crosshair.bull !== null && (
+                    <text x="10" y={p1y} fill="rgba(34,197,94,0.85)" fontSize="10"
+                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
+                      ↑ {fmtPrice(crosshair.bull)}
+                    </text>
+                  )}
+                  {crosshair.base !== null && (
+                    <text x="10" y={p2y} fill="rgba(192,192,204,0.85)" fontSize="10"
+                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
+                      — {fmtPrice(crosshair.base)}
+                    </text>
+                  )}
+                  {crosshair.bear !== null && (
+                    <text x="10" y={p3y} fill="rgba(239,68,68,0.85)" fontSize="10"
+                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
+                      ↓ {fmtPrice(crosshair.bear)}
+                    </text>
+                  )}
+                </g>
+              );
+            })()}
           </>
         )}
       </svg>}

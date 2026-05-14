@@ -19,6 +19,7 @@ interface ForecastData {
   analysis: string;
   nHistory: number;
   nForecast: number;
+  timeframe?: Timeframe;
 }
 
 type Timeframe = "5m" | "1h" | "1d";
@@ -444,6 +445,7 @@ export default function ForecastPage() {
               futureDates={data.futureDates}
               lastClose={data.lastClose}
               scenarios={data.scenarios}
+              timeframe={data.timeframe ?? timeframe}
             />
           </div>
         )}
