@@ -110,15 +110,15 @@ You think in terms of conviction. When the chart screams a setup, you lean into 
 
 You operate on a ${tfLabel} chart, so you think exactly like a ${tfLabel} trader. Every candle matters. The sequence has a story — read it, commit to a view, and price it in.
 
-Produce 3 independent price path predictions for the next ${nForecast} ${tfLabel} candles.
+Produce 5 independent price path predictions for the next ${nForecast} ${tfLabel} candles.
 
 Output ONLY valid JSON — no other text, no markdown fences:
-{"predictions":[[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers]],"confidence":<integer 0-100>,"analysis":"one bold sentence"}
+{"predictions":[[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers]],"confidence":<integer 0-100>,"analysis":"one bold sentence"}
 
 Rules:
-- predictions: exactly 3 arrays, each with exactly ${nForecast} positive numbers (${tfLabel} closing prices, oldest first)
-- Each path is a fully independent forecast — do NOT label or think of them as bull/base/bear. Run the analysis 3 separate times from first principles, as if each were your only prediction.
-- The 3 paths must be genuinely different from each other in direction, magnitude, AND shape. Paths that are nearly identical or that just add small noise to each other are a failure — if your read on the chart supports a strong move, at least one path should commit to that move hard.
+- predictions: exactly 5 arrays, each with exactly ${nForecast} positive numbers (${tfLabel} closing prices, oldest first)
+- Each path is a fully independent forecast. Run the analysis 5 separate times from first principles, as if each were your only prediction.
+- The 5 paths must be genuinely different from each other in direction, magnitude, AND shape. Paths that are nearly identical or that just add small noise to each other are a failure — if your read on the chart supports a strong move, at least one path should commit to that move hard.
 - Flat lines and tiny wiggles around the last close are a failure. Every path must express a real view.
 - Prices anchor to last close $${lastClose.toFixed(2)} and stay physically realistic for the ${tfLabel} timeframe — but push the envelope where the data justifies it
 - confidence: 0-100 conviction. Do not cluster near 50 out of cowardice. If the setup is clear, say 70-85. If it is genuinely murky, say 30-45. Own your read.
@@ -140,7 +140,7 @@ ${priceTable}`;
 
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 512,
+    max_tokens: 1024,
     thinking: { type: "disabled" },
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }],
@@ -298,7 +298,7 @@ export async function GET(req: NextRequest) {
       )
     );
 
-    // Flatten to nRuns×3 predictions
+    // Flatten to nRuns×5 predictions
     const allPredictions: number[][] = results.flatMap(r => r.predictions);
 
     // Geometric mean in log-space
@@ -310,11 +310,11 @@ export async function GET(req: NextRequest) {
         return lastClose * Math.exp(avgLogReturn);
       });
 
+    // Sort all paths by their final price; bull = geo-mean of top 2, bear = geo-mean of bottom 2
     const sorted = [...allPredictions].sort((a, b) => a[a.length - 1] - b[b.length - 1]);
-    const third  = Math.max(1, Math.floor(sorted.length / 3));
-    const bear   = geoMean(sorted.slice(0, third), effectiveForecast);
-    const bull   = geoMean(sorted.slice(-third),   effectiveForecast);
-    const base   = geoMean(allPredictions,          effectiveForecast);
+    const bear   = geoMean(sorted.slice(0, 2),  effectiveForecast);
+    const bull   = geoMean(sorted.slice(-2),     effectiveForecast);
+    const base   = geoMean(allPredictions,        effectiveForecast);
 
     // ── confidence from ensemble spread ─────────────────────────────────────
     // Measure how tightly the nRuns×3 final prices agree with each other.
