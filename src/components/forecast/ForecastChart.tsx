@@ -21,19 +21,19 @@ const isIntraday = (tf: string) => tf === "5m" || tf === "1h";
 function fmtDateShort(ts: number) {
   return new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-function fmtUTCTime(ts: number) {
+function fmtLocalTime(ts: number) {
   const d = new Date(ts * 1000);
-  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function localDateKey(ts: number) {
+  const d = new Date(ts * 1000);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 function fmtXTick(ts: number, tf: string, prevTs: number | null): string {
   if (!isIntraday(tf)) return fmtDateShort(ts);
-  if (prevTs !== null) {
-    const sameDay =
-      new Date(ts * 1000).toISOString().slice(0, 10) ===
-      new Date(prevTs * 1000).toISOString().slice(0, 10);
-    if (!sameDay) return fmtDateShort(ts);
-  }
-  return fmtUTCTime(ts);
+  if (prevTs !== null && localDateKey(ts) !== localDateKey(prevTs))
+    return fmtDateShort(ts);
+  return fmtLocalTime(ts);
 }
 function fmtPrice(p: number) {
   if (p >= 10000) return `$${(p / 1000).toFixed(1)}k`;
@@ -445,7 +445,7 @@ export default function ForecastChart({
                     <text x="10" y="30" fill="rgba(255,255,255,0.70)" fontSize="12"
                       fontWeight="500"
                       fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                      {fmtUTCTime(crosshair.time)}
+                      {fmtLocalTime(crosshair.time)}
                     </text>
                   )}
 
