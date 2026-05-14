@@ -15,6 +15,94 @@ const SIGNAL_CONFIG = {
   "strong-sell": { label: "Strong Sell",  cls: "text-[#dc2626] border-[#dc262644] bg-[#dc26260a]", dot: "#dc2626" },
 };
 
+// ── Background sparkline ────────────────────────────────────────────────────
+function SparklineBg({ bars, isUp, id }: { bars: OHLCVBar[]; isUp: boolean; id: string }) {
+  if (bars.length < 2) return null;
+
+  const closes = bars.map(b => b.close);
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+
+  const W = 1000;
+  const H = 280;
+  // Keep the line in the lower 55% of the card so it breathes under the text
+  const yTop = H * 0.30;
+  const yBot = H * 0.92;
+
+  const pts = closes.map((c, i) => ({
+    x: (i / (closes.length - 1)) * W,
+    y: yTop + (1 - (c - min) / range) * (yBot - yTop),
+  }));
+
+  // Smooth polyline via cubic bezier control points
+  const linePath = pts.reduce((acc, { x, y }, i) => {
+    if (i === 0) return `M ${x.toFixed(1)} ${y.toFixed(1)}`;
+    const prev = pts[i - 1];
+    const cx = (prev.x + x) / 2;
+    return `${acc} C ${cx.toFixed(1)} ${prev.y.toFixed(1)}, ${cx.toFixed(1)} ${y.toFixed(1)}, ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }, "");
+
+  const areaPath = `${linePath} L ${W} ${H} L 0 ${H} Z`;
+
+  const color = isUp ? "#c0c0cc" : "#ef4444";
+  const fillId  = `sf-fill-${id}`;
+  const maskId  = `sf-mask-${id}`;
+  const edgeId  = `sf-edge-${id}`;
+
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none select-none"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <defs>
+        {/* Vertical fill gradient */}
+        <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.13" />
+          <stop offset="100%" stopColor={color} stopOpacity="0"    />
+        </linearGradient>
+        {/* Horizontal edge-fade gradient for mask */}
+        <linearGradient id={edgeId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="#fff" stopOpacity="0"   />
+          <stop offset="18%"  stopColor="#fff" stopOpacity="1"   />
+          <stop offset="82%"  stopColor="#fff" stopOpacity="1"   />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0"   />
+        </linearGradient>
+        <mask id={maskId}>
+          <rect width={W} height={H} fill={`url(#${edgeId})`} />
+        </mask>
+      </defs>
+
+      <g mask={`url(#${maskId})`}>
+        {/* Area fill */}
+        <path d={areaPath} fill={`url(#${fillId})`} />
+        {/* Line */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeOpacity="0.30"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Subtle glow duplicate at lower opacity */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke={color}
+          strokeWidth="4"
+          strokeOpacity="0.06"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+    </svg>
+  );
+}
+
 export default function PriceHero({ ticker }: Props) {
   const { data: quote } = useQuery({
     queryKey: ["quote", ticker],
@@ -51,8 +139,13 @@ export default function PriceHero({ ticker }: Props) {
         boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset",
       }}
     >
+      {/* ── Background sparkline ─────────────────────────────────────────── */}
+      {indData?.bars && (
+        <SparklineBg bars={indData.bars} isUp={isUp} id={ticker} />
+      )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+      {/* ── Foreground content ───────────────────────────────────────────── */}
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
         <div>
           <div className="flex items-center gap-3 mb-1.5">
             <span className="text-3xl sm:text-4xl font-bold tracking-tight text-[#f0f0f0] font-mono">{ticker}</span>
@@ -95,7 +188,7 @@ export default function PriceHero({ ticker }: Props) {
         </div>
       </div>
 
-      {/* Signal strip */}
+      {/* ── Signal strip ─────────────────────────────────────────────────── */}
       {indData?.indicators && price && (() => {
         const s = computeSignalSummary(indData.indicators, price);
         const total = s.strongBuys + s.buys + s.neutrals + s.sells + s.strongSells;
@@ -103,7 +196,7 @@ export default function PriceHero({ ticker }: Props) {
         const pctNeu = total ? (s.neutrals / total) * 100 : 0;
         const pctSel = total ? ((s.sells + s.strongSells) / total) * 100 : 0;
         return (
-          <div className="mt-5 pt-4 border-t border-[#1e1e1e] flex items-center gap-4">
+          <div className="relative z-10 mt-5 pt-4 border-t border-[#1e1e1e] flex items-center gap-4">
             <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#161616]">
               <div className="h-full flex">
                 <div className="bg-[#d8d8e4]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
