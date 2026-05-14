@@ -1,18 +1,11 @@
-export const runtime = "nodejs";
+export const runtime    = "nodejs";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getHistory } from "@/lib/market/yahoo";
-import * as ti from "technicalindicators";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-function padLeft(arr: number[], targetLen: number): number[] {
-  const pad = targetLen - arr.length;
-  if (pad <= 0) return arr;
-  return [...Array(pad).fill(NaN), ...arr];
-}
 
 function nextTradingDays(fromSec: number, n: number): number[] {
   const days: number[] = [];
@@ -25,146 +18,138 @@ function nextTradingDays(fromSec: number, n: number): number[] {
   return days;
 }
 
-function fmt(n: number, dec = 2): string {
-  return isNaN(n) ? "-   " : n.toFixed(dec);
-}
+interface RunResult { predictions: number[][]; confidence: number; analysis: string }
 
-export async function GET(req: NextRequest) {
-  const sp = req.nextUrl.searchParams;
-  const ticker   = (sp.get("ticker")    ?? "AAPL").toUpperCase();
-  const nHistory  = Math.min(252, Math.max(30,  parseInt(sp.get("nHistory")  ?? "90")));
-  const nForecast = Math.min(30,  Math.max(3,   parseInt(sp.get("nForecast") ?? "15")));
-
-  try {
-    // Fetch enough calendar days to cover nHistory trading days + warm-up for EMA-200
-    const calDays = Math.ceil(Math.max(nHistory, 200) * 1.5) + 30;
-    const from = new Date(Date.now() - calDays * 86400000);
-    const bars = await getHistory(ticker, "1d", from);
-
-    if (bars.length < 20) {
-      return NextResponse.json({ error: "Insufficient historical data" }, { status: 400 });
-    }
-
-    // Use last nHistory bars for the prompt; keep extra bars for EMA-200 warm-up
-    const allCloses = bars.map(b => b.close);
-    const allHighs  = bars.map(b => b.high);
-    const allLows   = bars.map(b => b.low);
-    const N = bars.length;
-
-    // Compute indicators over full bar set, then slice last nHistory
-    const rsiRaw  = padLeft(ti.RSI.calculate({ period: 14, values: allCloses }), N);
-    const ema50Raw = padLeft(
-      allCloses.length >= 50 ? ti.EMA.calculate({ period: 50, values: allCloses }) : [],
-      N
-    );
-    const ema200Raw = padLeft(
-      allCloses.length >= 200 ? ti.EMA.calculate({ period: 200, values: allCloses }) : [],
-      N
-    );
-    const adxRaw = padLeft(
-      (ti.ADX.calculate({ close: allCloses, high: allHighs, low: allLows, period: 14 }) as { adx: number }[]).map(r => r.adx),
-      N
-    );
-
-    // Slice to the requested window for the prompt
-    const slice    = bars.slice(-nHistory);
-    const rsi      = rsiRaw.slice(-nHistory);
-    const ema50    = ema50Raw.slice(-nHistory);
-    const ema200   = ema200Raw.slice(-nHistory);
-    const adx      = adxRaw.slice(-nHistory);
-
-    const lastClose = slice[slice.length - 1].close;
-    const lastDate  = new Date(slice[slice.length - 1].time * 1000).toISOString().split("T")[0];
-
-    // Build compact data table
-    const header = "Date       | Close    | RSI(14) | EMA(50)  | EMA(200) | ADX(14) | MA Trend";
-    const rows = slice.map((bar, i) => {
-      const date  = new Date(bar.time * 1000).toISOString().split("T")[0];
-      const trend = !isNaN(ema50[i]) && !isNaN(ema200[i])
-        ? ema50[i] > ema200[i] ? "Bull" : "Bear"
-        : "  - ";
-      return `${date} | ${fmt(bar.close)} | ${fmt(rsi[i], 1).padEnd(7)} | ${fmt(ema50[i]).padEnd(8)} | ${fmt(ema200[i]).padEnd(8)} | ${fmt(adx[i], 1).padEnd(7)} | ${trend}`;
-    });
-
-    const systemPrompt = `You are a quantitative price forecasting model. Analyze daily price history and technical indicators, then produce 5 independent price predictions.
+async function runOnce(
+  ticker: string,
+  lastDate: string,
+  lastClose: number,
+  nForecast: number,
+  priceTable: string,
+  nHistory: number,
+): Promise<RunResult> {
+  const systemPrompt = `You are a quantitative price forecasting model. Analyze the daily closing price history and produce 3 independent price predictions.
 
 Output ONLY valid JSON — no other text, no markdown fences:
-{"predictions":[[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers]],"confidence":<integer 0-100>,"analysis":"one concise sentence"}
+{"predictions":[[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers]],"confidence":<integer 0-100>,"analysis":"one concise sentence"}
 
 Rules:
-- predictions: exactly 5 arrays, each with exactly ${nForecast} positive numbers (daily closing prices, oldest first)
-- Each prediction is an independent plausible path — vary them meaningfully, not just noise around a single line
+- predictions: exactly 3 arrays, each with exactly ${nForecast} positive numbers (daily closing prices, oldest first)
+- Each prediction must be a genuinely independent plausible path — vary them meaningfully, not just noise
 - Prices must be realistic and anchored to the last close of $${lastClose.toFixed(2)}
-- confidence: your 0-100 estimate of how predictable this stock is given the data (100 = very high conviction)
+- confidence: your 0-100 estimate of how predictable this stock is (100 = very high conviction)
 - analysis: one sentence summarising the dominant signal driving your forecast`;
 
-    const userMessage = `Stock: ${ticker}
+  const userMessage = `Stock: ${ticker}
 Last close (${lastDate}): $${lastClose.toFixed(2)}
 Predict the next ${nForecast} trading day closing prices.
 
-Historical data — ${slice.length} trading days, oldest to newest:
-${header}
-${rows.join("\n")}`;
+Historical daily closing prices — ${nHistory} trading days, oldest to newest:
+Date       | Close
+${priceTable}`;
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
-      thinking: { type: "disabled" },
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    });
+  const msg = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 512,
+    thinking: { type: "disabled" },
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+  });
 
-    const raw = message.content[0].type === "text" ? message.content[0].text : "";
+  const raw   = msg.content[0].type === "text" ? msg.content[0].text : "";
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error(`No JSON in response: ${raw.slice(0, 200)}`);
 
-    // Extract JSON object from response
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error(`No JSON in response: ${raw.slice(0, 200)}`);
+  const parsed = JSON.parse(match[0]) as {
+    predictions?: unknown; confidence?: unknown; analysis?: string;
+  };
 
-    const parsed = JSON.parse(match[0]) as {
-      predictions?: unknown; confidence?: unknown; analysis?: string;
-    };
+  const normalize = (arr: unknown): number[] => {
+    if (!Array.isArray(arr)) throw new Error("Prediction not an array");
+    const nums = arr.map(Number).filter(x => isFinite(x) && x > 0);
+    while (nums.length < nForecast) nums.push(nums[nums.length - 1] ?? lastClose);
+    return nums.slice(0, nForecast);
+  };
 
-    const normalizePrediction = (arr: unknown): number[] => {
-      if (!Array.isArray(arr)) throw new Error("Prediction is not an array");
-      const nums = arr.map(Number).filter(x => isFinite(x) && x > 0);
-      while (nums.length < nForecast) nums.push(nums[nums.length - 1] ?? lastClose);
-      return nums.slice(0, nForecast);
-    };
+  if (!Array.isArray(parsed.predictions) || parsed.predictions.length === 0)
+    throw new Error("No predictions in response");
 
-    if (!Array.isArray(parsed.predictions) || parsed.predictions.length === 0) {
-      throw new Error("No predictions array in response");
-    }
+  return {
+    predictions: (parsed.predictions as unknown[]).map(normalize),
+    confidence:  Math.min(100, Math.max(0, Math.round(Number(parsed.confidence) || 50))),
+    analysis:    typeof parsed.analysis === "string" ? parsed.analysis : "",
+  };
+}
 
-    const predictions: number[][] = parsed.predictions.map(normalizePrediction);
+export async function GET(req: NextRequest) {
+  const sp        = req.nextUrl.searchParams;
+  const ticker    = (sp.get("ticker")   ?? "AAPL").toUpperCase();
+  const nHistory  = Math.min(252, Math.max(30, parseInt(sp.get("nHistory")  ?? "90")));
+  const nForecast = Math.min(30,  Math.max(3,  parseInt(sp.get("nForecast") ?? "15")));
 
-    // Derive bear / base / bull from the 5 predictions
-    // - bull: element-wise average of the 2 highest-final-price predictions
-    // - bear: element-wise average of the 2 lowest-final-price predictions
-    // - base: element-wise average of all 5
-    const byFinalPrice = [...predictions].sort((a, b) => a[a.length - 1] - b[b.length - 1]);
+  try {
+    // Fetch enough calendar days to cover nHistory trading days
+    const calDays = Math.ceil(nHistory * 1.5) + 30;
+    const from    = new Date(Date.now() - calDays * 86400000);
+    const bars    = await getHistory(ticker, "1d", from);
+
+    if (bars.length < 20)
+      return NextResponse.json({ error: "Insufficient historical data" }, { status: 400 });
+
+    const slice     = bars.slice(-nHistory);
+    const lastClose = slice[slice.length - 1].close;
+    const lastDate  = new Date(slice[slice.length - 1].time * 1000).toISOString().split("T")[0];
+
+    // Build compact price-only table
+    const priceTable = slice
+      .map(b => `${new Date(b.time * 1000).toISOString().split("T")[0]} | ${b.close.toFixed(2)}`)
+      .join("\n");
+
+    // Run 3 independent requests in parallel
+    const results = await Promise.all([
+      runOnce(ticker, lastDate, lastClose, nForecast, priceTable, slice.length),
+      runOnce(ticker, lastDate, lastClose, nForecast, priceTable, slice.length),
+      runOnce(ticker, lastDate, lastClose, nForecast, priceTable, slice.length),
+    ]);
+
+    // Flatten to 9 predictions
+    const allPredictions: number[][] = results.flatMap(r => r.predictions);
+
+    // Element-wise average helper
     const avg = (group: number[][]) =>
       Array.from({ length: nForecast }, (_, i) =>
         group.reduce((sum, p) => sum + p[i], 0) / group.length
       );
-    const bear = avg(byFinalPrice.slice(0, 2));
-    const bull = avg(byFinalPrice.slice(-2));
-    const base = avg(predictions);
 
-    const confidence = Math.min(100, Math.max(0, Math.round(Number(parsed.confidence) || 50)));
+    // Sort by final price to pick bull / bear
+    const sorted = [...allPredictions].sort(
+      (a, b) => a[a.length - 1] - b[b.length - 1]
+    );
+    const bear = avg(sorted.slice(0, 3));   // worst 3
+    const bull = avg(sorted.slice(-3));      // best 3
+    const base = avg(allPredictions);        // all 9
+
+    const confidence = Math.round(
+      results.reduce((s, r) => s + r.confidence, 0) / results.length
+    );
+
+    // Pick the analysis from the most confident run
+    const bestRun = results.reduce((best, r) =>
+      r.confidence > best.confidence ? r : best
+    );
 
     const futureDates = nextTradingDays(slice[slice.length - 1].time, nForecast);
-    // Return last 120 historical bars for the chart
-    const historical = bars.slice(-Math.min(nHistory, 120)).map(b => ({ time: b.time, close: b.close }));
+    const historical  = bars.slice(-Math.min(nHistory, 120)).map(b => ({ time: b.time, close: b.close }));
 
     return NextResponse.json({
       ticker,
       historical,
       lastClose,
       futureDates,
-      predictions,
+      predictions: allPredictions,
       scenarios: { bear, base, bull },
       confidence,
-      analysis: typeof parsed.analysis === "string" ? parsed.analysis : "",
+      analysis: bestRun.analysis,
       nHistory: slice.length,
       nForecast,
     });
