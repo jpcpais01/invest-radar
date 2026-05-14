@@ -80,9 +80,7 @@ function InputModal({
 }
 
 const PRESETS: { id: PresetLayout; label: string; desc: string }[] = [
-  { id: "overview",  label: "Overview",   desc: "Price + sentiment" },
-  { id: "options",   label: "Options",    desc: "Chain + greeks" },
-  { id: "technical", label: "Technical",  desc: "Full indicator set" },
+  { id: "overview", label: "Overview", desc: "Default layout" },
 ];
 
 function WatchlistItem({ ticker, isActive, onSelect, onRemove }: {

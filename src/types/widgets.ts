@@ -43,7 +43,7 @@ export interface WidgetConfig {
   minH?: number;
 }
 
-export type PresetLayout = "overview" | "options" | "technical";
+export type PresetLayout = "overview";
 
 export const WIDGET_CATALOG: { type: WidgetType; title: string; defaultW: number; defaultH: number }[] = [
   { type: "candlestick", title: "Price Chart", defaultW: 8, defaultH: 6 },

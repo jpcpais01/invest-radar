@@ -3,42 +3,19 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { WidgetConfig, PresetLayout } from "@/types/widgets";
 
-// Grid: 24 cols, containerPadding=[0,0], margin=[6,6]
-// rowHeight is set dynamically in WidgetCanvas to equal colWidth:
-//   colWidth = rowHeight = (canvasInnerWidth - 6 * (24-1)) / 24
-// At a ~1500px inner canvas that gives ~56px per unit.
-// h=5 → ~280px tall,  h=3 → ~168px tall,  w=16 → ~896px wide.
 const OVERVIEW_LAYOUT: WidgetConfig[] = [
-  { id: "chart",      type: "candlestick", title: "Price Chart",      i: "chart",      x: 0,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "rsi",        type: "rsi",         title: "RSI (14)",          i: "rsi",        x: 8,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "stochastic", type: "stochastic",  title: "Stochastic (14,3)", i: "stochastic", x: 16, y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "metrics",    type: "key-metrics", title: "Key Metrics",       i: "metrics",    x: 0,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "news",       type: "news-feed",   title: "News Feed",         i: "news",       x: 8,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "earnings",   type: "earnings",    title: "Earnings",          i: "earnings",   x: 16, y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-];
-
-const OPTIONS_LAYOUT: WidgetConfig[] = [
-  { id: "chart",         type: "candlestick",    title: "Price Chart",      i: "chart",         x: 0,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "iv-rank",       type: "iv-rank",        title: "IV Rank",          i: "iv-rank",       x: 8,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "pcr",           type: "put-call-ratio", title: "Put/Call Ratio",   i: "pcr",           x: 16, y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "options-chain", type: "options-chain",  title: "Options Chain",    i: "options-chain", x: 0,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "max-pain",      type: "max-pain",       title: "Max Pain",         i: "max-pain",      x: 8,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "prob-cone",     type: "prob-cone",      title: "Probability Cone", i: "prob-cone",     x: 16, y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-];
-
-const TECHNICAL_LAYOUT: WidgetConfig[] = [
-  { id: "chart",     type: "candlestick",    title: "Price Chart",     i: "chart",     x: 0,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "rsi",       type: "rsi",            title: "RSI",             i: "rsi",       x: 8,  y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "macd",      type: "macd",           title: "MACD",            i: "macd",      x: 16, y: 0, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "bollinger", type: "bollinger",      title: "Bollinger Bands", i: "bollinger", x: 0,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "ema",       type: "ema",            title: "EMA Panel",       i: "ema",       x: 8,  y: 8, w: 8, h: 8, minW: 1, minH: 1 },
-  { id: "signal",    type: "signal-summary", title: "Signal Summary",  i: "signal",    x: 16, y: 8, w: 8, h: 8, minW: 1, minH: 1 },
+  { id: "candlestick-1778720998541",    type: "candlestick",        title: "Price Chart",           i: "candlestick-1778720998541",    x: 0,  y: 0, w: 10, h: 8, minW: 1, minH: 1 },
+  { id: "quality-score-1778721005237",  type: "quality-score",      title: "Quality Score",         i: "quality-score-1778721005237",  x: 10, y: 0, w: 4,  h: 8, minW: 1, minH: 1 },
+  { id: "price-prediction-1778721007613", type: "price-prediction", title: "AI Price Prediction",   i: "price-prediction-1778721007613", x: 14, y: 0, w: 10, h: 8, minW: 1, minH: 1 },
+  { id: "key-metrics-1778721127101",    type: "key-metrics",        title: "Key Metrics",           i: "key-metrics-1778721127101",    x: 0,  y: 8, w: 4,  h: 8, minW: 1, minH: 1 },
+  { id: "valuation-context-1778721042221", type: "valuation-context", title: "Valuation Context",  i: "valuation-context-1778721042221", x: 4, y: 8, w: 5,  h: 8, minW: 1, minH: 1 },
+  { id: "conviction-tracker-1778721081253", type: "conviction-tracker", title: "Management Conviction", i: "conviction-tracker-1778721081253", x: 9, y: 8, w: 5, h: 8, minW: 1, minH: 1 },
+  { id: "earnings-1778721033269",       type: "earnings",           title: "Earnings",              i: "earnings-1778721033269",       x: 14, y: 8, w: 5,  h: 8, minW: 1, minH: 1 },
+  { id: "news-feed-1778721068149",      type: "news-feed",          title: "News Feed",             i: "news-feed-1778721068149",      x: 19, y: 8, w: 5,  h: 8, minW: 1, minH: 1 },
 ];
 
 export const PRESET_LAYOUTS: Record<PresetLayout, WidgetConfig[]> = {
-  overview:  OVERVIEW_LAYOUT,
-  options:   OPTIONS_LAYOUT,
-  technical: TECHNICAL_LAYOUT,
+  overview: OVERVIEW_LAYOUT,
 };
 
 export interface CustomLayout {
@@ -143,6 +120,6 @@ export const useLayoutStore = create<LayoutState>()(
           customLayouts: s.customLayouts.map((l) => l.id === id ? { ...l, name } : l),
         })),
     }),
-    { name: "investradar-layout-v11" }
+    { name: "investradar-layout-v12" }
   )
 );
