@@ -188,31 +188,6 @@ export default function PriceHero({ ticker }: Props) {
         </div>
       </div>
 
-      {/* ── Signal strip ─────────────────────────────────────────────────── */}
-      {indData?.indicators && price && (() => {
-        const s = computeSignalSummary(indData.indicators, price);
-        const total = s.strongBuys + s.buys + s.neutrals + s.sells + s.strongSells;
-        const pctBuy = total ? ((s.strongBuys + s.buys) / total) * 100 : 0;
-        const pctNeu = total ? (s.neutrals / total) * 100 : 0;
-        const pctSel = total ? ((s.sells + s.strongSells) / total) * 100 : 0;
-        return (
-          <div className="relative z-10 mt-5 pt-4 border-t border-[#1e1e1e] flex items-center gap-4">
-            <div className="flex-1 h-1 rounded-full overflow-hidden bg-[#161616]">
-              <div className="h-full flex">
-                <div className="bg-[#d8d8e4]" style={{ width: `${pctBuy * (s.strongBuys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#c0c0cc]" style={{ width: `${pctBuy * (s.buys / (s.strongBuys + s.buys || 1))}%` }} />
-                <div className="bg-[#252525]" style={{ width: `${pctNeu}%` }} />
-                <div className="bg-[#ef4444]" style={{ width: `${pctSel}%` }} />
-              </div>
-            </div>
-            <div className="flex items-center gap-4 text-[11px] shrink-0">
-              <span className="text-[#c0c0cc] font-medium">{s.strongBuys + s.buys} Buy</span>
-              <span className="text-[#3a3a3a]">{s.neutrals} Neutral</span>
-              <span className="text-[#ef4444] font-medium">{s.sells + s.strongSells} Sell</span>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
