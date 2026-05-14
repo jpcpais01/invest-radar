@@ -111,6 +111,22 @@ function TechnicalsToggle({ active, onChange }: { active: boolean; onChange: (v:
   );
 }
 
+// ─── thinking toggle ──────────────────────────────────────────────────────────
+function ThinkingToggle({ active, onChange }: { active: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button onClick={() => onChange(!active)}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium tracking-wide transition-all shrink-0"
+      style={{
+        background: active ? "rgba(139,92,246,0.14)" : "rgba(255,255,255,0.04)",
+        border: `1px solid ${active ? "rgba(167,139,250,0.40)" : "rgba(255,255,255,0.07)"}`,
+        color: active ? "rgba(196,181,253,0.95)" : "rgba(255,255,255,0.28)",
+      }}
+    >
+      Thinking
+    </button>
+  );
+}
+
 // ─── backtest toggle ──────────────────────────────────────────────────────────
 function BacktestToggle({ active, onChange }: { active: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -248,6 +264,7 @@ export default function ForecastPage() {
   const [nRuns,       setNRuns]       = useState(5);
   const [technicals,  setTechnicals]  = useState(true);
   const [timeframe,   setTimeframe]   = useState<Timeframe>("1d");
+  const [thinking,    setThinking]    = useState(false);
   const [backtest,    setBacktest]    = useState(false);
   const [rewind,      setRewind]      = useState(30);
   const [loading,     setLoading]     = useState(false);
@@ -271,11 +288,11 @@ export default function ForecastPage() {
   // ── API ──────────────────────────────────────────────────────────────────────
   const runForecast = useCallback(async (
     t: string, hist: number, fore: number, runs: number, tech: boolean, tf: Timeframe,
-    bt: boolean, rw: number,
+    bt: boolean, rw: number, think: boolean,
   ) => {
     setLoading(true); setError(null);
     try {
-      const url = `/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}&nRuns=${runs}&technicals=${tech}&timeframe=${tf}&backtest=${bt}&rewind=${rw}`;
+      const url = `/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}&nRuns=${runs}&technicals=${tech}&timeframe=${tf}&backtest=${bt}&rewind=${rw}&thinking=${think}`;
       const res  = await fetch(url);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -351,7 +368,7 @@ export default function ForecastPage() {
             </button>
           );
           const runBtn = (
-            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe, backtest, rewind)} disabled={loading}
+            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe, backtest, rewind, thinking)} disabled={loading}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
               style={{
                 background: loading ? "rgba(255,255,255,0.04)" : "rgba(192,192,204,0.10)",
@@ -383,6 +400,8 @@ export default function ForecastPage() {
               <RunsStepper value={nRuns} onChange={setNRuns} />
               {div}
               <TechnicalsToggle active={technicals} onChange={setTechnicals} />
+              {div}
+              <ThinkingToggle active={thinking} onChange={setThinking} />
               {div}
               <BacktestToggle active={backtest} onChange={setBacktest} />
               {div}
@@ -437,7 +456,7 @@ export default function ForecastPage() {
                   {" "}to produce {nForecast}-{tfCandleLabel(timeframe)} bear / base / bull scenarios.
                 </p>
               </div>
-              <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe, backtest, rewind)}
+              <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe, backtest, rewind, thinking)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
                 style={{
                   background: "rgba(192,192,204,0.08)",
@@ -473,7 +492,8 @@ export default function ForecastPage() {
                 <p className="text-sm font-medium text-white/50 mb-1">Analyzing {ticker}</p>
                 <p className="text-xs text-white/20">
                   {timeframe === "1d" ? `${nHistory}d` : `${nHistory} × ${timeframe}`} history
-                  {technicals ? " · RSI · EMA 50/200 · ADX · VWAP" : ""} · {nForecast}-{tfCandleLabel(timeframe)} outlook
+                  {technicals ? " · RSI · EMA 50/200 · ADX · ATR · VWAP" : ""}
+                  {thinking ? " · Thinking" : ""} · {nForecast}-{tfCandleLabel(timeframe)} outlook
                 </p>
               </div>
             </div>
@@ -484,7 +504,7 @@ export default function ForecastPage() {
         {error && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
             <p className="text-sm text-red-400/80 text-center max-w-sm">{error}</p>
-            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe, backtest, rewind)}
+            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals, timeframe, backtest, rewind, thinking)}
               className="text-xs px-4 py-1.5 rounded-lg transition-all"
               style={{ color: "rgba(192,192,204,0.6)", border: "1px solid rgba(192,192,204,0.15)" }}
             >

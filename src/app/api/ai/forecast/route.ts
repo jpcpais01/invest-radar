@@ -100,6 +100,7 @@ async function runOnce(
   nHistory: number,
   tf: TF,
   technicalsNote: string,
+  withThinking: boolean,
 ): Promise<RunResult> {
   const tfLabel    = TF_LABEL[tf];
   const unitLabel  = candleLabel(tf);
@@ -139,13 +140,16 @@ ${priceTable}`;
 
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 512,
-    thinking: { type: "disabled" },
+    max_tokens: withThinking ? 10000 : 512,
+    thinking: withThinking
+      ? { type: "enabled", budget_tokens: 8000 }
+      : { type: "disabled" },
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const raw   = msg.content[0].type === "text" ? msg.content[0].text : "";
+  // When thinking is enabled content[0] is a thinking block; find the text block explicitly.
+  const raw = msg.content.find(b => b.type === "text")?.text ?? "";
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error(`No JSON in response: ${raw.slice(0, 200)}`);
 
@@ -177,8 +181,9 @@ export async function GET(req: NextRequest) {
   const nHistory    = Math.min(252, Math.max(30, parseInt(sp.get("nHistory")    ?? "90")));
   const nForecast   = Math.min(30,  Math.max(3,  parseInt(sp.get("nForecast")   ?? "15")));
   const nRuns       = Math.min(10,  Math.max(1,  parseInt(sp.get("nRuns")       ?? "3")));
-  const withTech    = sp.get("technicals") === "true";
-  const backtest    = sp.get("backtest") === "true";
+  const withTech     = sp.get("technicals") === "true";
+  const withThinking = sp.get("thinking")   === "true";
+  const backtest     = sp.get("backtest")   === "true";
   const rewind      = Math.min(60,  Math.max(15, parseInt(sp.get("rewind")      ?? "30")));
 
   // Validate timeframe
@@ -250,15 +255,27 @@ export async function GET(req: NextRequest) {
           lines.push(`EMA(200): ${ema200[ema200.length - 1].toFixed(2)}`);
       }
 
-      // ADX(14) — use feedSlice highs/lows
+      // Highs / lows / volumes shared by ADX, ATR, VWAP
       const feedHighs   = feedSlice.map(b => b.high   ?? b.close);
       const feedLows    = feedSlice.map(b => b.low    ?? b.close);
       const feedVolumes = feedSlice.map(b => b.volume ?? 0);
+
+      // ADX(14)
       if (closes.length >= 28) {
         const adxVals = ti.ADX.calculate({ high: feedHighs, low: feedLows, close: closes, period: 14 });
         if (adxVals.length > 0) {
           const last = adxVals[adxVals.length - 1];
           lines.push(`ADX(14): ${last.adx.toFixed(2)} (DI+: ${last.pdi.toFixed(2)}, DI-: ${last.mdi.toFixed(2)})`);
+        }
+      }
+
+      // ATR(14) — volatility anchor so the AI sizes moves realistically
+      if (closes.length >= 15) {
+        const atrVals = ti.ATR.calculate({ high: feedHighs, low: feedLows, close: closes, period: 14 });
+        if (atrVals.length > 0) {
+          const atr    = atrVals[atrVals.length - 1];
+          const atrPct = (atr / lastClose * 100).toFixed(2);
+          lines.push(`ATR(14): ${atr.toFixed(2)} (${atrPct}% of price)`);
         }
       }
 
@@ -281,7 +298,7 @@ export async function GET(req: NextRequest) {
     // Run nRuns independent requests in parallel
     const results = await Promise.all(
       Array.from({ length: nRuns }, () =>
-        runOnce(ticker, lastTimestamp, lastClose, effectiveForecast, priceTable, feedSlice.length, tf, technicalsNote)
+        runOnce(ticker, lastTimestamp, lastClose, effectiveForecast, priceTable, feedSlice.length, tf, technicalsNote, withThinking)
       )
     );
 
@@ -303,12 +320,27 @@ export async function GET(req: NextRequest) {
     const bull   = geoMean(sorted.slice(-third),   effectiveForecast);
     const base   = geoMean(allPredictions,          effectiveForecast);
 
-    const confidence = Math.round(
-      results.reduce((s, r) => s + r.confidence, 0) / results.length
+    // ── confidence from ensemble spread ─────────────────────────────────────
+    // Measure how tightly the nRuns×3 final prices agree with each other.
+    // Tight agreement → high confidence; wide spread → low confidence.
+    // Normalise by sqrt(nForecast) so longer horizons aren't penalised unfairly.
+    const finalPrices  = allPredictions.map(p => p[p.length - 1]);
+    const meanFinal    = finalPrices.reduce((s, v) => s + v, 0) / finalPrices.length;
+    const stdFinal     = Math.sqrt(
+      finalPrices.reduce((s, v) => s + (v - meanFinal) ** 2, 0) / finalPrices.length
     );
-    const bestRun = results.reduce((best, r) =>
-      r.confidence > best.confidence ? r : best
-    );
+    const spreadPct    = (stdFinal / lastClose) * 100 / Math.sqrt(effectiveForecast);
+    // spreadPct ≈ 0  → confidence 100   (perfect agreement)
+    // spreadPct ≈ 2  → confidence  20   (typical divergence)
+    const confidence   = Math.round(Math.max(0, Math.min(100, 100 - spreadPct * 40)));
+
+    // Best analysis: pick from the run whose final prices sit closest to the ensemble mean
+    const bestRun = results.reduce((best, r) => {
+      const dist  = (p: number[]) => Math.abs(p[p.length - 1] - meanFinal);
+      const bDist = Math.min(...best.predictions.map(dist));
+      const rDist = Math.min(...r.predictions.map(dist));
+      return rDist < bDist ? r : best;
+    });
 
     // futureDates:
     // - normal: next N candle timestamps after the last historical bar
