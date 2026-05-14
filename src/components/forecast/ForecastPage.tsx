@@ -355,23 +355,23 @@ export default function ForecastPage() {
         <div className="shrink-0"
           style={{ background: "rgba(8,8,8,0.90)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
 
-          {/* MOBILE — 2-row grid: [Bull|Base] / [Bear|Confidence] */}
+          {/* MOBILE — two plain flex rows, no grid */}
           <div className="md:hidden">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto" }}>
-              {/* Bull — row 1, col 1 */}
-              <div className="px-4 py-3 flex items-center" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", borderRight: "1px solid rgba(255,255,255,0.04)", gridRow: 1, gridColumn: 1 }}>
+            {/* Row 1: Bull | Base */}
+            <div className="flex" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <div className="flex-1 px-4 py-3" style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}>
                 <ScenStat label="Bull" price={bull} from={data.lastClose} color="rgba(34,197,94,0.85)" icon={<TrendingUp className="w-3 h-3" />} />
               </div>
-              {/* Base — row 1, col 2 */}
-              <div className="px-4 py-3 flex items-center" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", gridRow: 1, gridColumn: 2 }}>
+              <div className="flex-1 px-4 py-3">
                 <ScenStat label="Base" price={base} from={data.lastClose} color="rgba(192,192,204,0.85)" icon={<Minus className="w-3 h-3" />} />
               </div>
-              {/* Bear — row 2, col 1 */}
-              <div className="px-4 py-3 flex items-center" style={{ borderRight: "1px solid rgba(255,255,255,0.04)", gridRow: 2, gridColumn: 1 }}>
+            </div>
+            {/* Row 2: Bear | Confidence */}
+            <div className="flex">
+              <div className="flex-1 px-4 py-3" style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}>
                 <ScenStat label="Bear" price={bear} from={data.lastClose} color="rgba(239,68,68,0.85)" icon={<TrendingDown className="w-3 h-3" />} />
               </div>
-              {/* Confidence — row 2, col 2 */}
-              <div className="px-4 py-3 flex items-center" style={{ gridRow: 2, gridColumn: 2 }}>
+              <div className="flex-1 px-4 py-3">
                 <ConfidenceRing value={data.confidence} />
               </div>
             </div>
