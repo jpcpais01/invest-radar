@@ -19,7 +19,9 @@ interface ForecastData {
   historical: { time: number; close: number }[];
   lastClose: number;
   futureDates: number[];
+  predictions: number[][];
   scenarios: { bear: number[]; base: number[]; bull: number[] };
+  confidence: number;
   analysis: string;
   nHistory: number;
   nForecast: number;
@@ -143,7 +145,22 @@ export default function ForecastPage() {
     const lastClose = data.lastClose;
     const futureTs  = data.futureDates;
 
-    // ── Bear ───────────────────────────────────────────────────────────────
+    // ── Raw prediction fan (all 5, thin + translucent) ────────────────────
+    for (const pred of data.predictions) {
+      const s = chart.addSeries(LineSeries, {
+        color:     "rgba(192,192,204,0.12)",
+        lineWidth: 1,
+        lineStyle: LineStyle.Solid,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      s.setData([
+        mkPt(lastTime, lastClose),
+        ...pred.map((v, i) => mkPt(futureTs[i], v)),
+      ]);
+    }
+
+    // ── Bear (worst prediction) ────────────────────────────────────────────
     const bearSeries = chart.addSeries(LineSeries, {
       color:     "rgba(239,68,68,0.80)",
       lineWidth: 2,
@@ -157,7 +174,7 @@ export default function ForecastPage() {
       ...data.scenarios.bear.map((v, i) => mkPt(futureTs[i], v)),
     ]);
 
-    // ── Base ───────────────────────────────────────────────────────────────
+    // ── Base (average of all 5) ────────────────────────────────────────────
     const baseSeries = chart.addSeries(LineSeries, {
       color:     "#c0c0cc",
       lineWidth: 2,
@@ -171,7 +188,7 @@ export default function ForecastPage() {
       ...data.scenarios.base.map((v, i) => mkPt(futureTs[i], v)),
     ]);
 
-    // ── Bull ───────────────────────────────────────────────────────────────
+    // ── Bull (best prediction) ─────────────────────────────────────────────
     const bullSeries = chart.addSeries(LineSeries, {
       color:     "rgba(34,197,94,0.85)",
       lineWidth: 2,
@@ -433,9 +450,39 @@ export default function ForecastPage() {
             </div>
           )}
 
-          {/* Meta */}
-          <div className="ml-auto text-[9px] text-[#2a2a2a] shrink-0 hidden lg:block">
-            claude-sonnet-4-6 · {data.nHistory}d history · {data.nForecast}d forecast
+          {/* Confidence */}
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-[#3a3a3a]">Confidence</span>
+              <div className="flex items-center gap-1">
+                <div className="w-16 h-1.5 rounded-full bg-[#1a1a1a] overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${data.confidence}%`,
+                      backgroundColor:
+                        data.confidence >= 66 ? "#22c55e"
+                        : data.confidence >= 40 ? "#f59e0b"
+                        : "#ef4444",
+                    }}
+                  />
+                </div>
+                <span
+                  className="text-[10px] font-mono font-semibold tabular-nums"
+                  style={{
+                    color:
+                      data.confidence >= 66 ? "#22c55e"
+                      : data.confidence >= 40 ? "#f59e0b"
+                      : "#ef4444",
+                  }}
+                >
+                  {data.confidence}%
+                </span>
+              </div>
+            </div>
+            <span className="text-[9px] text-[#2a2a2a] hidden lg:block">
+              claude-sonnet-4-6 · {data.nHistory}d · {data.nForecast}d
+            </span>
           </div>
         </div>
       )}

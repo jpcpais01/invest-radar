@@ -86,15 +86,17 @@ export async function GET(req: NextRequest) {
       return `${date} | ${fmt(bar.close)} | ${fmt(rsi[i], 1).padEnd(7)} | ${fmt(ema50[i]).padEnd(8)} | ${fmt(ema200[i]).padEnd(8)} | ${fmt(adx[i], 1).padEnd(7)} | ${trend}`;
     });
 
-    const systemPrompt = `You are a quantitative price forecasting model. Analyze daily price history and technical indicators, then predict future closing prices under three scenarios.
+    const systemPrompt = `You are a quantitative price forecasting model. Analyze daily price history and technical indicators, then produce 5 independent price predictions.
 
 Output ONLY valid JSON — no other text, no markdown fences:
-{"bear":[${nForecast} numbers],"base":[${nForecast} numbers],"bull":[${nForecast} numbers],"analysis":"one concise sentence"}
+{"predictions":[[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers]],"confidence":<integer 0-100>,"analysis":"one concise sentence"}
 
 Rules:
-- Each array has exactly ${nForecast} positive numbers (daily closing prices, oldest first)
+- predictions: exactly 5 arrays, each with exactly ${nForecast} positive numbers (daily closing prices, oldest first)
+- Each prediction is an independent plausible path — vary them meaningfully, not just noise around a single line
 - Prices must be realistic and anchored to the last close of $${lastClose.toFixed(2)}
-- Bear: pessimistic scenario | Base: most likely | Bull: optimistic`;
+- confidence: your 0-100 estimate of how predictable this stock is given the data (100 = very high conviction)
+- analysis: one sentence summarising the dominant signal driving your forecast`;
 
     const userMessage = `Stock: ${ticker}
 Last close (${lastDate}): $${lastClose.toFixed(2)}
@@ -106,7 +108,7 @@ ${rows.join("\n")}`;
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 800,
+      max_tokens: 1024,
       thinking: { type: "disabled" },
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
@@ -119,15 +121,34 @@ ${rows.join("\n")}`;
     if (!match) throw new Error(`No JSON in response: ${raw.slice(0, 200)}`);
 
     const parsed = JSON.parse(match[0]) as {
-      bear?: unknown; base?: unknown; bull?: unknown; analysis?: string;
+      predictions?: unknown; confidence?: unknown; analysis?: string;
     };
 
-    const normalize = (arr: unknown): number[] => {
-      if (!Array.isArray(arr)) throw new Error("Scenario is not an array");
+    const normalizePrediction = (arr: unknown): number[] => {
+      if (!Array.isArray(arr)) throw new Error("Prediction is not an array");
       const nums = arr.map(Number).filter(x => isFinite(x) && x > 0);
       while (nums.length < nForecast) nums.push(nums[nums.length - 1] ?? lastClose);
       return nums.slice(0, nForecast);
     };
+
+    if (!Array.isArray(parsed.predictions) || parsed.predictions.length === 0) {
+      throw new Error("No predictions array in response");
+    }
+
+    const predictions: number[][] = parsed.predictions.map(normalizePrediction);
+
+    // Derive bear / base / bull from the 5 predictions
+    // - bull: prediction with the highest final price
+    // - bear: prediction with the lowest final price
+    // - base: element-wise average of all predictions
+    const byFinalPrice = [...predictions].sort((a, b) => a[a.length - 1] - b[b.length - 1]);
+    const bear = byFinalPrice[0];
+    const bull = byFinalPrice[byFinalPrice.length - 1];
+    const base = Array.from({ length: nForecast }, (_, i) =>
+      predictions.reduce((sum, p) => sum + p[i], 0) / predictions.length
+    );
+
+    const confidence = Math.min(100, Math.max(0, Math.round(Number(parsed.confidence) || 50)));
 
     const futureDates = nextTradingDays(slice[slice.length - 1].time, nForecast);
     // Return last 120 historical bars for the chart
@@ -138,11 +159,9 @@ ${rows.join("\n")}`;
       historical,
       lastClose,
       futureDates,
-      scenarios: {
-        bear: normalize(parsed.bear),
-        base: normalize(parsed.base),
-        bull: normalize(parsed.bull),
-      },
+      predictions,
+      scenarios: { bear, base, bull },
+      confidence,
       analysis: typeof parsed.analysis === "string" ? parsed.analysis : "",
       nHistory: slice.length,
       nForecast,
