@@ -243,10 +243,10 @@ export default function ForecastPage() {
   const { activeTicker, setActiveTicker } = useTickerStore();
 
   const [ticker,    setTicker]    = useState(activeTicker || "AAPL");
-  const [nHistory,    setNHistory]    = useState(90);
-  const [nForecast,   setNForecast]   = useState(15);
-  const [nRuns,       setNRuns]       = useState(3);
-  const [technicals,  setTechnicals]  = useState(false);
+  const [nHistory,    setNHistory]    = useState(120);
+  const [nForecast,   setNForecast]   = useState(20);
+  const [nRuns,       setNRuns]       = useState(5);
+  const [technicals,  setTechnicals]  = useState(true);
   const [timeframe,   setTimeframe]   = useState<Timeframe>("1d");
   const [backtest,    setBacktest]    = useState(false);
   const [rewind,      setRewind]      = useState(30);
