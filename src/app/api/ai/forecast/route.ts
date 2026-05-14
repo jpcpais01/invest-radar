@@ -249,14 +249,22 @@ export async function GET(req: NextRequest) {
       }
 
       // ADX(14) — use feedSlice highs/lows
-      const feedHighs = feedSlice.map(b => b.high ?? b.close);
-      const feedLows  = feedSlice.map(b => b.low  ?? b.close);
+      const feedHighs   = feedSlice.map(b => b.high   ?? b.close);
+      const feedLows    = feedSlice.map(b => b.low    ?? b.close);
+      const feedVolumes = feedSlice.map(b => b.volume ?? 0);
       if (closes.length >= 28) {
         const adxVals = ti.ADX.calculate({ high: feedHighs, low: feedLows, close: closes, period: 14 });
         if (adxVals.length > 0) {
           const last = adxVals[adxVals.length - 1];
           lines.push(`ADX(14): ${last.adx.toFixed(2)} (DI+: ${last.pdi.toFixed(2)}, DI-: ${last.mdi.toFixed(2)})`);
         }
+      }
+
+      // VWAP — cumulative over the feed window
+      if (feedVolumes.some(v => v > 0)) {
+        const vwapVals = ti.VWAP.calculate({ high: feedHighs, low: feedLows, close: closes, volume: feedVolumes });
+        if (vwapVals.length > 0)
+          lines.push(`VWAP: ${vwapVals[vwapVals.length - 1].toFixed(2)}`);
       }
 
       technicalsNote = lines.join("\n");

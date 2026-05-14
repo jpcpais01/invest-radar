@@ -473,7 +473,7 @@ export default function ForecastPage() {
                 <p className="text-sm font-medium text-white/50 mb-1">Analyzing {ticker}</p>
                 <p className="text-xs text-white/20">
                   {timeframe === "1d" ? `${nHistory}d` : `${nHistory} × ${timeframe}`} history
-                  {technicals ? " · RSI · EMA 50/200 · ADX" : ""} · {nForecast}-{tfCandleLabel(timeframe)} outlook
+                  {technicals ? " · RSI · EMA 50/200 · ADX · VWAP" : ""} · {nForecast}-{tfCandleLabel(timeframe)} outlook
                 </p>
               </div>
             </div>
