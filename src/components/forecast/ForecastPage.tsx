@@ -365,7 +365,7 @@ export default function ForecastPage() {
             </button>
           );
           const div = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
-          const histSuffix = timeframe === "1d" ? "d" : "";
+          const histSuffix = "";
           const controls = (
             <>
               <TimeframePill active={timeframe} onChange={setTimeframe} />
