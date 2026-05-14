@@ -105,8 +105,9 @@ ${header}
 ${rows.join("\n")}`;
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 800,
+      thinking: { type: "disabled" },
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
     });

@@ -435,7 +435,7 @@ export default function ForecastPage() {
 
           {/* Meta */}
           <div className="ml-auto text-[9px] text-[#2a2a2a] shrink-0 hidden lg:block">
-            claude-sonnet · {data.nHistory}d history · {data.nForecast}d forecast
+            claude-sonnet-4-6 · {data.nHistory}d history · {data.nForecast}d forecast
           </div>
         </div>
       )}
