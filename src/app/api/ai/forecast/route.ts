@@ -115,19 +115,23 @@ export async function GET(req: NextRequest) {
     // Flatten to 9 predictions
     const allPredictions: number[][] = results.flatMap(r => r.predictions);
 
-    // Element-wise average helper
-    const avg = (group: number[][]) =>
-      Array.from({ length: nForecast }, (_, i) =>
-        group.reduce((sum, p) => sum + p[i], 0) / group.length
-      );
+    // Geometric mean in log-space: average log-returns from lastClose,
+    // then exponentiate back. Eliminates arithmetic upside bias.
+    const geoMean = (group: number[][]) =>
+      Array.from({ length: nForecast }, (_, i) => {
+        const avgLogReturn = group.reduce(
+          (sum, p) => sum + Math.log(p[i] / lastClose), 0
+        ) / group.length;
+        return lastClose * Math.exp(avgLogReturn);
+      });
 
     // Sort by final price to pick bull / bear
     const sorted = [...allPredictions].sort(
       (a, b) => a[a.length - 1] - b[b.length - 1]
     );
-    const bear = avg(sorted.slice(0, 3));   // worst 3
-    const bull = avg(sorted.slice(-3));      // best 3
-    const base = avg(allPredictions);        // all 9
+    const bear = geoMean(sorted.slice(0, 3));   // worst 3
+    const bull = geoMean(sorted.slice(-3));      // best 3
+    const base = geoMean(allPredictions);        // all 9
 
     const confidence = Math.round(
       results.reduce((s, r) => s + r.confidence, 0) / results.length
