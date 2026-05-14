@@ -138,8 +138,9 @@ export function TerminalBtn({ ticker }: { ticker: string }) {
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
-    const ctx = el.getContext("2d");
-    if (!ctx) return;
+    const ctxRaw = el.getContext("2d");
+    if (!ctxRaw) return;
+    const ctx: CanvasRenderingContext2D = ctxRaw;
 
     const dpr = window.devicePixelRatio || 1;
     const W   = el.offsetWidth;
