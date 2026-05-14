@@ -138,15 +138,17 @@ ${rows.join("\n")}`;
     const predictions: number[][] = parsed.predictions.map(normalizePrediction);
 
     // Derive bear / base / bull from the 5 predictions
-    // - bull: prediction with the highest final price
-    // - bear: prediction with the lowest final price
-    // - base: element-wise average of all predictions
+    // - bull: element-wise average of the 2 highest-final-price predictions
+    // - bear: element-wise average of the 2 lowest-final-price predictions
+    // - base: element-wise average of all 5
     const byFinalPrice = [...predictions].sort((a, b) => a[a.length - 1] - b[b.length - 1]);
-    const bear = byFinalPrice[0];
-    const bull = byFinalPrice[byFinalPrice.length - 1];
-    const base = Array.from({ length: nForecast }, (_, i) =>
-      predictions.reduce((sum, p) => sum + p[i], 0) / predictions.length
-    );
+    const avg = (group: number[][]) =>
+      Array.from({ length: nForecast }, (_, i) =>
+        group.reduce((sum, p) => sum + p[i], 0) / group.length
+      );
+    const bear = avg(byFinalPrice.slice(0, 2));
+    const bull = avg(byFinalPrice.slice(-2));
+    const base = avg(predictions);
 
     const confidence = Math.min(100, Math.max(0, Math.round(Number(parsed.confidence) || 50)));
 

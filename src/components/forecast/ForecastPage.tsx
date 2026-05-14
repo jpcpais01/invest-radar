@@ -145,22 +145,7 @@ export default function ForecastPage() {
     const lastClose = data.lastClose;
     const futureTs  = data.futureDates;
 
-    // ── Raw prediction fan (all 5, thin + translucent) ────────────────────
-    for (const pred of data.predictions) {
-      const s = chart.addSeries(LineSeries, {
-        color:     "rgba(192,192,204,0.12)",
-        lineWidth: 1,
-        lineStyle: LineStyle.Solid,
-        priceLineVisible: false,
-        lastValueVisible: false,
-      });
-      s.setData([
-        mkPt(lastTime, lastClose),
-        ...pred.map((v, i) => mkPt(futureTs[i], v)),
-      ]);
-    }
-
-    // ── Bear (worst prediction) ────────────────────────────────────────────
+    // ── Bear (avg of 2 worst predictions) ─────────────────────────────────
     const bearSeries = chart.addSeries(LineSeries, {
       color:     "rgba(239,68,68,0.80)",
       lineWidth: 2,
@@ -174,7 +159,7 @@ export default function ForecastPage() {
       ...data.scenarios.bear.map((v, i) => mkPt(futureTs[i], v)),
     ]);
 
-    // ── Base (average of all 5) ────────────────────────────────────────────
+    // ── Base (avg of all 5) ───────────────────────────────────────────────
     const baseSeries = chart.addSeries(LineSeries, {
       color:     "#c0c0cc",
       lineWidth: 2,
@@ -188,7 +173,7 @@ export default function ForecastPage() {
       ...data.scenarios.base.map((v, i) => mkPt(futureTs[i], v)),
     ]);
 
-    // ── Bull (best prediction) ─────────────────────────────────────────────
+    // ── Bull (avg of 2 best predictions) ──────────────────────────────────
     const bullSeries = chart.addSeries(LineSeries, {
       color:     "rgba(34,197,94,0.85)",
       lineWidth: 2,
