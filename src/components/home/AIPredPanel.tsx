@@ -26,9 +26,9 @@ export default function AIPredPanel({ ticker }: Props) {
   const chartRef     = useRef<IChartApi | null>(null);
   const [ready, setReady] = useState(false);
 
-  const [nDays,    setNDays]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-days")    ?? "7");  } catch { return 7;  } });
-  const [nRuns,    setNRuns]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-runs")    ?? "4");  } catch { return 4;  } });
-  const [nHistory, setNHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-history") ?? "90"); } catch { return 90; } });
+  const [nDays,    setNDays]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-days")    ?? "10");  } catch { return 10;  } });
+  const [nRuns,    setNRuns]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-runs")    ?? "10");  } catch { return 10;  } });
+  const [nHistory, setNHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-history") ?? "252"); } catch { return 252; } });
   const [data,    setData]    = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);

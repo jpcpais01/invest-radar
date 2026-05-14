@@ -272,7 +272,7 @@ export function ValuationCard({ ticker }: Props) {
   return (
     <CardShell title="Valuation">
       {isLoading ? <Skeleton lines={4} /> : rows.length > 0 ? (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 overflow-y-auto" style={{ maxHeight: 220, scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}>
           {rows.map(r => <ValRow key={r.label} {...r} />)}
           <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">Position within 5-year historical range</p>
         </div>
@@ -298,13 +298,13 @@ export function InsiderCard({ ticker }: Props) {
     queryFn: async () => { const r = await fetch(`/api/market/insiders/${ticker}`); return r.json(); },
     staleTime: 60 * 60 * 1000,
   });
-  const txns = data?.transactions?.slice(0, 4) ?? [];
+  const txns = data?.transactions?.slice(0, 8) ?? [];
   const net = data?.netShares ?? 0;
   const isNetBuy = net >= 0;
   return (
     <CardShell title="Insider Activity">
       {isLoading ? <Skeleton lines={3} /> : txns.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 280, scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}>
           <div className="flex items-center justify-between pb-2 border-b border-[#1e1e1e]">
             <span className="text-[10px] text-[#3a3a3a]">Net {isNetBuy ? "buying" : "selling"}</span>
             <span className={cn("text-xs font-semibold font-mono flex items-center gap-1", isNetBuy ? "text-[#c0c0cc]" : "text-[#ef4444]")}>

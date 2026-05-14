@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
-import { Search, Terminal, Compass } from "lucide-react";
+import { Search, Terminal, Compass, Sparkles, X } from "lucide-react";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
@@ -18,6 +18,8 @@ export default function HomePage() {
   const { activeTicker, setActiveTicker } = useTickerStore();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const chatBtnRef = useRef<HTMLDivElement>(null);
 
   const selectTicker = (t: string) => {
     setActiveTicker(t.toUpperCase());
@@ -25,13 +27,11 @@ export default function HomePage() {
     setActiveTab("overview");
   };
 
-  // ⌘K / Ctrl+K to open search
+  // ⌘K to open search
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setPaletteOpen(true);
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setPaletteOpen(true); }
+      if (e.key === "Escape") setChatOpen(false);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -40,11 +40,7 @@ export default function HomePage() {
   return (
     <div
       className="h-screen overflow-y-auto text-[#f0f0f0]"
-      style={{
-        background: "#080808",
-        scrollbarWidth: "thin",
-        scrollbarColor: "#1e1e1e transparent",
-      }}
+      style={{ background: "#080808", scrollbarWidth: "thin", scrollbarColor: "#1e1e1e transparent" }}
     >
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-[#1e1e1e]" style={{ background: "rgba(8,8,8,0.92)", backdropFilter: "blur(12px)" }}>
@@ -84,6 +80,38 @@ export default function HomePage() {
             </button>
           </div>
 
+          {/* AI Chat button */}
+          <div ref={chatBtnRef} className="relative shrink-0">
+            <button
+              onClick={() => setChatOpen(v => !v)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
+                chatOpen
+                  ? "bg-[#c0c0cc18] border-[#c0c0cc55] text-[#f0f0f0]"
+                  : "bg-[#c0c0cc08] border-[#c0c0cc28] text-[#c0c0cc] hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44]"
+              )}
+            >
+              <Sparkles className={cn("w-3.5 h-3.5 transition-all", chatOpen ? "text-[#c0c0cc]" : "text-[#c0c0cc]")} />
+              <span className="hidden sm:block whitespace-nowrap">Ask AI</span>
+              {chatOpen && <X className="w-3 h-3 ml-0.5 opacity-60" />}
+            </button>
+
+            {/* Chat dropdown */}
+            {chatOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setChatOpen(false)} />
+                <div className="absolute top-[calc(100%+10px)] right-0 z-50 w-[min(440px,calc(100vw-32px))]">
+                  {/* Arrow */}
+                  <div className="absolute -top-1.5 right-4 w-3 h-3 rotate-45 bg-[#101010] border-l border-t border-[#2c2c2c]" />
+                  <div className="rounded-xl border border-[#2c2c2c] overflow-hidden shadow-2xl"
+                    style={{ background: "#101010", boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.06)" }}>
+                    <HomeChat ticker={activeTicker} />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Terminal button */}
           <a
             href={`/terminal/${activeTicker}`}
@@ -104,7 +132,6 @@ export default function HomePage() {
               <AIPredPanel ticker={activeTicker} />
               <SignalCard ticker={activeTicker} />
               <NewsPanel ticker={activeTicker} />
-              <HomeChat ticker={activeTicker} />
             </div>
             <div className="flex flex-col gap-4">
               <TechnicalsStrip ticker={activeTicker} />

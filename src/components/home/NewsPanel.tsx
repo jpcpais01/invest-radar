@@ -51,8 +51,11 @@ export default function NewsPanel({ ticker }: Props) {
           <p className="text-[11px] text-[#3a3a3a]">No news available</p>
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-[#1e1e1e]">
-          {articles.slice(0, 8).map((a, i) => (
+        <div
+          className="flex flex-col divide-y divide-[#1e1e1e] overflow-y-auto"
+          style={{ maxHeight: 380, scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}
+        >
+          {articles.slice(0, 12).map((a, i) => (
             <a
               key={i}
               href={a.url}

@@ -110,7 +110,10 @@ export default function TechnicalsStrip({ ticker }: Props) {
           ))}
         </div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        <div
+          className="flex gap-3 overflow-x-auto pb-2"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}
+        >
           {cards.map(c => <TechCard key={c.name} {...c} />)}
         </div>
       )}
