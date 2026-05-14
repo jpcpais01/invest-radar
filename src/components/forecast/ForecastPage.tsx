@@ -167,7 +167,7 @@ export default function ForecastPage() {
   const bear = data?.scenarios.bear.at(-1) ?? null;
 
   return (
-    <div className="h-screen flex flex-col" style={{ background: "#080808" }}>
+    <div className="flex flex-col" style={{ background: "#080808", height: "100dvh", minHeight: "-webkit-fill-available" }}>
 
       {/* ── top bar ──────────────────────────────────────────────────────────── */}
       <header className="shrink-0 z-20"
@@ -260,7 +260,7 @@ export default function ForecastPage() {
       </header>
 
       {/* ── chart area ───────────────────────────────────────────────────────── */}
-      <div className="flex-1 relative min-h-0 overflow-hidden">
+      <div className="relative overflow-hidden" style={{ flex: "1 1 0", minHeight: 0 }}>
 
         {/* empty state */}
         {!data && !loading && !error && (
