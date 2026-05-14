@@ -183,7 +183,10 @@ export async function GET(req: NextRequest) {
     // Fetch enough calendar days to cover nHistory candles
     // e.g. for 5m (78 candles/day): 90 candles → ~2 days needed; fetch 10× buffer + 10 to be safe
     const candlesPerDay = CANDLES_PER_DAY[tf];
-    const calDays = Math.ceil(nHistory / candlesPerDay * 1.6) + 10;
+    // Yahoo Finance caps 1m data at 8 days per request — stay well inside that.
+    const calDays = tf === "1m"
+      ? 7
+      : Math.ceil(nHistory / candlesPerDay * 1.6) + 10;
     const from    = new Date(Date.now() - calDays * 86400000);
 
     const yahooInterval = tf; // "5m" | "1h" | "1d" all accepted by getHistory
