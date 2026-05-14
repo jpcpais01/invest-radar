@@ -100,7 +100,6 @@ async function runOnce(
   nHistory: number,
   tf: TF,
   technicalsNote: string,
-  withThinking: boolean,
 ): Promise<RunResult> {
   const tfLabel    = TF_LABEL[tf];
   const unitLabel  = candleLabel(tf);
@@ -140,15 +139,12 @@ ${priceTable}`;
 
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: withThinking ? 10000 : 512,
-    thinking: withThinking
-      ? { type: "enabled", budget_tokens: 8000 }
-      : { type: "disabled" },
+    max_tokens: 512,
+    thinking: { type: "disabled" },
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  // When thinking is enabled content[0] is a thinking block; find the text block explicitly.
   const raw = msg.content.find(b => b.type === "text")?.text ?? "";
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error(`No JSON in response: ${raw.slice(0, 200)}`);
@@ -182,7 +178,6 @@ export async function GET(req: NextRequest) {
   const nForecast   = Math.min(30,  Math.max(3,  parseInt(sp.get("nForecast")   ?? "15")));
   const nRuns       = Math.min(10,  Math.max(1,  parseInt(sp.get("nRuns")       ?? "3")));
   const withTech     = sp.get("technicals") === "true";
-  const withThinking = sp.get("thinking")   === "true";
   const backtest     = sp.get("backtest")   === "true";
   const rewind      = Math.min(60,  Math.max(15, parseInt(sp.get("rewind")      ?? "30")));
 
@@ -298,7 +293,7 @@ export async function GET(req: NextRequest) {
     // Run nRuns independent requests in parallel
     const results = await Promise.all(
       Array.from({ length: nRuns }, () =>
-        runOnce(ticker, lastTimestamp, lastClose, effectiveForecast, priceTable, feedSlice.length, tf, technicalsNote, withThinking)
+        runOnce(ticker, lastTimestamp, lastClose, effectiveForecast, priceTable, feedSlice.length, tf, technicalsNote)
       )
     );
 

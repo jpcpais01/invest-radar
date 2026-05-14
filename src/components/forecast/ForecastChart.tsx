@@ -6,10 +6,11 @@ interface Props {
   futureDates: number[];
   lastClose: number;
   scenarios: { bear: number[]; base: number[]; bull: number[] };
-  timeframe?: string;       // "5m" | "1h" | "1d"
+  predictions?: number[][];   // all raw paths from every run (nRuns × 3)
+  timeframe?: string;         // "5m" | "1h" | "1d"
   isBacktest?: boolean;
-  backtestSepTime?: number; // timestamp of last candle fed to AI
-  backtestActuals?: number[];// actual closes for the forecast window
+  backtestSepTime?: number;   // timestamp of last candle fed to AI
+  backtestActuals?: number[]; // actual closes for the forecast window
 }
 
 // ─── margins ──────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ function evenIdxs(total: number, n: number): number[] {
 // ─── component ────────────────────────────────────────────────────────────────
 export default function ForecastChart({
   historical, futureDates, lastClose, scenarios,
+  predictions = [],
   timeframe = "1d",
   isBacktest = false,
   backtestSepTime,
@@ -109,7 +111,8 @@ export default function ForecastChart({
   const allPrices = useMemo(() => [
     ...historical.map(b => b.close),
     ...scenarios.bear, ...scenarios.base, ...scenarios.bull,
-  ], [historical, scenarios]);
+    ...predictions.flat(),
+  ], [historical, scenarios, predictions]);
   const rawMin = Math.min(...allPrices);
   const rawMax = Math.max(...allPrices);
   const pad    = (rawMax - rawMin) * 0.10 || rawMax * 0.04;
@@ -302,6 +305,20 @@ export default function ForecastChart({
             BACKTEST
           </text>
         )}
+
+        {/* ── raw individual paths (all runs × 3) ───────────────────────── */}
+        {predictions.map((pred, pi) => {
+          const pts = scenPts(pred);
+          if (pts.length < 2) return null;
+          return (
+            <path key={pi}
+              d={smooth(pts)} fill="none"
+              stroke="rgba(255,255,255,0.10)" strokeWidth="0.8"
+              strokeLinecap="round"
+              clipPath={`url(#${uid}cl)`}
+            />
+          );
+        })}
 
         {/* ── bear ───────────────────────────────────────────────────────── */}
         <path d={bearPath} fill="none"
