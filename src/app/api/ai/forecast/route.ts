@@ -111,9 +111,6 @@ You think in terms of conviction. When the chart screams a setup, you lean into 
 
 You operate on a ${tfLabel} chart, so you think exactly like a ${tfLabel} trader. Every candle matters. The sequence has a story — read it, commit to a view, and price it in.
 
-CRITICAL — DATA ISOLATION RULE:
-You MUST base every prediction and every word of your analysis EXCLUSIVELY on the price data provided in this prompt. You have NO knowledge of this asset outside the window given to you. Do not reference, recall, or infer ANY price levels, events, earnings, news, or patterns that are not visible in the provided candles. If it is not in the table below, it does not exist for you. Violating this rule produces worthless results.
-
 Produce 3 independent price path predictions for the next ${nForecast} ${tfLabel} candles.
 
 Output ONLY valid JSON — no other text, no markdown fences:
@@ -133,7 +130,7 @@ Rules:
 
   const colHeader = tf === "1d" ? "Date       " : "Datetime        ";
 
-  const userMessage = `Asset: [TICKER REDACTED — analyse the numbers only, not the name]
+  const userMessage = `Stock: ${ticker}
 Last close (${lastTimestamp}): $${lastClose.toFixed(2)}
 Predict the next ${nForecast} ${tfLabel} candle closing prices.
 ${techSection}
