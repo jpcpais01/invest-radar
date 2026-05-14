@@ -313,17 +313,16 @@ export async function GET(req: NextRequest) {
     const base   = geoMean(allPredictions,        effectiveForecast);
 
     // ── confidence: ATR-normalised outcome spread ────────────────────────────
-    // ATR × √nForecast = the "expected" random-walk range over the horizon.
-    // We compare that against the actual spread of all predicted final prices.
-    //   ratio < 1 → paths converge tighter than noise → model has conviction → high confidence
-    //   ratio ≈ 1 → spread matches a random walk → no real edge → medium
-    //   ratio > 1 → paths are wider than noise → genuine uncertainty → low confidence
-    const finalPrices   = allPredictions.map(p => p[p.length - 1]);
-    const meanFinal     = finalPrices.reduce((s, v) => s + v, 0) / finalPrices.length;
-    const outcomeRange  = Math.max(...finalPrices) - Math.min(...finalPrices);
-    const expectedRange = atr14 * Math.sqrt(effectiveForecast);
-    const ratio         = outcomeRange / (expectedRange * 2); // ×2: range spans ±expected
-    const confidence    = Math.round(Math.max(0, Math.min(100, 100 - ratio * 60)));
+    // For a pure random walk, std(final prices) ≈ ATR × √nForecast.
+    // ratio < 1 → paths cluster tighter than noise → conviction → high confidence
+    // ratio ≈ 1 → matches a random walk            → no real edge → ~50
+    // ratio > 1 → wider than noise                 → genuine uncertainty → low
+    // Using std dev (not max-min) so outlier paths don't collapse the score.
+    const finalPrices  = allPredictions.map(p => p[p.length - 1]);
+    const meanFinal    = finalPrices.reduce((s, v) => s + v, 0) / finalPrices.length;
+    const stdFinal     = Math.sqrt(finalPrices.reduce((s, v) => s + (v - meanFinal) ** 2, 0) / finalPrices.length);
+    const ratio        = stdFinal / (atr14 * Math.sqrt(effectiveForecast));
+    const confidence   = Math.round(Math.max(0, Math.min(100, 100 - ratio * 50)));
 
     // Best analysis: pick from the run whose final prices sit closest to the ensemble mean
     const bestRun = results.reduce((best, r) => {
