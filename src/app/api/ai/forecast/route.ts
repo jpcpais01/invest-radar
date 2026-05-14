@@ -128,6 +128,8 @@ export async function GET(req: NextRequest) {
   const nForecast   = Math.min(30,  Math.max(3,  parseInt(sp.get("nForecast")   ?? "15")));
   const nRuns       = Math.min(10,  Math.max(1,  parseInt(sp.get("nRuns")       ?? "3")));
   const withTech    = sp.get("technicals") === "true";
+  const backtest    = sp.get("backtest") === "true";
+  const rewind      = Math.min(60,  Math.max(15, parseInt(sp.get("rewind")      ?? "30")));
 
   // Validate timeframe
   const rawTF = sp.get("timeframe") ?? "1d";
@@ -146,13 +148,21 @@ export async function GET(req: NextRequest) {
     if (bars.length < 10)
       return NextResponse.json({ error: "Insufficient historical data" }, { status: 400 });
 
-    const slice     = bars.slice(-nHistory);
-    const closes    = slice.map(b => b.close);
-    const lastClose = closes[closes.length - 1];
-    const lastTimestamp = fmtTime(slice[slice.length - 1].time, tf);
+    const slice = bars.slice(-nHistory);
 
-    // Build price table
-    const priceTable = slice
+    // ── backtest: hide the last `rewind` candles from the AI ─────────────────
+    // feedSlice = what the AI actually sees; it ends `rewind` candles before now
+    const feedSlice = backtest ? slice.slice(0, slice.length - rewind) : slice;
+
+    if (feedSlice.length < 10)
+      return NextResponse.json({ error: "Not enough candles before the rewind point" }, { status: 400 });
+
+    const closes    = feedSlice.map(b => b.close);
+    const lastClose = closes[closes.length - 1];
+    const lastTimestamp = fmtTime(feedSlice[feedSlice.length - 1].time, tf);
+
+    // Build price table from feedSlice only
+    const priceTable = feedSlice
       .map(b => `${fmtTime(b.time, tf)} | ${b.close.toFixed(2)}`)
       .join("\n");
 
@@ -180,11 +190,11 @@ export async function GET(req: NextRequest) {
           lines.push(`EMA(200): ${ema200[ema200.length - 1].toFixed(2)}`);
       }
 
-      // ADX(14)
-      const highs = slice.map(b => b.high ?? b.close);
-      const lows  = slice.map(b => b.low  ?? b.close);
+      // ADX(14) — use feedSlice highs/lows
+      const feedHighs = feedSlice.map(b => b.high ?? b.close);
+      const feedLows  = feedSlice.map(b => b.low  ?? b.close);
       if (closes.length >= 28) {
-        const adxVals = ti.ADX.calculate({ high: highs, low: lows, close: closes, period: 14 });
+        const adxVals = ti.ADX.calculate({ high: feedHighs, low: feedLows, close: closes, period: 14 });
         if (adxVals.length > 0) {
           const last = adxVals[adxVals.length - 1];
           lines.push(`ADX(14): ${last.adx.toFixed(2)} (DI+: ${last.pdi.toFixed(2)}, DI-: ${last.mdi.toFixed(2)})`);
@@ -194,10 +204,16 @@ export async function GET(req: NextRequest) {
       technicalsNote = lines.join("\n");
     }
 
-    // Run nRuns independent requests in parallel (each returns 3 paths → nRuns×3 total)
+    // In backtest mode, cap nForecast to however many actual candles remain
+    const rewindSlice        = backtest ? slice.slice(slice.length - rewind) : null;
+    const effectiveForecast  = backtest
+      ? Math.min(nForecast, rewindSlice!.length)
+      : nForecast;
+
+    // Run nRuns independent requests in parallel
     const results = await Promise.all(
       Array.from({ length: nRuns }, () =>
-        runOnce(ticker, lastTimestamp, lastClose, nForecast, priceTable, slice.length, tf, technicalsNote)
+        runOnce(ticker, lastTimestamp, lastClose, effectiveForecast, priceTable, feedSlice.length, tf, technicalsNote)
       )
     );
 
@@ -205,8 +221,8 @@ export async function GET(req: NextRequest) {
     const allPredictions: number[][] = results.flatMap(r => r.predictions);
 
     // Geometric mean in log-space
-    const geoMean = (group: number[][]) =>
-      Array.from({ length: nForecast }, (_, i) => {
+    const geoMean = (group: number[][], len: number) =>
+      Array.from({ length: len }, (_, i) => {
         const avgLogReturn = group.reduce(
           (sum, p) => sum + Math.log(p[i] / lastClose), 0
         ) / group.length;
@@ -215,21 +231,31 @@ export async function GET(req: NextRequest) {
 
     const sorted = [...allPredictions].sort((a, b) => a[a.length - 1] - b[b.length - 1]);
     const third  = Math.max(1, Math.floor(sorted.length / 3));
-    const bear   = geoMean(sorted.slice(0, third));
-    const bull   = geoMean(sorted.slice(-third));
-    const base   = geoMean(allPredictions);
+    const bear   = geoMean(sorted.slice(0, third), effectiveForecast);
+    const bull   = geoMean(sorted.slice(-third),   effectiveForecast);
+    const base   = geoMean(allPredictions,          effectiveForecast);
 
     const confidence = Math.round(
       results.reduce((s, r) => s + r.confidence, 0) / results.length
     );
-
     const bestRun = results.reduce((best, r) =>
       r.confidence > best.confidence ? r : best
     );
 
-    const futureDates = nextCandleTimes(slice[slice.length - 1].time, nForecast, tf);
-    // Show up to 120 historical candles in the chart
+    // futureDates:
+    // - normal: next N candle timestamps after the last historical bar
+    // - backtest: actual historical timestamps from the rewind window
+    const futureDates = backtest && rewindSlice
+      ? rewindSlice.slice(0, effectiveForecast).map(b => b.time)
+      : nextCandleTimes(slice[slice.length - 1].time, effectiveForecast, tf);
+
+    // historical always shows the full slice (chart shows all actual prices)
     const historical = bars.slice(-Math.min(nHistory, 120)).map(b => ({ time: b.time, close: b.close }));
+
+    // backtestActuals: actual closes for the forecast window (for the outcome marker)
+    const backtestActuals = backtest && rewindSlice
+      ? rewindSlice.slice(0, effectiveForecast).map(b => b.close)
+      : undefined;
 
     return NextResponse.json({
       ticker,
@@ -241,8 +267,11 @@ export async function GET(req: NextRequest) {
       confidence,
       analysis: bestRun.analysis,
       nHistory: slice.length,
-      nForecast,
+      nForecast: effectiveForecast,
       timeframe: tf,
+      isBacktest: backtest,
+      backtestSepTime: backtest ? feedSlice[feedSlice.length - 1].time : undefined,
+      backtestActuals,
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

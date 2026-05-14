@@ -6,7 +6,10 @@ interface Props {
   futureDates: number[];
   lastClose: number;
   scenarios: { bear: number[]; base: number[]; bull: number[] };
-  timeframe?: string; // "5m" | "1h" | "1d"
+  timeframe?: string;       // "5m" | "1h" | "1d"
+  isBacktest?: boolean;
+  backtestSepTime?: number; // timestamp of last candle fed to AI
+  backtestActuals?: number[];// actual closes for the forecast window
 }
 
 // ─── margins ──────────────────────────────────────────────────────────────────
@@ -18,18 +21,10 @@ const isIntraday = (tf: string) => tf === "5m" || tf === "1h";
 function fmtDateShort(ts: number) {
   return new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-
-/** UTC HH:MM string */
 function fmtUTCTime(ts: number) {
   const d = new Date(ts * 1000);
   return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 }
-
-/**
- * X-axis tick label.
- * - daily: "Jan 15"
- * - intraday: "HH:MM" on same-day ticks; "Jan 15" on day-boundary ticks.
- */
 function fmtXTick(ts: number, tf: string, prevTs: number | null): string {
   if (!isIntraday(tf)) return fmtDateShort(ts);
   if (prevTs !== null) {
@@ -40,7 +35,6 @@ function fmtXTick(ts: number, tf: string, prevTs: number | null): string {
   }
   return fmtUTCTime(ts);
 }
-
 function fmtPrice(p: number) {
   if (p >= 10000) return `$${(p / 1000).toFixed(1)}k`;
   if (p >= 1000)  return `$${p.toFixed(0)}`;
@@ -70,10 +64,16 @@ function evenIdxs(total: number, n: number): number[] {
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
-export default function ForecastChart({ historical, futureDates, lastClose, scenarios, timeframe = "1d" }: Props) {
-  const uid      = useId().replace(/:/g, "");
-  const wrapRef  = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+export default function ForecastChart({
+  historical, futureDates, lastClose, scenarios,
+  timeframe = "1d",
+  isBacktest = false,
+  backtestSepTime,
+  backtestActuals,
+}: Props) {
+  const uid     = useId().replace(/:/g, "");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [size, setSize]   = useState<{ w: number; h: number } | null>(null);
   const [mouseX, setMouseX] = useState<number | null>(null);
 
   useEffect(() => {
@@ -89,19 +89,23 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
   const cW = w - M.left - M.right;
   const cH = h - M.top  - M.bottom;
 
-  // ── index-based x scale (no weekend gaps) ──────────────────────────────────
+  // ── index-based x scale ──────────────────────────────────────────────────────
+  // In backtest mode, futureDates are a subset of historical times — do NOT
+  // append them again or the scale stretches with phantom points.
   const allTimes = useMemo(
-    () => [...historical.map(b => b.time), ...futureDates],
-    [historical, futureDates]
+    () => isBacktest
+      ? historical.map(b => b.time)
+      : [...historical.map(b => b.time), ...futureDates],
+    [historical, futureDates, isBacktest]
   );
   const timeToIdx = useMemo(
     () => new Map(allTimes.map((t, i) => [t, i])),
     [allTimes]
   );
-  const n = allTimes.length;
+  const n  = allTimes.length;
   const xS = (t: number) => M.left + ((timeToIdx.get(t) ?? 0) / (n - 1)) * cW;
 
-  // ── y scale ─────────────────────────────────────────────────────────────────
+  // ── y scale ──────────────────────────────────────────────────────────────────
   const allPrices = useMemo(() => [
     ...historical.map(b => b.close),
     ...scenarios.bear, ...scenarios.base, ...scenarios.bull,
@@ -116,10 +120,23 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
   // ── point arrays ────────────────────────────────────────────────────────────
   const histPts  = historical.map(b => [xS(b.time), yS(b.close)] as [number, number]);
   const lastHist = histPts[histPts.length - 1];
-  const sepX     = lastHist[0];
+
+  // In backtest mode the separator is the last candle the AI was fed, not the chart end.
+  const sepBar   = isBacktest && backtestSepTime != null
+    ? historical.find(b => b.time === backtestSepTime) ?? null
+    : null;
+  const anchorPt: [number, number] = sepBar
+    ? [xS(sepBar.time), yS(sepBar.close)]
+    : lastHist;
+  const sepX = anchorPt[0];
+
+  // Right edge of the forecast zone tint
+  const foreEndX = isBacktest && futureDates.length > 0
+    ? xS(futureDates[futureDates.length - 1])
+    : w - M.right;
 
   const scenPts = (prices: number[]) => [
-    lastHist,
+    anchorPt,
     ...prices.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number]),
   ];
 
@@ -129,25 +146,24 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
   const basePath  = smooth(scenPts(scenarios.base));
   const bullPath  = smooth(scenPts(scenarios.bull));
 
-  // ── y-axis ticks (5 nice lines) ─────────────────────────────────────────────
+  // ── y-axis ticks ─────────────────────────────────────────────────────────────
   const yTicks = useMemo(() => Array.from({ length: 5 }, (_, i) =>
     minP + (maxP - minP) * ((i + 0.5) / 5)
   ), [minP, maxP]);
 
-  // ── x-axis ticks ────────────────────────────────────────────────────────────
+  // ── x-axis ticks ─────────────────────────────────────────────────────────────
   const xTicks = useMemo(
     () => evenIdxs(allTimes.length, 6).map(i => allTimes[i]),
     [allTimes]
   );
 
-  // ── crosshair ───────────────────────────────────────────────────────────────
+  // ── crosshair ────────────────────────────────────────────────────────────────
   const crosshair = useMemo(() => {
     if (mouseX === null || cW <= 0) return null;
     const ratio = (mouseX - M.left) / cW;
     const nearestIdx = Math.round(Math.max(0, Math.min(1, ratio)) * (n - 1));
     const ts = allTimes[nearestIdx];
     const cx = xS(ts);
-
     const hi = historical.find(b => b.time === ts);
     const fi = futureDates.indexOf(ts);
     return {
@@ -156,19 +172,28 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
       bear: fi >= 0 ? scenarios.bear[fi] : null,
       base: fi >= 0 ? scenarios.base[fi] : null,
       bull: fi >= 0 ? scenarios.bull[fi] : null,
+      // In backtest mode, when hovering the forecast window, show actual alongside predictions
+      isBacktestZone: isBacktest && fi >= 0,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mouseX, allTimes, cW]);
 
-  // tooltip sizing — intraday adds a time row under the date
-  const intra   = isIntraday(timeframe);
-  const tipW    = intra ? 108 : 96;
-  const headerH = intra ? 40 : 24;   // space for date + optional time line
-  const tipH    = crosshair?.bull !== null ? headerH + 56 : headerH + 14;
-  const tipX    = crosshair
+  // ── tooltip sizing ───────────────────────────────────────────────────────────
+  const intra = isIntraday(timeframe);
+  const tipW  = intra ? 108 : 96;
+  const headerH = intra ? 40 : 24;
+  // Count price rows: in backtest zone we show actual + 3 scenarios = 4 rows
+  const priceRows = crosshair
+    ? (crosshair.histPrice !== null ? 1 : 0)
+      + (crosshair.bull !== null ? 1 : 0)
+      + (crosshair.base !== null ? 1 : 0)
+      + (crosshair.bear !== null ? 1 : 0)
+    : 0;
+  const tipH = headerH + Math.max(priceRows * 18, 14);
+  const tipX = crosshair
     ? (crosshair.x + tipW + 16 > w - M.right ? crosshair.x - tipW - 8 : crosshair.x + 12)
     : 0;
-  const tipY    = M.top + 12;
+  const tipY = M.top + 12;
 
   return (
     <div ref={wrapRef} className="w-full h-full" style={{ background: "#080808" }}>
@@ -183,22 +208,24 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
         onMouseLeave={() => setMouseX(null)}
       >
         <defs>
-          {/* history area gradient */}
           <linearGradient id={`${uid}hg`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%"   stopColor="#c0c0cc" stopOpacity="0.13" />
             <stop offset="75%"  stopColor="#c0c0cc" stopOpacity="0.03" />
             <stop offset="100%" stopColor="#c0c0cc" stopOpacity="0" />
           </linearGradient>
-          {/* forecast zone gradient */}
+          {/* normal forecast tint (left→right) */}
           <linearGradient id={`${uid}fg`} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.018" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0.005" />
           </linearGradient>
-          {/* base line glow blur */}
+          {/* backtest zone tint — amber tint to signal "this is the past" */}
+          <linearGradient id={`${uid}bg`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stopColor="#f59e0b" stopOpacity="0.06" />
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.02" />
+          </linearGradient>
           <filter id={`${uid}glow`} x="-20%" y="-100%" width="140%" height="300%">
             <feGaussianBlur stdDeviation="4" result="blur" />
           </filter>
-          {/* clip to chart area */}
           <clipPath id={`${uid}cl`}>
             <rect x={M.left} y={M.top} width={cW} height={cH} />
           </clipPath>
@@ -252,16 +279,29 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
         <line
           x1={sepX.toFixed(2)} y1={M.top}
           x2={sepX.toFixed(2)} y2={M.top + cH}
-          stroke="rgba(255,255,255,0.07)" strokeWidth="1" strokeDasharray="4,5"
+          stroke={isBacktest ? "rgba(245,158,11,0.30)" : "rgba(255,255,255,0.07)"}
+          strokeWidth="1" strokeDasharray="4,5"
         />
 
-        {/* ── forecast zone tint ─────────────────────────────────────────── */}
+        {/* ── forecast / backtest zone tint ──────────────────────────────── */}
         <rect
           x={sepX} y={M.top}
-          width={(w - M.right - sepX)} height={cH}
-          fill={`url(#${uid}fg)`}
+          width={Math.max(0, foreEndX - sepX)} height={cH}
+          fill={isBacktest ? `url(#${uid}bg)` : `url(#${uid}fg)`}
           clipPath={`url(#${uid}cl)`}
         />
+
+        {/* ── backtest label ─────────────────────────────────────────────── */}
+        {isBacktest && (
+          <text
+            x={(sepX + 6).toFixed(2)} y={(M.top + 14).toFixed(2)}
+            fill="rgba(245,158,11,0.45)" fontSize="8.5"
+            fontFamily="'Inter','ui-sans-serif',sans-serif"
+            fontWeight="600" letterSpacing="0.08em"
+          >
+            BACKTEST
+          </text>
+        )}
 
         {/* ── bear ───────────────────────────────────────────────────────── */}
         <path d={bearPath} fill="none"
@@ -308,23 +348,42 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
           );
         })}
 
-        {/* ── last-close dot ─────────────────────────────────────────────── */}
-        <circle cx={lastHist[0].toFixed(2)} cy={lastHist[1].toFixed(2)}
-          r="3.5" fill="#c0c0cc" />
-        <circle cx={lastHist[0].toFixed(2)} cy={lastHist[1].toFixed(2)}
-          r="7" fill="rgba(192,192,204,0.10)" />
+        {/* ── actual outcome marker (backtest only) ──────────────────────── */}
+        {isBacktest && backtestActuals && backtestActuals.length > 0 && (() => {
+          const ax = xS(futureDates[futureDates.length - 1]);
+          const ay = yS(backtestActuals[backtestActuals.length - 1]);
+          return (
+            <g>
+              <circle cx={ax.toFixed(2)} cy={ay.toFixed(2)} r="9"
+                fill="rgba(245,158,11,0.12)" />
+              <circle cx={ax.toFixed(2)} cy={ay.toFixed(2)} r="3.5"
+                fill="rgba(245,158,11,0.95)" />
+              <text x={(ax + 6).toFixed(2)} y={(ay - 5).toFixed(2)}
+                fill="rgba(245,158,11,0.65)" fontSize="8"
+                fontFamily="'Inter','ui-sans-serif',sans-serif"
+                fontWeight="600">
+                actual
+              </text>
+            </g>
+          );
+        })()}
+
+        {/* ── anchor dot (where AI prediction starts) ────────────────────── */}
+        <circle cx={anchorPt[0].toFixed(2)} cy={anchorPt[1].toFixed(2)}
+          r="3.5" fill={isBacktest ? "rgba(245,158,11,0.80)" : "#c0c0cc"} />
+        <circle cx={anchorPt[0].toFixed(2)} cy={anchorPt[1].toFixed(2)}
+          r="7" fill={isBacktest ? "rgba(245,158,11,0.10)" : "rgba(192,192,204,0.10)"} />
 
         {/* ── crosshair ──────────────────────────────────────────────────── */}
         {crosshair && (
           <>
-            {/* vertical line */}
             <line
               x1={crosshair.x.toFixed(2)} y1={M.top}
               x2={crosshair.x.toFixed(2)} y2={M.top + cH}
               stroke="rgba(255,255,255,0.10)" strokeWidth="1"
             />
 
-            {/* dot on history or base */}
+            {/* dot — on history line, or on base if in forecast zone */}
             {(() => {
               const price = crosshair.histPrice ?? crosshair.base;
               if (price === null) return null;
@@ -339,28 +398,49 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
               );
             })()}
 
-            {/* glass tooltip */}
+            {/* tooltip */}
             {(() => {
-              // price rows start after the header block
-              const p1y = headerH + 2;   // first price row
-              const p2y = p1y + 18;
-              const p3y = p2y + 18;
+              const p1y = headerH + 4;
+              // Build price rows dynamically so they never overlap
+              type Row = { label: string; price: number; color: string };
+              const rows: Row[] = [];
+              // In backtest zone show actual first, then scenarios;
+              // in pure-history zone show just the historical price
+              if (crosshair.histPrice !== null) {
+                rows.push({
+                  label:  crosshair.isBacktestZone ? "● actual" : "",
+                  price:  crosshair.histPrice,
+                  color:  crosshair.isBacktestZone
+                    ? "rgba(245,158,11,0.90)"
+                    : "rgba(192,192,204,0.85)",
+                });
+              }
+              if (crosshair.bull  !== null) rows.push({ label: "↑",  price: crosshair.bull,  color: "rgba(34,197,94,0.85)" });
+              if (crosshair.base  !== null) rows.push({ label: "—",  price: crosshair.base,  color: "rgba(192,192,204,0.85)" });
+              if (crosshair.bear  !== null) rows.push({ label: "↓",  price: crosshair.bear,  color: "rgba(239,68,68,0.85)" });
+
+              const rowHeight = 18;
+              const computedH = headerH + Math.max(rows.length * rowHeight, 14);
+
               return (
                 <g transform={`translate(${tipX.toFixed(2)},${tipY})`}>
                   <rect
                     x="0" y="0" rx="8" ry="8"
-                    width={tipW} height={tipH}
+                    width={tipW} height={computedH}
                     fill="rgba(10,10,12,0.82)"
-                    stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+                    stroke={crosshair.isBacktestZone
+                      ? "rgba(245,158,11,0.18)"
+                      : "rgba(255,255,255,0.07)"}
+                    strokeWidth="1"
                   />
 
-                  {/* date line — always shown, slightly dim */}
+                  {/* date */}
                   <text x="10" y="15" fill="rgba(255,255,255,0.28)" fontSize="9"
                     fontFamily="'Inter','ui-sans-serif',sans-serif">
                     {fmtDateShort(crosshair.time)}
                   </text>
 
-                  {/* time line — intraday only, brighter */}
+                  {/* time (intraday) */}
                   {intra && (
                     <text x="10" y="30" fill="rgba(255,255,255,0.70)" fontSize="12"
                       fontWeight="500"
@@ -369,38 +449,20 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
                     </text>
                   )}
 
-                  {/* thin separator between header and prices */}
                   <line x1="10" y1={headerH - 4} x2={tipW - 10} y2={headerH - 4}
                     stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
 
-                  {/* historical price */}
-                  {crosshair.histPrice !== null && (
-                    <text x="10" y={p1y} fill="rgba(192,192,204,0.85)" fontSize="11"
-                      fontWeight="500"
-                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                      {fmtPrice(crosshair.histPrice)}
+                  {rows.map((row, ri) => (
+                    <text key={ri}
+                      x="10" y={p1y + ri * rowHeight}
+                      fill={row.color}
+                      fontSize={row.label ? 10 : 11}
+                      fontWeight={row.label ? "400" : "500"}
+                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace"
+                    >
+                      {row.label ? `${row.label} ${fmtPrice(row.price)}` : fmtPrice(row.price)}
                     </text>
-                  )}
-
-                  {/* scenario prices */}
-                  {crosshair.bull !== null && (
-                    <text x="10" y={p1y} fill="rgba(34,197,94,0.85)" fontSize="10"
-                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                      ↑ {fmtPrice(crosshair.bull)}
-                    </text>
-                  )}
-                  {crosshair.base !== null && (
-                    <text x="10" y={p2y} fill="rgba(192,192,204,0.85)" fontSize="10"
-                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                      — {fmtPrice(crosshair.base)}
-                    </text>
-                  )}
-                  {crosshair.bear !== null && (
-                    <text x="10" y={p3y} fill="rgba(239,68,68,0.85)" fontSize="10"
-                      fontFamily="'Geist Mono','ui-monospace','Courier New',monospace">
-                      ↓ {fmtPrice(crosshair.bear)}
-                    </text>
-                  )}
+                  ))}
                 </g>
               );
             })()}
