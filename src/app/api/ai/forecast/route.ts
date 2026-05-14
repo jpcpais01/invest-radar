@@ -117,8 +117,9 @@ Output ONLY valid JSON — no other text, no markdown fences:
 
 Rules:
 - predictions: exactly 3 arrays, each with exactly ${nForecast} positive numbers (${tfLabel} closing prices, oldest first)
-- The 3 paths are bull, base, and bear — make them genuinely different in direction, magnitude, AND shape. Flat lines and tiny wiggles are a failure. If the setup is strong, the bull target should be ambitious and the bear should be a real drawdown.
-- Your BASE path must reflect your actual highest-conviction view — not a timid average of bull and bear. If you think it's going up, the base goes up with purpose.
+- Each path is a fully independent forecast — do NOT label or think of them as bull/base/bear. Run the analysis 3 separate times from first principles, as if each were your only prediction.
+- The 3 paths must be genuinely different from each other in direction, magnitude, AND shape. Paths that are nearly identical or that just add small noise to each other are a failure — if your read on the chart supports a strong move, at least one path should commit to that move hard.
+- Flat lines and tiny wiggles around the last close are a failure. Every path must express a real view.
 - Prices anchor to last close $${lastClose.toFixed(2)} and stay physically realistic for the ${tfLabel} timeframe — but push the envelope where the data justifies it
 - confidence: 0-100 conviction. Do not cluster near 50 out of cowardice. If the setup is clear, say 70-85. If it is genuinely murky, say 30-45. Own your read.
 - analysis: one single bold sentence based ONLY on the provided candles — name the dominant signal visible in this window and state your directional bias explicitly. No hedging, no outside knowledge, no "it could go either way".`;
