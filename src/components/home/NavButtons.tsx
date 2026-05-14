@@ -8,6 +8,29 @@ const KEYFRAMES = `
     0%   { background-position: -200% center; }
     100% { background-position: 300% center; }
   }
+
+  /* Glass light blob 1 — blue, moves in a slow irregular arc */
+  @keyframes glassBlob1 {
+    0%   { transform: translate(0%,   10%)  scale(1.00); opacity: 0.55; }
+    20%  { transform: translate(85%, -55%)  scale(1.25); opacity: 0.80; }
+    45%  { transform: translate(130%, 60%)  scale(0.85); opacity: 0.38; }
+    70%  { transform: translate(20%,  90%)  scale(1.10); opacity: 0.60; }
+    100% { transform: translate(0%,   10%)  scale(1.00); opacity: 0.55; }
+  }
+
+  /* Glass light blob 2 — violet, orbits at a different speed + phase */
+  @keyframes glassBlob2 {
+    0%   { transform: translate(120%, -10%) scale(0.90); opacity: 0.30; }
+    30%  { transform: translate(15%, -75%)  scale(1.20); opacity: 0.55; }
+    60%  { transform: translate(70%,  80%)  scale(1.05); opacity: 0.40; }
+    100% { transform: translate(120%, -10%) scale(0.90); opacity: 0.30; }
+  }
+
+  /* Subtle background glow pulse */
+  @keyframes glassGlow {
+    0%, 100% { opacity: 0.5; }
+    50%       { opacity: 1.0; }
+  }
 `;
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -35,31 +58,45 @@ export function AskAIBtn({ open, onClick }: { open: boolean; onClick: () => void
             : "inset 0 1px 0 rgba(147,197,253,0.14), 0 0 10px rgba(37,99,235,0.07)",
         }}
       >
-        {/* light refraction sweep */}
+        {/* blob 1 — cyan-blue, slow irregular orbit */}
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute pointer-events-none"
           style={{
-            backgroundImage:
-              "linear-gradient(110deg, transparent 28%, rgba(147,210,255,0.22) 46%, rgba(214,240,255,0.14) 52%, transparent 68%)",
-            backgroundSize: "300% 100%",
-            backgroundRepeat: "no-repeat",
-            animation: "shimmerSweep 3.8s ease-in-out infinite",
+            width: "60%", height: "200%",
+            top: "-50%", left: "-5%",
+            background:
+              "radial-gradient(ellipse at center, rgba(147,210,255,0.32) 0%, rgba(99,179,255,0.10) 45%, transparent 70%)",
+            animation: "glassBlob1 5.5s ease-in-out infinite",
+            filter: "blur(7px)",
           }}
         />
-        {/* top-edge glass gleam */}
+        {/* blob 2 — violet, different speed + phase for chromatic split feel */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            width: "48%", height: "180%",
+            top: "-40%", left: "15%",
+            background:
+              "radial-gradient(ellipse at center, rgba(192,168,255,0.22) 0%, rgba(139,120,255,0.07) 45%, transparent 70%)",
+            animation: "glassBlob2 8s ease-in-out infinite",
+            filter: "blur(6px)",
+          }}
+        />
+        {/* top-edge glass gleam — static sharp highlight */}
         <div
           className="absolute top-0 inset-x-3 h-px pointer-events-none"
           style={{
             background:
-              "linear-gradient(90deg, transparent, rgba(147,197,253,0.55), transparent)",
+              "linear-gradient(90deg, transparent, rgba(147,197,253,0.60), transparent)",
           }}
         />
-        {/* bottom-edge subtle tint */}
+        {/* inner depth glow — pulses very slowly */}
         <div
-          className="absolute bottom-0 inset-x-3 h-px pointer-events-none"
+          className="absolute inset-0 pointer-events-none rounded-md"
           style={{
             background:
-              "linear-gradient(90deg, transparent, rgba(37,99,235,0.18), transparent)",
+              "radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.10) 0%, transparent 70%)",
+            animation: "glassGlow 4s ease-in-out infinite",
           }}
         />
 
