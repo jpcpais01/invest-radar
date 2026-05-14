@@ -4,14 +4,14 @@ import { persist } from "zustand/middleware";
 import { WidgetConfig, PresetLayout } from "@/types/widgets";
 
 const OVERVIEW_LAYOUT: WidgetConfig[] = [
-  { id: "candlestick-1778720998541",    type: "candlestick",        title: "Price Chart",           i: "candlestick-1778720998541",    x: 0,  y: 0, w: 10, h: 8, minW: 1, minH: 1 },
-  { id: "quality-score-1778721005237",  type: "quality-score",      title: "Quality Score",         i: "quality-score-1778721005237",  x: 10, y: 0, w: 4,  h: 8, minW: 1, minH: 1 },
-  { id: "price-prediction-1778721007613", type: "price-prediction", title: "AI Price Prediction",   i: "price-prediction-1778721007613", x: 14, y: 0, w: 10, h: 8, minW: 1, minH: 1 },
-  { id: "key-metrics-1778721127101",    type: "key-metrics",        title: "Key Metrics",           i: "key-metrics-1778721127101",    x: 0,  y: 8, w: 4,  h: 8, minW: 1, minH: 1 },
-  { id: "valuation-context-1778721042221", type: "valuation-context", title: "Valuation Context",  i: "valuation-context-1778721042221", x: 4, y: 8, w: 5,  h: 8, minW: 1, minH: 1 },
-  { id: "conviction-tracker-1778721081253", type: "conviction-tracker", title: "Management Conviction", i: "conviction-tracker-1778721081253", x: 9, y: 8, w: 5, h: 8, minW: 1, minH: 1 },
-  { id: "earnings-1778721033269",       type: "earnings",           title: "Earnings",              i: "earnings-1778721033269",       x: 14, y: 8, w: 5,  h: 8, minW: 1, minH: 1 },
-  { id: "news-feed-1778721068149",      type: "news-feed",          title: "News Feed",             i: "news-feed-1778721068149",      x: 19, y: 8, w: 5,  h: 8, minW: 1, minH: 1 },
+  { id: "candlestick-1778720998541",       type: "candlestick",        title: "Price Chart",          i: "candlestick-1778720998541",       x: 0,  y: 0, w: 10, h: 8, minW: 1, minH: 1 },
+  { id: "quality-score-1778721005237",     type: "quality-score",      title: "Quality Score",        i: "quality-score-1778721005237",     x: 10, y: 0, w: 4,  h: 8, minW: 1, minH: 1 },
+  { id: "price-prediction-1778721007613",  type: "price-prediction",   title: "AI Price Prediction",  i: "price-prediction-1778721007613",  x: 14, y: 0, w: 10, h: 8, minW: 1, minH: 1 },
+  { id: "key-metrics-1778721127101",       type: "key-metrics",        title: "Key Metrics",          i: "key-metrics-1778721127101",       x: 0,  y: 8, w: 4,  h: 8, minW: 1, minH: 1 },
+  { id: "valuation-context-1778721042221", type: "valuation-context",  title: "Valuation Context",    i: "valuation-context-1778721042221", x: 4,  y: 8, w: 5,  h: 7, minW: 1, minH: 1 },
+  { id: "conviction-tracker-1778721081253",type: "conviction-tracker", title: "Management Conviction",i: "conviction-tracker-1778721081253",x: 9,  y: 8, w: 5,  h: 7, minW: 1, minH: 1 },
+  { id: "earnings-1778721033269",          type: "earnings",           title: "Earnings",             i: "earnings-1778721033269",          x: 14, y: 8, w: 5,  h: 7, minW: 1, minH: 1 },
+  { id: "news-feed-1778721068149",         type: "news-feed",          title: "News Feed",            i: "news-feed-1778721068149",         x: 19, y: 8, w: 5,  h: 7, minW: 1, minH: 1 },
 ];
 
 export const PRESET_LAYOUTS: Record<PresetLayout, WidgetConfig[]> = {
@@ -120,6 +120,6 @@ export const useLayoutStore = create<LayoutState>()(
           customLayouts: s.customLayouts.map((l) => l.id === id ? { ...l, name } : l),
         })),
     }),
-    { name: "investradar-layout-v12" }
+    { name: "investradar-layout-v13" }
   )
 );
