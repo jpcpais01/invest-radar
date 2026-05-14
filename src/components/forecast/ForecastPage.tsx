@@ -23,6 +23,7 @@ interface ForecastData {
 
 const HISTORY_OPTS  = [30, 60, 90, 120, 252];
 const FORECAST_OPTS = [5, 10, 15, 20, 30];
+const RUNS_OPTS     = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 function pct(from: number, to: number) {
   const p = ((to - from) / from) * 100;
@@ -57,7 +58,49 @@ function SegPill({
   );
 }
 
-// ─── scenario stat ────────────────────────────────────────────────────────────
+// ─── runs stepper ─────────────────────────────────────────────────────────────
+function RunsStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Runs</span>
+      <div className="flex items-center rounded-lg overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <button onClick={() => onChange(Math.max(1, value - 1))}
+          className="px-2 py-1.5 text-[11px] transition-colors"
+          style={{ color: "rgba(255,255,255,0.35)" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.35)")}
+        >−</button>
+        <span className="text-[10px] font-mono font-medium px-1.5"
+          style={{ color: "rgba(255,255,255,0.65)", minWidth: 14, textAlign: "center" }}>{value}</span>
+        <button onClick={() => onChange(Math.min(10, value + 1))}
+          className="px-2 py-1.5 text-[11px] transition-colors"
+          style={{ color: "rgba(255,255,255,0.35)" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.35)")}
+        >+</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── technicals toggle ─────────────────────────────────────────────────────────
+function TechnicalsToggle({ active, onChange }: { active: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button onClick={() => onChange(!active)}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium tracking-wide transition-all shrink-0"
+      style={{
+        background: active ? "rgba(192,192,204,0.12)" : "rgba(255,255,255,0.04)",
+        border: `1px solid ${active ? "rgba(192,192,204,0.28)" : "rgba(255,255,255,0.07)"}`,
+        color: active ? "rgba(210,210,220,0.90)" : "rgba(255,255,255,0.28)",
+      }}
+    >
+      Technicals
+    </button>
+  );
+}
+
+// ─── scenario stat ─────────────────────────────────────────────────────────────
 function ScenStat({
   label, price, from, color, icon,
 }: { label: string; price: number | null; from: number; color: string; icon: React.ReactNode }) {
@@ -115,9 +158,11 @@ export default function ForecastPage() {
   const { activeTicker, setActiveTicker } = useTickerStore();
 
   const [ticker,    setTicker]    = useState(activeTicker || "AAPL");
-  const [nHistory,  setNHistory]  = useState(90);
-  const [nForecast, setNForecast] = useState(15);
-  const [loading,   setLoading]   = useState(false);
+  const [nHistory,    setNHistory]    = useState(90);
+  const [nForecast,   setNForecast]   = useState(15);
+  const [nRuns,       setNRuns]       = useState(3);
+  const [technicals,  setTechnicals]  = useState(false);
+  const [loading,     setLoading]     = useState(false);
   const [data,      setData]      = useState<ForecastData | null>(null);
   const [error,     setError]     = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -136,10 +181,13 @@ export default function ForecastPage() {
   };
 
   // ── API ──────────────────────────────────────────────────────────────────────
-  const runForecast = useCallback(async (t: string, hist: number, fore: number) => {
+  const runForecast = useCallback(async (
+    t: string, hist: number, fore: number, runs: number, tech: boolean
+  ) => {
     setLoading(true); setError(null);
     try {
-      const res  = await fetch(`/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}`);
+      const url = `/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}&nRuns=${runs}&technicals=${tech}`;
+      const res  = await fetch(url);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       const d = json as ForecastData;
@@ -214,7 +262,7 @@ export default function ForecastPage() {
             </button>
           );
           const runBtn = (
-            <button onClick={() => runForecast(ticker, nHistory, nForecast)} disabled={loading}
+            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals)} disabled={loading}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
               style={{
                 background: loading ? "rgba(255,255,255,0.04)" : "rgba(192,192,204,0.10)",
@@ -239,6 +287,10 @@ export default function ForecastPage() {
                 <span className="text-[10px] uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.2)" }}>Fcst</span>
                 <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} suffix="d" />
               </div>
+              {div}
+              <RunsStepper value={nRuns} onChange={setNRuns} />
+              {div}
+              <TechnicalsToggle active={technicals} onChange={setTechnicals} />
             </>
           );
           return (
@@ -289,7 +341,7 @@ export default function ForecastPage() {
                   to produce {nForecast}-day bear / base / bull scenarios.
                 </p>
               </div>
-              <button onClick={() => runForecast(ticker, nHistory, nForecast)}
+              <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
                 style={{
                   background: "rgba(192,192,204,0.08)",
@@ -324,7 +376,7 @@ export default function ForecastPage() {
               <div className="text-center">
                 <p className="text-sm font-medium text-white/50 mb-1">Analyzing {ticker}</p>
                 <p className="text-xs text-white/20">
-                  {nHistory}d history · RSI · EMA 50/200 · ADX · {nForecast}-day outlook
+                  {nHistory}d history{technicals ? " · RSI · EMA 50/200 · ADX" : ""} · {nForecast}-day outlook
                 </p>
               </div>
             </div>
@@ -335,7 +387,7 @@ export default function ForecastPage() {
         {error && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
             <p className="text-sm text-red-400/80 text-center max-w-sm">{error}</p>
-            <button onClick={() => runForecast(ticker, nHistory, nForecast)}
+            <button onClick={() => runForecast(ticker, nHistory, nForecast, nRuns, technicals)}
               className="text-xs px-4 py-1.5 rounded-lg transition-all"
               style={{ color: "rgba(192,192,204,0.6)", border: "1px solid rgba(192,192,204,0.15)" }}
             >
@@ -382,6 +434,14 @@ export default function ForecastPage() {
                 <ConfidenceRing value={data.confidence} />
               </div>
             </div>
+            {/* Row 3: Analysis */}
+            {data.analysis && (
+              <div className="px-4 py-3 flex items-start gap-2"
+                style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <Sparkles className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "rgba(192,192,204,0.4)" }} />
+                <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>{data.analysis}</p>
+              </div>
+            )}
           </div>
 
           {/* DESKTOP — single horizontal row */}
