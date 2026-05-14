@@ -84,7 +84,7 @@ function RunsStepper({ value, onChange }: { value: number; onChange: (v: number)
         >−</button>
         <span className="text-[10px] font-mono font-medium px-1.5"
           style={{ color: "rgba(255,255,255,0.65)", minWidth: 14, textAlign: "center" }}>{value}</span>
-        <button onClick={() => onChange(Math.min(10, value + 1))}
+        <button onClick={() => onChange(Math.min(50, value + 1))}
           className="px-2 py-1.5 text-[11px] transition-colors"
           style={{ color: "rgba(255,255,255,0.35)" }}
           onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}

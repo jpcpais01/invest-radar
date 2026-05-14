@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
   const ticker      = (sp.get("ticker")     ?? "AAPL").toUpperCase();
   const nHistory    = Math.min(252, Math.max(30, parseInt(sp.get("nHistory")    ?? "90")));
   const nForecast   = Math.min(30,  Math.max(3,  parseInt(sp.get("nForecast")   ?? "15")));
-  const nRuns       = Math.min(10,  Math.max(1,  parseInt(sp.get("nRuns")       ?? "3")));
+  const nRuns       = Math.min(50,  Math.max(1,  parseInt(sp.get("nRuns")       ?? "3")));
   const withTech     = sp.get("technicals") === "true";
   const backtest     = sp.get("backtest")   === "true";
   const rewind      = Math.min(60,  Math.max(15, parseInt(sp.get("rewind")      ?? "30")));
