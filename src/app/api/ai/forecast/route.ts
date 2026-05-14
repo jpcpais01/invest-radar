@@ -225,6 +225,16 @@ export async function GET(req: NextRequest) {
       .join("\n");
 
     // ── optional last-candle technicals ──────────────────────────────────────
+    // ATR(14) — always computed; used for confidence scaling and optionally shown in technicals
+    const feedHighs   = feedSlice.map(b => b.high   ?? b.close);
+    const feedLows    = feedSlice.map(b => b.low    ?? b.close);
+    const feedVolumes = feedSlice.map(b => b.volume ?? 0);
+    let atr14 = lastClose * 0.01; // fallback: 1% of price if not enough data
+    if (closes.length >= 15) {
+      const atrVals = ti.ATR.calculate({ high: feedHighs, low: feedLows, close: closes, period: 14 });
+      if (atrVals.length > 0) atr14 = atrVals[atrVals.length - 1];
+    }
+
     let technicalsNote = "";
     if (withTech && closes.length >= 15) {
       const lines: string[] = [];
@@ -248,11 +258,6 @@ export async function GET(req: NextRequest) {
           lines.push(`EMA(200): ${ema200[ema200.length - 1].toFixed(2)}`);
       }
 
-      // Highs / lows / volumes shared by ADX, ATR, VWAP
-      const feedHighs   = feedSlice.map(b => b.high   ?? b.close);
-      const feedLows    = feedSlice.map(b => b.low    ?? b.close);
-      const feedVolumes = feedSlice.map(b => b.volume ?? 0);
-
       // ADX(14)
       if (closes.length >= 28) {
         const adxVals = ti.ADX.calculate({ high: feedHighs, low: feedLows, close: closes, period: 14 });
@@ -262,15 +267,9 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // ATR(14) — volatility anchor so the AI sizes moves realistically
-      if (closes.length >= 15) {
-        const atrVals = ti.ATR.calculate({ high: feedHighs, low: feedLows, close: closes, period: 14 });
-        if (atrVals.length > 0) {
-          const atr    = atrVals[atrVals.length - 1];
-          const atrPct = (atr / lastClose * 100).toFixed(2);
-          lines.push(`ATR(14): ${atr.toFixed(2)} (${atrPct}% of price)`);
-        }
-      }
+      // ATR(14)
+      const atrPct = (atr14 / lastClose * 100).toFixed(2);
+      lines.push(`ATR(14): ${atr14.toFixed(2)} (${atrPct}% of price)`);
 
       // VWAP — cumulative over the feed window
       if (feedVolumes.some(v => v > 0)) {
@@ -313,19 +312,18 @@ export async function GET(req: NextRequest) {
     const bull   = geoMean(sorted.slice(-2),     effectiveForecast);
     const base   = geoMean(allPredictions,        effectiveForecast);
 
-    // ── confidence from ensemble spread ─────────────────────────────────────
-    // Measure how tightly the nRuns×3 final prices agree with each other.
-    // Tight agreement → high confidence; wide spread → low confidence.
-    // Normalise by sqrt(nForecast) so longer horizons aren't penalised unfairly.
-    const finalPrices  = allPredictions.map(p => p[p.length - 1]);
-    const meanFinal    = finalPrices.reduce((s, v) => s + v, 0) / finalPrices.length;
-    const stdFinal     = Math.sqrt(
-      finalPrices.reduce((s, v) => s + (v - meanFinal) ** 2, 0) / finalPrices.length
-    );
-    const spreadPct    = (stdFinal / lastClose) * 100 / Math.sqrt(effectiveForecast);
-    // spreadPct ≈ 0  → confidence 100   (perfect agreement)
-    // spreadPct ≈ 2  → confidence  20   (typical divergence)
-    const confidence   = Math.round(Math.max(0, Math.min(100, 100 - spreadPct * 40)));
+    // ── confidence: ATR-normalised outcome spread ────────────────────────────
+    // ATR × √nForecast = the "expected" random-walk range over the horizon.
+    // We compare that against the actual spread of all predicted final prices.
+    //   ratio < 1 → paths converge tighter than noise → model has conviction → high confidence
+    //   ratio ≈ 1 → spread matches a random walk → no real edge → medium
+    //   ratio > 1 → paths are wider than noise → genuine uncertainty → low confidence
+    const finalPrices   = allPredictions.map(p => p[p.length - 1]);
+    const meanFinal     = finalPrices.reduce((s, v) => s + v, 0) / finalPrices.length;
+    const outcomeRange  = Math.max(...finalPrices) - Math.min(...finalPrices);
+    const expectedRange = atr14 * Math.sqrt(effectiveForecast);
+    const ratio         = outcomeRange / (expectedRange * 2); // ×2: range spans ±expected
+    const confidence    = Math.round(Math.max(0, Math.min(100, 100 - ratio * 60)));
 
     // Best analysis: pick from the run whose final prices sit closest to the ensemble mean
     const bestRun = results.reduce((best, r) => {
