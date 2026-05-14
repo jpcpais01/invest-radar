@@ -47,7 +47,7 @@ function evenIdxs(total: number, n: number): number[] {
 export default function ForecastChart({ historical, futureDates, lastClose, scenarios }: Props) {
   const uid      = useId().replace(/:/g, "");
   const wrapRef  = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 900, h: 520 });
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [mouseX, setMouseX] = useState<number | null>(null);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
     return () => ro.disconnect();
   }, []);
 
-  const { w, h } = size;
+  const { w, h } = size ?? { w: 0, h: 0 };
   const cW = w - M.left - M.right;
   const cH = h - M.top  - M.bottom;
 
@@ -143,7 +143,7 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
 
   return (
     <div ref={wrapRef} className="w-full h-full" style={{ background: "#080808" }}>
-      <svg
+      {size && <svg
         width={w} height={h}
         style={{ display: "block" }}
         onMouseMove={e => {
@@ -355,7 +355,7 @@ export default function ForecastChart({ historical, futureDates, lastClose, scen
             </g>
           </>
         )}
-      </svg>
+      </svg>}
     </div>
   );
 }

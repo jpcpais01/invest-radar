@@ -46,17 +46,61 @@ export default function HomeChat({ ticker }: Props) {
   ];
 
   return (
+    <>
+    <style dangerouslySetInnerHTML={{ __html: `
+      @keyframes chatBlob1 {
+        0%   { transform: translate(0%,   10%)  scale(1.00); opacity: 0.45; }
+        20%  { transform: translate(70%, -40%)  scale(1.20); opacity: 0.70; }
+        45%  { transform: translate(110%, 55%)  scale(0.85); opacity: 0.30; }
+        70%  { transform: translate(15%,  85%)  scale(1.10); opacity: 0.55; }
+        100% { transform: translate(0%,   10%)  scale(1.00); opacity: 0.45; }
+      }
+      @keyframes chatBlob2 {
+        0%   { transform: translate(100%, -5%)  scale(0.90); opacity: 0.28; }
+        30%  { transform: translate(10%, -65%)  scale(1.15); opacity: 0.50; }
+        60%  { transform: translate(60%,  75%)  scale(1.00); opacity: 0.35; }
+        100% { transform: translate(100%, -5%)  scale(0.90); opacity: 0.28; }
+      }
+      @keyframes chatGlow {
+        0%, 100% { opacity: 0.40; }
+        50%       { opacity: 0.75; }
+      }
+    ` }} />
     <div
-      className="overflow-hidden flex flex-col"
+      className="overflow-hidden flex flex-col relative"
       style={{
-        background: "linear-gradient(160deg, rgba(6,8,28,0.97) 0%, rgba(10,14,38,0.97) 100%)",
+        background: "linear-gradient(160deg, rgba(4,6,22,0.97) 0%, rgba(8,11,32,0.97) 100%)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
         border: "1px solid rgba(96,165,250,0.18)",
         borderRadius: 12,
-        boxShadow: "0 0 40px rgba(37,99,235,0.10), inset 0 1px 0 rgba(147,197,253,0.08)",
+        boxShadow: "0 0 40px rgba(37,99,235,0.12), inset 0 1px 0 rgba(147,197,253,0.08)",
       }}
     >
+      {/* glass light blobs — same effect as Ask AI button */}
+      <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: 12, overflow: "hidden" }}>
+        <div style={{
+          position: "absolute",
+          width: "55%", height: "60%",
+          top: "-10%", left: "-5%",
+          background: "radial-gradient(ellipse at center, rgba(147,210,255,0.20) 0%, rgba(99,179,255,0.07) 45%, transparent 70%)",
+          animation: "chatBlob1 6s ease-in-out infinite",
+          filter: "blur(18px)",
+        }} />
+        <div style={{
+          position: "absolute",
+          width: "48%", height: "55%",
+          top: "5%", left: "20%",
+          background: "radial-gradient(ellipse at center, rgba(192,168,255,0.14) 0%, rgba(139,120,255,0.05) 45%, transparent 70%)",
+          animation: "chatBlob2 9s ease-in-out infinite",
+          filter: "blur(16px)",
+        }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "radial-gradient(ellipse at 50% 30%, rgba(37,99,235,0.08) 0%, transparent 65%)",
+          animation: "chatGlow 5s ease-in-out infinite",
+        }} />
+      </div>
       {/* Header */}
       <div
         className="flex items-center gap-2.5 px-4 py-2.5 shrink-0"
@@ -219,5 +263,6 @@ export default function HomeChat({ ticker }: Props) {
         </p>
       </div>
     </div>
+    </>
   );
 }

@@ -167,6 +167,13 @@ export default function ForecastPage() {
   const bear = data?.scenarios.bear.at(-1) ?? null;
 
   return (
+    <>
+    <style dangerouslySetInnerHTML={{ __html: `
+      @keyframes chartIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+    ` }} />
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, background: "#080808" }}>
 
       {/* ── top bar ──────────────────────────────────────────────────────────── */}
@@ -339,7 +346,7 @@ export default function ForecastPage() {
 
         {/* chart */}
         {data && !loading && (
-          <div className="absolute inset-0">
+          <div className="absolute inset-0" style={{ animation: "chartIn 0.25s ease forwards" }}>
             <ForecastChart
               historical={data.historical}
               futureDates={data.futureDates}
@@ -413,5 +420,6 @@ export default function ForecastPage() {
         variant="home"
       />
     </div>
+    </>
   );
 }
