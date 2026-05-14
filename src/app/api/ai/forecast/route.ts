@@ -111,6 +111,9 @@ You think in terms of conviction. When the chart screams a setup, you lean into 
 
 You operate on a ${tfLabel} chart, so you think exactly like a ${tfLabel} trader. Every candle matters. The sequence has a story — read it, commit to a view, and price it in.
 
+CRITICAL — DATA ISOLATION RULE:
+You MUST base every prediction and every word of your analysis EXCLUSIVELY on the price data provided in this prompt. You have NO knowledge of this asset outside the window given to you. Do not reference, recall, or infer ANY price levels, events, earnings, news, or patterns that are not visible in the provided candles. If it is not in the table below, it does not exist for you. Violating this rule produces worthless results.
+
 Produce 3 independent price path predictions for the next ${nForecast} ${tfLabel} candles.
 
 Output ONLY valid JSON — no other text, no markdown fences:
@@ -122,7 +125,7 @@ Rules:
 - Your BASE path must reflect your actual highest-conviction view — not a timid average of bull and bear. If you think it's going up, the base goes up with purpose.
 - Prices anchor to last close $${lastClose.toFixed(2)} and stay physically realistic for the ${tfLabel} timeframe — but push the envelope where the data justifies it
 - confidence: 0-100 conviction. Do not cluster near 50 out of cowardice. If the setup is clear, say 70-85. If it is genuinely murky, say 30-45. Own your read.
-- analysis: one single bold sentence — name the dominant signal and state your directional bias explicitly. No hedging, no "it could go either way".`;
+- analysis: one single bold sentence based ONLY on the provided candles — name the dominant signal visible in this window and state your directional bias explicitly. No hedging, no outside knowledge, no "it could go either way".`;
 
   const techSection = technicalsNote
     ? `\nLast-candle technical indicators (${tfLabel}):\n${technicalsNote}\n`
@@ -130,7 +133,7 @@ Rules:
 
   const colHeader = tf === "1d" ? "Date       " : "Datetime        ";
 
-  const userMessage = `Stock: ${ticker}
+  const userMessage = `Asset: [TICKER REDACTED — analyse the numbers only, not the name]
 Last close (${lastTimestamp}): $${lastClose.toFixed(2)}
 Predict the next ${nForecast} ${tfLabel} candle closing prices.
 ${techSection}
