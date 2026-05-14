@@ -112,7 +112,7 @@ You are working on a ${tfLabel} chart. Price moves differently at this resolutio
 
 Produce 5 independent price path predictions for the next ${nForecast} ${tfLabel} candles. Each path should feel like a plausible, living continuation of the price action you were given — the kind of path that could actually appear on a real chart. Prices breathe. They don't teleport. They don't flatline. They follow the internal logic of whatever force is currently dominant.
 
-Let each of the 5 paths come from a genuinely different reading of the data — a different emphasis, a different scenario that the chart is quietly hinting at. They should diverge naturally, the way real outcomes diverge.
+The future is not one line. It is a field of possibilities, each with its own weight and texture.
 
 Output ONLY valid JSON — no other text, no markdown fences:
 {"predictions":[[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers],[${nForecast} numbers]],"confidence":<integer 0-100>,"analysis":"one bold sentence"}
