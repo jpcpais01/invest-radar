@@ -21,17 +21,46 @@ function candleLabel(tf: TF) {
 }
 
 /**
- * Generate the next `n` future candle timestamps after `fromSec`.
- * Skips UTC weekends for all timeframes; daily also skips by exact day boundary.
+ * Crypto tickers on Yahoo Finance use a hyphen: BTC-USD, ETH-USD, etc.
+ * For crypto we never filter out candles — they trade 24/7.
  */
-function nextCandleTimes(fromSec: number, n: number, tf: TF): number[] {
+function isCrypto(ticker: string): boolean {
+  return ticker.includes("-");
+}
+
+/**
+ * Returns minutes since local midnight in America/New_York for a Unix timestamp.
+ * Used to filter out pre-market and after-hours intraday bars.
+ */
+function nyMinutes(sec: number): number {
+  const s = new Date(sec * 1000).toLocaleTimeString("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }); // "09:30" or "16:00"
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Regular session: 09:30–16:00 ET inclusive */
+function isRegularSession(sec: number): boolean {
+  const mins = nyMinutes(sec);
+  return mins >= 570 && mins <= 960;
+}
+
+/**
+ * Generate the next `n` future candle timestamps after `fromSec`.
+ * Skips weekends. For non-crypto intraday, also skips pre/after-market.
+ */
+function nextCandleTimes(fromSec: number, n: number, tf: TF, filterSession: boolean): number[] {
   const step = INTERVAL_SEC[tf];
   const times: number[] = [];
   let t = fromSec;
   while (times.length < n) {
     t += step;
-    const day = new Date(t * 1000).getUTCDay(); // 0 = Sun, 6 = Sat
-    if (day !== 0 && day !== 6) times.push(t);
+    const day = new Date(t * 1000).getUTCDay();
+    if (day === 0 || day === 6) continue;
+    if (filterSession && !isRegularSession(t)) continue;
+    times.push(t);
   }
   return times;
 }
@@ -158,7 +187,14 @@ export async function GET(req: NextRequest) {
     const from    = new Date(Date.now() - calDays * 86400000);
 
     const yahooInterval = tf; // "5m" | "1h" | "1d" all accepted by getHistory
-    const bars = await getHistory(ticker, yahooInterval, from);
+    const rawBars = await getHistory(ticker, yahooInterval, from);
+
+    // Filter pre-market / after-hours for intraday non-crypto assets.
+    // Crypto trades 24/7 so we never filter it.
+    const filterSession = tf !== "1d" && !isCrypto(ticker);
+    const bars = filterSession
+      ? rawBars.filter(b => isRegularSession(b.time))
+      : rawBars;
 
     if (bars.length < 10)
       return NextResponse.json({ error: "Insufficient historical data" }, { status: 400 });
@@ -262,7 +298,7 @@ export async function GET(req: NextRequest) {
     // - backtest: actual historical timestamps from the rewind window
     const futureDates = backtest && rewindSlice
       ? rewindSlice.slice(0, effectiveForecast).map(b => b.time)
-      : nextCandleTimes(slice[slice.length - 1].time, effectiveForecast, tf);
+      : nextCandleTimes(slice[slice.length - 1].time, effectiveForecast, tf, filterSession);
 
     // historical always shows the full slice (chart shows all actual prices)
     const historical = bars.slice(-Math.min(nHistory, 120)).map(b => ({ time: b.time, close: b.close }));
