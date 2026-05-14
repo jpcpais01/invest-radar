@@ -170,75 +170,54 @@ export default function ForecastPage() {
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: "#080808" }}>
 
       {/* ── top bar ──────────────────────────────────────────────────────────── */}
-      <header className="shrink-0 z-20 px-5 h-14 flex items-center gap-4"
+      <header className="shrink-0 z-20"
         style={{
           background: "rgba(8,8,8,0.80)",
           backdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(255,255,255,0.05)",
         }}
       >
-        {/* back */}
-        <button onClick={() => router.push("/")}
-          className="flex items-center gap-1.5 group transition-colors"
-          style={{ color: "rgba(255,255,255,0.28)" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
-          onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}
-        >
-          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-          <span className="text-xs hidden sm:block">Home</span>
-        </button>
+        {/* Row 1 — back · logo · ticker · run */}
+        <div className="px-4 h-12 flex items-center gap-3">
+          <button onClick={() => router.push("/")}
+            className="flex items-center gap-1.5 group transition-colors shrink-0"
+            style={{ color: "rgba(255,255,255,0.28)" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="text-xs hidden sm:block">Home</span>
+          </button>
 
-        <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.07)" }} className="shrink-0" />
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} className="shrink-0" />
 
-        {/* logo */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-5 h-5 rounded flex items-center justify-center"
-            style={{ border: "1px solid rgba(192,192,204,0.18)", background: "rgba(192,192,204,0.05)" }}>
-            <span style={{ color: "rgba(192,192,204,0.8)", fontSize: 8, fontWeight: 700 }}>◆</span>
-          </div>
-          <span className="text-xs font-semibold hidden sm:block"
-            style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>
-            AI FORECAST
-          </span>
-        </div>
-
-        <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.07)" }} className="shrink-0" />
-
-        {/* ticker button */}
-        <button onClick={() => setPaletteOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-        >
-          <span className="text-sm font-semibold font-mono text-white">{ticker}</span>
-          <ChevronDown className="w-3 h-3" style={{ color: "rgba(255,255,255,0.3)" }} />
-        </button>
-
-        {/* spacer */}
-        <div className="flex-1" />
-
-        {/* controls */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest"
-              style={{ color: "rgba(255,255,255,0.2)" }}>Hist</span>
-            <SegPill options={HISTORY_OPTS}  active={nHistory}  onChange={setNHistory}  suffix="d" />
-          </div>
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest"
-              style={{ color: "rgba(255,255,255,0.2)" }}>Fcst</span>
-            <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} suffix="d" />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="w-5 h-5 rounded flex items-center justify-center"
+              style={{ border: "1px solid rgba(192,192,204,0.18)", background: "rgba(192,192,204,0.05)" }}>
+              <span style={{ color: "rgba(192,192,204,0.8)", fontSize: 8, fontWeight: 700 }}>◆</span>
+            </div>
+            <span className="text-[10px] font-semibold hidden sm:block"
+              style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>AI FORECAST</span>
           </div>
 
-          {/* run button */}
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} className="shrink-0" />
+
+          {/* ticker */}
+          <button onClick={() => setPaletteOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all flex-1 min-w-0"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+          >
+            <span className="text-sm font-semibold font-mono text-white truncate">{ticker}</span>
+            <ChevronDown className="w-3 h-3 shrink-0 ml-auto" style={{ color: "rgba(255,255,255,0.3)" }} />
+          </button>
+
+          {/* run */}
           <button
             onClick={() => runForecast(ticker, nHistory, nForecast)}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
             style={{
               background: loading ? "rgba(255,255,255,0.04)" : "rgba(192,192,204,0.10)",
               border: `1px solid ${loading ? "rgba(255,255,255,0.06)" : "rgba(192,192,204,0.22)"}`,
@@ -249,8 +228,24 @@ export default function ForecastPage() {
             {loading
               ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               : <Sparkles className="w-3.5 h-3.5" />}
-            <span className="hidden sm:block">{loading ? "Analyzing…" : "Run Forecast"}</span>
+            <span>{loading ? "Analyzing…" : "Run Forecast"}</span>
           </button>
+        </div>
+
+        {/* Row 2 — HIST · FCST controls */}
+        <div className="px-4 h-10 flex items-center gap-4"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest shrink-0"
+              style={{ color: "rgba(255,255,255,0.2)" }}>Hist</span>
+            <SegPill options={HISTORY_OPTS}  active={nHistory}  onChange={setNHistory}  suffix="d" />
+          </div>
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} className="shrink-0" />
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest shrink-0"
+              style={{ color: "rgba(255,255,255,0.2)" }}>Fcst</span>
+            <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} suffix="d" />
+          </div>
         </div>
       </header>
 
@@ -345,50 +340,52 @@ export default function ForecastPage() {
         )}
       </div>
 
-      {/* ── footer ───────────────────────────────────────────────────────────── */}
+      {/* ── footer — 3×2 table ───────────────────────────────────────────────── */}
       {data && (
-        <div className="shrink-0 px-6 py-4 flex items-center gap-6 flex-wrap"
+        <div className="shrink-0"
           style={{
             background: "rgba(8,8,8,0.90)",
             backdropFilter: "blur(20px)",
             borderTop: "1px solid rgba(255,255,255,0.05)",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "auto auto auto",
           }}
         >
-          {/* scenarios */}
-          <div className="flex items-center gap-6">
+          {/* [0,0] Bull */}
+          <div className="px-5 py-3 flex items-center"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", borderRight: "1px solid rgba(255,255,255,0.04)", gridRow: 1, gridColumn: 1 }}>
             <ScenStat label="Bull" price={bull} from={data.lastClose} color="rgba(34,197,94,0.85)"
               icon={<TrendingUp className="w-3 h-3" />} />
-            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.06)" }} />
+          </div>
+
+          {/* [0-1, 1] Analysis (spans rows 1–2) */}
+          <div className="px-5 py-3 flex items-start gap-2"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", gridRow: "1 / 3", gridColumn: 2 }}>
+            <Sparkles className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "rgba(192,192,204,0.35)" }} />
+            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.32)" }}>
+              {data.analysis || "No analysis available."}
+            </p>
+          </div>
+
+          {/* [1,0] Base */}
+          <div className="px-5 py-3 flex items-center"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", borderRight: "1px solid rgba(255,255,255,0.04)", gridRow: 2, gridColumn: 1 }}>
             <ScenStat label="Base" price={base} from={data.lastClose} color="rgba(192,192,204,0.85)"
               icon={<Minus className="w-3 h-3" />} />
-            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.06)" }} />
+          </div>
+
+          {/* [2,0] Bear */}
+          <div className="px-5 py-3 flex items-center"
+            style={{ borderRight: "1px solid rgba(255,255,255,0.04)", gridRow: 3, gridColumn: 1 }}>
             <ScenStat label="Bear" price={bear} from={data.lastClose} color="rgba(239,68,68,0.85)"
               icon={<TrendingDown className="w-3 h-3" />} />
           </div>
 
-          {/* analysis */}
-          {data.analysis && (
-            <>
-              <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.06)" }}
-                className="hidden md:block shrink-0" />
-              <div className="flex items-start gap-2 min-w-0 flex-1 hidden md:flex">
-                <Sparkles className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "rgba(192,192,204,0.4)" }} />
-                <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  {data.analysis}
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* confidence + meta */}
-          <div className="ml-auto flex items-center gap-4 shrink-0">
+          {/* [2,1] Confidence */}
+          <div className="px-5 py-3 flex items-center"
+            style={{ gridRow: 3, gridColumn: 2 }}>
             <ConfidenceRing value={data.confidence} />
-            <div className="hidden lg:block text-right">
-              <div className="text-[9px] uppercase tracking-widest"
-                style={{ color: "rgba(255,255,255,0.15)" }}>Model</div>
-              <div className="text-[10px] font-mono"
-                style={{ color: "rgba(255,255,255,0.25)" }}>claude-sonnet-4-6</div>
-            </div>
           </div>
         </div>
       )}
