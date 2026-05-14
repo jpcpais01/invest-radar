@@ -113,7 +113,7 @@ export default function HomeChat({ ticker }: Props) {
         <span className="text-[11px] font-semibold tracking-wide" style={{ color: "#93c5fd" }}>AI Assistant</span>
         <span className="text-[9px] ml-0.5" style={{ color: "rgba(96,165,250,0.35)" }}>{ticker}</span>
         <button
-          onClick={clearHistory}
+          onClick={e => { e.preventDefault(); e.stopPropagation(); clearHistory(); }}
           className="ml-auto w-5 h-5 rounded flex items-center justify-center transition-colors"
           style={{ color: "rgba(96,165,250,0.25)" }}
           onMouseEnter={e => (e.currentTarget.style.color = "rgba(239,68,68,0.7)")}
