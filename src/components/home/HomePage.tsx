@@ -45,52 +45,90 @@ export default function HomePage() {
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-[#1e1e1e]" style={{ background: "rgba(8,8,8,0.92)", backdropFilter: "blur(12px)" }}>
 
-        {/* Row 1 — logo · search · tabs */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center gap-3">
-          <a href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-6 h-6 rounded-md border border-[#c0c0cc33] bg-[#c0c0cc08] flex items-center justify-center group-hover:border-[#c0c0cc66] transition-colors">
-              <span className="text-[#c0c0cc] text-[9px] font-bold">◆</span>
-            </div>
-            <span className="text-xs font-semibold text-[#f0f0f0] tracking-wide hidden sm:block">Open Terminal</span>
-          </a>
-
-          <button
-            onClick={() => setPaletteOpen(true)}
-            className="flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors text-left"
-          >
-            <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
-            <span className="text-sm font-semibold text-[#f0f0f0] truncate font-mono">{activeTicker}</span>
-            <kbd className="ml-auto text-[10px] text-[#3a3a3a] font-mono hidden sm:block">⌘K</kbd>
-          </button>
-
-          <div className="flex items-center border border-[#1e1e1e] rounded-md p-0.5 shrink-0 bg-[#101010]">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={cn("px-2.5 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]" : "text-[#767676] hover:text-[#f0f0f0]")}
-            >Overview</button>
-            <button
-              onClick={() => setActiveTab("discover")}
-              className={cn("px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]" : "text-[#767676] hover:text-[#f0f0f0]")}
-            >
-              <Compass className="w-3 h-3" /><span>Discover</span>
+        {/* ── MOBILE: two rows (hidden on md+) ─────────────────────────── */}
+        <div className="md:hidden">
+          {/* Row 1 — logo · search · tabs */}
+          <div className="px-4 h-12 flex items-center gap-3">
+            <a href="/" className="flex items-center gap-2 shrink-0 group">
+              <div className="w-6 h-6 rounded-md border border-[#c0c0cc33] bg-[#c0c0cc08] flex items-center justify-center group-hover:border-[#c0c0cc66] transition-colors">
+                <span className="text-[#c0c0cc] text-[9px] font-bold">◆</span>
+              </div>
+            </a>
+            <button onClick={() => setPaletteOpen(true)}
+              className="flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors text-left">
+              <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
+              <span className="text-sm font-semibold text-[#f0f0f0] truncate font-mono">{activeTicker}</span>
             </button>
+            <div className="flex items-center border border-[#1e1e1e] rounded-md p-0.5 shrink-0 bg-[#101010]">
+              <button onClick={() => setActiveTab("overview")}
+                className={cn("px-2.5 py-1 rounded text-xs font-medium transition-colors", activeTab === "overview" ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]" : "text-[#767676]")}
+              >Overview</button>
+              <button onClick={() => setActiveTab("discover")}
+                className={cn("px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1", activeTab === "discover" ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]" : "text-[#767676]")}
+              ><Compass className="w-3 h-3" />Discover</button>
+            </div>
+          </div>
+          {/* Row 2 — Ask AI · Forecast · Terminal */}
+          <div className="px-4 h-10 flex items-center gap-2 border-t border-[#1e1e1e]">
+            <div ref={chatBtnRef} className="relative">
+              <button onClick={() => setChatOpen(v => !v)}
+                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
+                  chatOpen ? "bg-[#c0c0cc18] border-[#c0c0cc55] text-[#f0f0f0]" : "bg-[#c0c0cc08] border-[#c0c0cc28] text-[#c0c0cc] hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44]")}>
+                <Sparkles className="w-3.5 h-3.5 text-[#c0c0cc]" />
+                <span>Ask AI</span>
+                {chatOpen && <X className="w-3 h-3 ml-0.5 opacity-60" />}
+              </button>
+              {chatOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setChatOpen(false)} />
+                  <div className="absolute top-[calc(100%+10px)] left-0 z-50 w-[min(440px,calc(100vw-32px))]">
+                    <div className="absolute -top-1.5 left-4 w-3 h-3 rotate-45 bg-[#101010] border-l border-t border-[#2c2c2c]" />
+                    <div className="rounded-xl border border-[#2c2c2c] overflow-hidden shadow-2xl"
+                      style={{ background: "#101010", boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.06)" }}>
+                      <HomeChat ticker={activeTicker} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <a href="/forecast" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
+              <LineChart className="w-3.5 h-3.5 shrink-0" /><span>Forecast</span>
+            </a>
+            <a href={`/terminal/${activeTicker}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
+              <Terminal className="w-3.5 h-3.5 shrink-0" /><span>Terminal</span>
+            </a>
           </div>
         </div>
 
-        {/* Row 2 — Ask AI · Forecast · Terminal */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-10 flex items-center gap-2 border-t border-[#1e1e1e]">
+        {/* ── DESKTOP: single row (hidden below md) ────────────────────── */}
+        <div className="hidden md:flex max-w-7xl mx-auto px-6 h-14 items-center gap-3">
+          <a href="/" className="flex items-center gap-2.5 shrink-0 group">
+            <div className="w-7 h-7 rounded-md border border-[#c0c0cc33] bg-[#c0c0cc08] flex items-center justify-center group-hover:border-[#c0c0cc66] transition-colors">
+              <span className="text-[#c0c0cc] text-[10px] font-bold">◆</span>
+            </div>
+            <span className="text-xs font-semibold text-[#f0f0f0] tracking-wide">Open Terminal</span>
+          </a>
 
-          {/* AI Chat button */}
-          <div ref={chatBtnRef} className="relative">
-            <button
-              onClick={() => setChatOpen(v => !v)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
-                chatOpen
-                  ? "bg-[#c0c0cc18] border-[#c0c0cc55] text-[#f0f0f0]"
-                  : "bg-[#c0c0cc08] border-[#c0c0cc28] text-[#c0c0cc] hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44]"
-              )}
-            >
+          <button onClick={() => setPaletteOpen(true)}
+            className="flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors text-left">
+            <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
+            <span className="text-sm font-semibold text-[#f0f0f0] truncate font-mono">{activeTicker}</span>
+            <kbd className="ml-auto text-[10px] text-[#3a3a3a] font-mono">⌘K</kbd>
+          </button>
+
+          <div className="flex items-center border border-[#1e1e1e] rounded-md p-0.5 shrink-0 bg-[#101010]">
+            <button onClick={() => setActiveTab("overview")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors tracking-wide", activeTab === "overview" ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]" : "text-[#767676] hover:text-[#f0f0f0]")}
+            >Overview</button>
+            <button onClick={() => setActiveTab("discover")}
+              className={cn("px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 tracking-wide", activeTab === "discover" ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]" : "text-[#767676] hover:text-[#f0f0f0]")}
+            ><Compass className="w-3 h-3" /><span>Discover</span></button>
+          </div>
+
+          <div ref={chatBtnRef} className="relative shrink-0">
+            <button onClick={() => setChatOpen(v => !v)}
+              className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
+                chatOpen ? "bg-[#c0c0cc18] border-[#c0c0cc55] text-[#f0f0f0]" : "bg-[#c0c0cc08] border-[#c0c0cc28] text-[#c0c0cc] hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44]")}>
               <Sparkles className="w-3.5 h-3.5 text-[#c0c0cc]" />
               <span className="whitespace-nowrap">Ask AI</span>
               {chatOpen && <X className="w-3 h-3 ml-0.5 opacity-60" />}
@@ -98,8 +136,8 @@ export default function HomePage() {
             {chatOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setChatOpen(false)} />
-                <div className="absolute top-[calc(100%+10px)] left-0 z-50 w-[min(440px,calc(100vw-32px))]">
-                  <div className="absolute -top-1.5 left-4 w-3 h-3 rotate-45 bg-[#101010] border-l border-t border-[#2c2c2c]" />
+                <div className="absolute top-[calc(100%+10px)] right-0 z-50 w-[min(440px,calc(100vw-32px))]">
+                  <div className="absolute -top-1.5 right-4 w-3 h-3 rotate-45 bg-[#101010] border-l border-t border-[#2c2c2c]" />
                   <div className="rounded-xl border border-[#2c2c2c] overflow-hidden shadow-2xl"
                     style={{ background: "#101010", boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.06)" }}>
                     <HomeChat ticker={activeTicker} />
@@ -109,18 +147,11 @@ export default function HomePage() {
             )}
           </div>
 
-          <a href="/forecast"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors"
-          >
-            <LineChart className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Forecast</span>
+          <a href="/forecast" className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
+            <LineChart className="w-3.5 h-3.5 shrink-0" /><span className="whitespace-nowrap">Forecast</span>
           </a>
-
-          <a href={`/terminal/${activeTicker}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors"
-          >
-            <Terminal className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Terminal</span>
+          <a href={`/terminal/${activeTicker}`} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
+            <Terminal className="w-3.5 h-3.5 shrink-0" /><span className="whitespace-nowrap">Terminal</span>
           </a>
         </div>
       </header>
