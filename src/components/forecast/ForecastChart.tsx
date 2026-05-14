@@ -77,6 +77,8 @@ export default function ForecastChart({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize]   = useState<{ w: number; h: number } | null>(null);
   const [mouseX, setMouseX] = useState<number | null>(null);
+  const [pathOpacity, setPathOpacity] = useState(0.10);
+  const [pathWidth,   setPathWidth]   = useState(50);
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -199,7 +201,24 @@ export default function ForecastChart({
   const tipY = M.top + 12;
 
   return (
-    <div ref={wrapRef} className="w-full h-full" style={{ background: "#080808" }}>
+    <div ref={wrapRef} className="w-full h-full relative" style={{ background: "#080808" }}>
+      {/* ── test sliders ─────────────────────────────────────────────────── */}
+      <div className="absolute top-2 left-4 z-10 flex flex-col gap-1.5"
+        style={{ background: "rgba(0,0,0,0.55)", borderRadius: 8, padding: "6px 10px" }}>
+        <label className="flex items-center gap-2 text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <span style={{ width: 60 }}>opacity {pathOpacity.toFixed(2)}</span>
+          <input type="range" min="0.01" max="1" step="0.01" value={pathOpacity}
+            onChange={e => setPathOpacity(parseFloat(e.target.value))}
+            style={{ width: 90 }} />
+        </label>
+        <label className="flex items-center gap-2 text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <span style={{ width: 60 }}>width {pathWidth}</span>
+          <input type="range" min="1" max="120" step="1" value={pathWidth}
+            onChange={e => setPathWidth(parseInt(e.target.value))}
+            style={{ width: 90 }} />
+        </label>
+      </div>
+
       {size && <svg
         width={w} height={h}
         style={{ display: "block" }}
@@ -313,7 +332,7 @@ export default function ForecastChart({
           return (
             <path key={pi}
               d={smooth(pts)} fill="none"
-              stroke="rgba(255,255,255,0.10)" strokeWidth="50"
+              stroke={`rgba(255,255,255,${pathOpacity})`} strokeWidth={pathWidth}
               strokeLinecap="round" strokeLinejoin="round"
               clipPath={`url(#${uid}cl)`}
             />
