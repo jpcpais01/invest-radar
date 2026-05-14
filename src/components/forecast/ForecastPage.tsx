@@ -1,9 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  createChart, IChartApi, LineSeries, AreaSeries, ColorType, LineStyle,
-} from "lightweight-charts";
-import type { Time } from "lightweight-charts";
+import { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft, Sparkles, RefreshCw, BarChart2,
   TrendingUp, TrendingDown, Minus,
@@ -11,6 +7,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useTickerStore } from "@/store/tickerStore";
 import CommandPalette from "@/components/search/CommandPalette";
+import ForecastChart from "./ForecastChart";
 import { cn } from "@/lib/utils";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -70,9 +67,6 @@ export default function ForecastPage() {
   const [error,     setError]     = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef     = useRef<IChartApi | null>(null);
-
   // ── Cache helpers ────────────────────────────────────────────────────────────
   const cacheKey = (t: string) => `forecast-${t}`;
 
@@ -111,114 +105,6 @@ export default function ForecastPage() {
   }, []);
 
   // ── Build / rebuild chart when data arrives ─────────────────────────────────
-  useEffect(() => {
-    if (!containerRef.current || !data) return;
-
-    // Destroy old chart
-    if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
-
-    const el = containerRef.current;
-    const chart = createChart(el, {
-      width:  el.clientWidth,
-      height: el.clientHeight,
-      layout: {
-        background: { type: ColorType.Solid, color: BG },
-        textColor: "#484848",
-        fontFamily: "'Inter', 'system-ui', sans-serif",
-        fontSize: 11,
-      },
-      grid: {
-        vertLines: { color: "#111111" },
-        horzLines: { color: "#111111" },
-      },
-      crosshair: {
-        vertLine: { color: "#2a2a2a", width: 1, style: LineStyle.Dashed },
-        horzLine: { color: "#2a2a2a", width: 1, style: LineStyle.Dashed },
-      },
-      rightPriceScale: {
-        borderColor: "#1a1a1a",
-        textColor: "#484848",
-      },
-      timeScale: {
-        borderColor: "#1a1a1a",
-        timeVisible: false,
-        rightOffset: 10,
-      },
-      handleScroll: true,
-      handleScale:  true,
-    });
-    chartRef.current = chart;
-
-    const mkPt = (t: number, v: number) => ({ time: t as Time, value: v });
-
-    // ── History area ───────────────────────────────────────────────────────
-    const histSeries = chart.addSeries(AreaSeries, {
-      lineColor:   "rgba(192,192,204,0.55)",
-      topColor:    "rgba(192,192,204,0.10)",
-      bottomColor: "rgba(192,192,204,0.00)",
-      lineWidth: 2,
-      priceLineVisible:  false,
-      lastValueVisible:  false,
-    });
-    histSeries.setData(data.historical.map(b => mkPt(b.time, b.close)));
-
-    const lastTime  = data.historical[data.historical.length - 1].time;
-    const lastClose = data.lastClose;
-    const futureTs  = data.futureDates;
-
-    // ── Bear (avg of 2 worst predictions) ─────────────────────────────────
-    const bearSeries = chart.addSeries(LineSeries, {
-      color:     "rgba(239,68,68,0.80)",
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      title: "Bear",
-    });
-    bearSeries.setData([
-      mkPt(lastTime, lastClose),
-      ...data.scenarios.bear.map((v, i) => mkPt(futureTs[i], v)),
-    ]);
-
-    // ── Base (avg of all 5) ───────────────────────────────────────────────
-    const baseSeries = chart.addSeries(LineSeries, {
-      color:     "#c0c0cc",
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      title: "Base",
-    });
-    baseSeries.setData([
-      mkPt(lastTime, lastClose),
-      ...data.scenarios.base.map((v, i) => mkPt(futureTs[i], v)),
-    ]);
-
-    // ── Bull (avg of 2 best predictions) ──────────────────────────────────
-    const bullSeries = chart.addSeries(LineSeries, {
-      color:     "rgba(34,197,94,0.85)",
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      title: "Bull",
-    });
-    bullSeries.setData([
-      mkPt(lastTime, lastClose),
-      ...data.scenarios.bull.map((v, i) => mkPt(futureTs[i], v)),
-    ]);
-
-    chart.timeScale().fitContent();
-
-    // Resize observer
-    const ro = new ResizeObserver(() => {
-      if (el) chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-    });
-    ro.observe(el);
-
-    return () => { ro.disconnect(); chart.remove(); chartRef.current = null; };
-  }, [data]);
-
   // ── Restore cache when ticker changes ──────────────────────────────────────
   useEffect(() => {
     const cached = loadCache(ticker);
@@ -399,13 +285,16 @@ export default function ForecastPage() {
         )}
 
         {/* Chart */}
-        <div
-          ref={containerRef}
-          className={cn(
-            "w-full h-full transition-opacity duration-500",
-            data && !loading ? "opacity-100" : "opacity-0 pointer-events-none",
-          )}
-        />
+        {data && !loading && (
+          <div className="absolute inset-0 transition-opacity duration-500">
+            <ForecastChart
+              historical={data.historical}
+              futureDates={data.futureDates}
+              lastClose={data.lastClose}
+              scenarios={data.scenarios}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Stats / analysis footer ─────────────────────────────────────────── */}
