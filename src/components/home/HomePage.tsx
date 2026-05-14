@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
-import { Search, Terminal, Compass, Sparkles, X, LineChart } from "lucide-react";
+import { Search, Compass } from "lucide-react";
+import { AskAIBtn, ForecastBtn, TerminalBtn } from "./NavButtons";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
@@ -71,13 +72,7 @@ export default function HomePage() {
           {/* Row 2 — Ask AI · Forecast · Terminal */}
           <div className="px-4 h-10 flex items-center gap-2 border-t border-[#1e1e1e]">
             <div ref={chatBtnRef} className="relative">
-              <button onClick={() => setChatOpen(v => !v)}
-                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
-                  chatOpen ? "bg-[#c0c0cc18] border-[#c0c0cc55] text-[#f0f0f0]" : "bg-[#c0c0cc08] border-[#c0c0cc28] text-[#c0c0cc] hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44]")}>
-                <Sparkles className="w-3.5 h-3.5 text-[#c0c0cc]" />
-                <span>Ask AI</span>
-                {chatOpen && <X className="w-3 h-3 ml-0.5 opacity-60" />}
-              </button>
+              <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} />
               {chatOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setChatOpen(false)} />
@@ -91,12 +86,8 @@ export default function HomePage() {
                 </>
               )}
             </div>
-            <a href="/forecast" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
-              <LineChart className="w-3.5 h-3.5 shrink-0" /><span>Forecast</span>
-            </a>
-            <a href={`/terminal/${activeTicker}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
-              <Terminal className="w-3.5 h-3.5 shrink-0" /><span>Terminal</span>
-            </a>
+            <ForecastBtn />
+            <TerminalBtn ticker={activeTicker} />
           </div>
         </div>
 
@@ -126,13 +117,7 @@ export default function HomePage() {
           </div>
 
           <div ref={chatBtnRef} className="relative shrink-0">
-            <button onClick={() => setChatOpen(v => !v)}
-              className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
-                chatOpen ? "bg-[#c0c0cc18] border-[#c0c0cc55] text-[#f0f0f0]" : "bg-[#c0c0cc08] border-[#c0c0cc28] text-[#c0c0cc] hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44]")}>
-              <Sparkles className="w-3.5 h-3.5 text-[#c0c0cc]" />
-              <span className="whitespace-nowrap">Ask AI</span>
-              {chatOpen && <X className="w-3 h-3 ml-0.5 opacity-60" />}
-            </button>
+            <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} />
             {chatOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setChatOpen(false)} />
@@ -147,12 +132,8 @@ export default function HomePage() {
             )}
           </div>
 
-          <a href="/forecast" className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
-            <LineChart className="w-3.5 h-3.5 shrink-0" /><span className="whitespace-nowrap">Forecast</span>
-          </a>
-          <a href={`/terminal/${activeTicker}`} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors">
-            <Terminal className="w-3.5 h-3.5 shrink-0" /><span className="whitespace-nowrap">Terminal</span>
-          </a>
+          <ForecastBtn />
+          <TerminalBtn ticker={activeTicker} />
         </div>
       </header>
 
