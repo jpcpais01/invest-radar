@@ -1,9 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import {
-  ArrowLeft, Sparkles, RefreshCw, BarChart2,
-  TrendingUp, TrendingDown, Minus,
-} from "lucide-react";
+import { ArrowLeft, Sparkles, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTickerStore } from "@/store/tickerStore";
 import CommandPalette from "@/components/search/CommandPalette";
@@ -24,37 +21,95 @@ interface ForecastData {
   nForecast: number;
 }
 
-// ─── constants ────────────────────────────────────────────────────────────────
-const BG = "#080808";
 const HISTORY_OPTS  = [30, 60, 90, 120, 252];
 const FORECAST_OPTS = [5, 10, 15, 20, 30];
 
-// ─── helper: fmt pct ─────────────────────────────────────────────────────────
-function fmtPct(from: number, to: number) {
+function pct(from: number, to: number) {
   const p = ((to - from) / from) * 100;
-  return { pct: p, str: `${p >= 0 ? "+" : ""}${p.toFixed(1)}%` };
+  return `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`;
 }
 
-// ─── Option pill ──────────────────────────────────────────────────────────────
-function Pill({
-  label, active, onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
+// ─── glass segment pill ───────────────────────────────────────────────────────
+function SegPill({
+  options, active, onChange, suffix = "",
+}: { options: number[]; active: number; onChange: (v: number) => void; suffix?: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "px-2 py-1 text-[10px] transition-colors border-r border-[#1e1e1e] last:border-r-0",
-        active
-          ? "bg-[#1e1e1e] text-[#c0c0cc]"
-          : "text-[#484848] hover:text-[#c0c0cc] hover:bg-[#111111]",
-      )}
-    >
-      {label}
-    </button>
+    <div className="flex rounded-lg overflow-hidden"
+      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+      {options.map(v => (
+        <button key={v} onClick={() => onChange(v)}
+          className={cn(
+            "px-2.5 py-1.5 text-[10px] font-medium tracking-wide transition-all duration-150",
+            "border-r last:border-r-0",
+            active === v
+              ? "text-[#e0e0e8]"
+              : "text-[rgba(255,255,255,0.28)] hover:text-[rgba(255,255,255,0.55)]",
+          )}
+          style={{
+            borderColor: "rgba(255,255,255,0.06)",
+            background: active === v ? "rgba(255,255,255,0.09)" : "transparent",
+          }}
+        >
+          {v}{suffix}
+        </button>
+      ))}
+    </div>
   );
 }
 
-// ─── main component ───────────────────────────────────────────────────────────
+// ─── scenario stat ────────────────────────────────────────────────────────────
+function ScenStat({
+  label, price, from, color, icon,
+}: { label: string; price: number | null; from: number; color: string; icon: React.ReactNode }) {
+  if (price === null) return null;
+  const change = pct(from, price);
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
+        <span style={{ color }} className="opacity-60">{icon}</span>
+        <span className="text-[10px] text-[rgba(255,255,255,0.25)] uppercase tracking-widest">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-sm font-semibold font-mono" style={{ color }}>
+          ${price.toFixed(2)}
+        </span>
+        <span className="text-[10px] font-mono" style={{ color, opacity: 0.7 }}>{change}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── confidence ring ──────────────────────────────────────────────────────────
+function ConfidenceRing({ value }: { value: number }) {
+  const r = 14, circ = 2 * Math.PI * r;
+  const dash = (value / 100) * circ;
+  const color = value >= 66 ? "#22c55e" : value >= 40 ? "#f59e0b" : "#ef4444";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative w-9 h-9">
+        <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: "rotate(-90deg)" }}>
+          <circle cx="18" cy="18" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2.5" />
+          <circle cx="18" cy="18" r={r} fill="none" stroke={color} strokeWidth="2.5"
+            strokeDasharray={`${dash.toFixed(2)} ${circ.toFixed(2)}`}
+            strokeLinecap="round" style={{ transition: "stroke-dasharray 0.8s ease" }}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-semibold"
+          style={{ color }}>
+          {value}
+        </span>
+      </div>
+      <div>
+        <div className="text-[9px] text-[rgba(255,255,255,0.25)] uppercase tracking-widest leading-none mb-0.5">Confidence</div>
+        <div className="text-[10px] font-medium" style={{ color }}>
+          {value >= 66 ? "High" : value >= 40 ? "Medium" : "Low"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── main ─────────────────────────────────────────────────────────────────────
 export default function ForecastPage() {
   const router = useRouter();
   const { activeTicker, setActiveTicker } = useTickerStore();
@@ -67,141 +122,129 @@ export default function ForecastPage() {
   const [error,     setError]     = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // ── Cache helpers ────────────────────────────────────────────────────────────
-  const cacheKey = (t: string) => `forecast-${t}`;
-
+  // ── cache ────────────────────────────────────────────────────────────────────
   const loadCache = (t: string): ForecastData | null => {
     try {
-      const raw = localStorage.getItem(cacheKey(t));
+      const raw = localStorage.getItem(`forecast-${t}`);
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as ForecastData;
-      // Validate it has the shape we expect
-      if (!parsed.predictions || !parsed.scenarios) return null;
-      return parsed;
+      const d = JSON.parse(raw) as ForecastData;
+      return d.predictions && d.scenarios ? d : null;
     } catch { return null; }
   };
-
   const saveCache = (d: ForecastData) => {
-    try { localStorage.setItem(cacheKey(d.ticker), JSON.stringify(d)); } catch { /* quota */ }
+    try { localStorage.setItem(`forecast-${d.ticker}`, JSON.stringify(d)); } catch { /**/ }
   };
 
-  // ── API call ────────────────────────────────────────────────────────────────
+  // ── API ──────────────────────────────────────────────────────────────────────
   const runForecast = useCallback(async (t: string, hist: number, fore: number) => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const res  = await fetch(`/api/ai/forecast?ticker=${t}&nHistory=${hist}&nForecast=${fore}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       const d = json as ForecastData;
-      setData(d);
-      saveCache(d);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
+      setData(d); saveCache(d);
+    } catch (e) { setError(String(e)); }
+    finally     { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Build / rebuild chart when data arrives ─────────────────────────────────
-  // ── Restore cache when ticker changes ──────────────────────────────────────
+  // ── restore cache on ticker change ───────────────────────────────────────────
   useEffect(() => {
     const cached = loadCache(ticker);
-    if (cached) {
-      setData(cached);
-      setError(null);
-    } else {
-      setData(null);
-    }
+    if (cached) { setData(cached); setError(null); }
+    else        { setData(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
-  // ── Ticker select handler ───────────────────────────────────────────────────
   const handleTickerSelect = (t: string) => {
-    const upper = t.toUpperCase();
-    setTicker(upper);
-    setActiveTicker(upper);
-    setPaletteOpen(false);
+    const u = t.toUpperCase();
+    setTicker(u); setActiveTicker(u); setPaletteOpen(false);
   };
 
-  // ── Derived stats ───────────────────────────────────────────────────────────
-  const lastBull = data?.scenarios.bull.at(-1) ?? null;
-  const lastBase = data?.scenarios.base.at(-1) ?? null;
-  const lastBear = data?.scenarios.bear.at(-1) ?? null;
+  const bull = data?.scenarios.bull.at(-1) ?? null;
+  const base = data?.scenarios.base.at(-1) ?? null;
+  const bear = data?.scenarios.bear.at(-1) ?? null;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: BG }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: "#080808" }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header
-        className="shrink-0 border-b border-[#1a1a1a] px-4 h-14 flex items-center gap-3"
-        style={{ background: "rgba(8,8,8,0.96)", backdropFilter: "blur(12px)" }}
+      {/* ── top bar ──────────────────────────────────────────────────────────── */}
+      <header className="shrink-0 z-20 px-5 h-14 flex items-center gap-4"
+        style={{
+          background: "rgba(8,8,8,0.80)",
+          backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+        }}
       >
-        {/* Back to home */}
-        <button
-          onClick={() => router.push("/")}
-          className="flex items-center gap-1.5 text-[#484848] hover:text-[#c0c0cc] transition-colors shrink-0 group"
+        {/* back */}
+        <button onClick={() => router.push("/")}
+          className="flex items-center gap-1.5 group transition-colors"
+          style={{ color: "rgba(255,255,255,0.28)" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}
         >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
           <span className="text-xs hidden sm:block">Home</span>
         </button>
 
-        <div className="w-px h-4 bg-[#1e1e1e] shrink-0" />
+        <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.07)" }} className="shrink-0" />
 
-        {/* Logo / title */}
+        {/* logo */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-5 h-5 rounded border border-[#c0c0cc22] bg-[#c0c0cc08] flex items-center justify-center">
-            <span className="text-[#c0c0cc] text-[8px] font-bold leading-none">◆</span>
+          <div className="w-5 h-5 rounded flex items-center justify-center"
+            style={{ border: "1px solid rgba(192,192,204,0.18)", background: "rgba(192,192,204,0.05)" }}>
+            <span style={{ color: "rgba(192,192,204,0.8)", fontSize: 8, fontWeight: 700 }}>◆</span>
           </div>
-          <span className="text-xs font-semibold text-[#767676] hidden sm:block tracking-wide">AI Forecast</span>
+          <span className="text-xs font-semibold hidden sm:block"
+            style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>
+            AI FORECAST
+          </span>
         </div>
 
-        <div className="w-px h-4 bg-[#1e1e1e] shrink-0" />
+        <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.07)" }} className="shrink-0" />
 
-        {/* Ticker selector */}
-        <button
-          onClick={() => setPaletteOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors"
+        {/* ticker button */}
+        <button onClick={() => setPaletteOpen(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
         >
-          <BarChart2 className="w-3.5 h-3.5 text-[#3a3a3a]" />
-          <span className="text-sm font-semibold text-[#f0f0f0] font-mono">{ticker}</span>
-          <span className="text-[9px] text-[#3a3a3a] ml-0.5">▼</span>
+          <span className="text-sm font-semibold font-mono text-white">{ticker}</span>
+          <ChevronDown className="w-3 h-3" style={{ color: "rgba(255,255,255,0.3)" }} />
         </button>
 
-        {/* Right-side controls */}
-        <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
+        {/* spacer */}
+        <div className="flex-1" />
 
-          {/* History */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-[#3a3a3a] hidden md:block shrink-0">History</span>
-            <div className="flex border border-[#1e1e1e] rounded-md overflow-hidden">
-              {HISTORY_OPTS.map(v => (
-                <Pill key={v} label={`${v}d`} active={nHistory === v} onClick={() => setNHistory(v)} />
-              ))}
-            </div>
+        {/* controls */}
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest"
+              style={{ color: "rgba(255,255,255,0.2)" }}>Hist</span>
+            <SegPill options={HISTORY_OPTS}  active={nHistory}  onChange={setNHistory}  suffix="d" />
+          </div>
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest"
+              style={{ color: "rgba(255,255,255,0.2)" }}>Fcst</span>
+            <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} suffix="d" />
           </div>
 
-          {/* Forecast */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-[#3a3a3a] hidden md:block shrink-0">Forecast</span>
-            <div className="flex border border-[#1e1e1e] rounded-md overflow-hidden">
-              {FORECAST_OPTS.map(v => (
-                <Pill key={v} label={`${v}d`} active={nForecast === v} onClick={() => setNForecast(v)} />
-              ))}
-            </div>
-          </div>
-
-          {/* Run button */}
+          {/* run button */}
           <button
             onClick={() => runForecast(ticker, nHistory, nForecast)}
             disabled={loading}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all shrink-0",
-              loading
-                ? "border-[#1e1e1e] text-[#3a3a3a] cursor-not-allowed"
-                : "bg-[#c0c0cc08] border-[#c0c0cc28] text-[#c0c0cc] hover:bg-[#c0c0cc15] hover:border-[#c0c0cc55]",
-            )}
+            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={{
+              background: loading ? "rgba(255,255,255,0.04)" : "rgba(192,192,204,0.10)",
+              border: `1px solid ${loading ? "rgba(255,255,255,0.06)" : "rgba(192,192,204,0.22)"}`,
+              color: loading ? "rgba(255,255,255,0.25)" : "rgba(192,192,204,0.90)",
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
           >
             {loading
               ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -211,33 +254,38 @@ export default function ForecastPage() {
         </div>
       </header>
 
-      {/* ── Chart area ─────────────────────────────────────────────────────── */}
+      {/* ── chart area ───────────────────────────────────────────────────────── */}
       <div className="flex-1 relative min-h-0">
 
-        {/* Empty state */}
+        {/* empty state */}
         {!data && !loading && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-4">
-            {/* Decorative grid lines */}
-            <div className="absolute inset-0 opacity-30"
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
+            <div className="absolute inset-0"
               style={{
-                backgroundImage: "linear-gradient(#111 1px, transparent 1px), linear-gradient(90deg, #111 1px, transparent 1px)",
-                backgroundSize: "60px 60px",
+                backgroundImage: "radial-gradient(circle at 50% 40%, rgba(192,192,204,0.03) 0%, transparent 65%)",
               }}
             />
-            <div className="relative flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] flex items-center justify-center shadow-2xl">
-                <Sparkles className="w-7 h-7 text-[#3a3a3a]" />
+            <div className="relative flex flex-col items-center gap-5 text-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <Sparkles className="w-7 h-7" style={{ color: "rgba(192,192,204,0.35)" }} />
               </div>
-              <div className="text-center">
-                <p className="text-[#767676] text-base font-medium">AI Price Forecast</p>
-                <p className="text-[#3a3a3a] text-sm mt-1.5 max-w-xs leading-relaxed">
-                  Claude analyzes {nHistory} days of price history with RSI, EMA crossover &amp; ADX signals
-                  to generate bear / base / bull scenarios for the next {nForecast} trading days.
+              <div>
+                <p className="text-base font-semibold text-white/60 mb-1.5">AI Price Forecast</p>
+                <p className="text-sm text-white/20 max-w-[280px] leading-relaxed">
+                  Claude analyzes {nHistory}d of history with RSI, EMA crossover &amp; ADX
+                  to produce {nForecast}-day bear / base / bull scenarios.
                 </p>
               </div>
-              <button
-                onClick={() => runForecast(ticker, nHistory, nForecast)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-sm font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-all"
+              <button onClick={() => runForecast(ticker, nHistory, nForecast)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: "rgba(192,192,204,0.08)",
+                  border: "1px solid rgba(192,192,204,0.18)",
+                  color: "rgba(192,192,204,0.85)",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "rgba(192,192,204,0.13)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "rgba(192,192,204,0.08)")}
               >
                 <Sparkles className="w-4 h-4" />
                 Forecast {ticker}
@@ -246,47 +294,47 @@ export default function ForecastPage() {
           </div>
         )}
 
-        {/* Loading state */}
+        {/* loading state */}
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-5">
-            <div className="absolute inset-0 opacity-30"
-              style={{
-                backgroundImage: "linear-gradient(#111 1px, transparent 1px), linear-gradient(90deg, #111 1px, transparent 1px)",
-                backgroundSize: "60px 60px",
-              }}
+            <div className="absolute inset-0"
+              style={{ backgroundImage: "radial-gradient(circle at 50% 40%, rgba(192,192,204,0.04) 0%, transparent 60%)" }}
             />
             <div className="relative flex flex-col items-center gap-4">
-              <div className="relative w-16 h-16">
-                <div className="absolute inset-0 rounded-full border border-[#1e1e1e] animate-ping opacity-20" />
-                <div className="absolute inset-0 rounded-full border border-[#c0c0cc22]" />
-                <RefreshCw className="absolute inset-0 m-auto w-7 h-7 text-[#c0c0cc] animate-spin" />
+              <div className="relative w-14 h-14">
+                <div className="absolute inset-0 rounded-full animate-ping"
+                  style={{ border: "1px solid rgba(192,192,204,0.15)" }} />
+                <div className="absolute inset-0 rounded-full"
+                  style={{ border: "1px solid rgba(192,192,204,0.20)" }} />
+                <RefreshCw className="absolute inset-0 m-auto w-6 h-6 animate-spin"
+                  style={{ color: "rgba(192,192,204,0.6)" }} />
               </div>
               <div className="text-center">
-                <p className="text-[#767676] text-sm font-medium">Claude is analyzing {ticker}…</p>
-                <p className="text-[#3a3a3a] text-xs mt-1">
-                  Processing {nHistory} days · RSI · EMA(50/200) · ADX · Generating {nForecast}-day scenarios
+                <p className="text-sm font-medium text-white/50 mb-1">Analyzing {ticker}</p>
+                <p className="text-xs text-white/20">
+                  {nHistory}d history · RSI · EMA 50/200 · ADX · {nForecast}-day outlook
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Error state */}
+        {/* error state */}
         {error && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
-            <p className="text-[#ef4444] text-sm text-center max-w-sm">{error}</p>
-            <button
-              onClick={() => runForecast(ticker, nHistory, nForecast)}
-              className="text-xs text-[#c0c0cc] border border-[#c0c0cc28] px-3 py-1.5 rounded-lg hover:bg-[#c0c0cc08] transition-colors"
+            <p className="text-sm text-red-400/80 text-center max-w-sm">{error}</p>
+            <button onClick={() => runForecast(ticker, nHistory, nForecast)}
+              className="text-xs px-4 py-1.5 rounded-lg transition-all"
+              style={{ color: "rgba(192,192,204,0.6)", border: "1px solid rgba(192,192,204,0.15)" }}
             >
               Retry
             </button>
           </div>
         )}
 
-        {/* Chart */}
+        {/* chart */}
         {data && !loading && (
-          <div className="absolute inset-0 transition-opacity duration-500">
+          <div className="absolute inset-0">
             <ForecastChart
               historical={data.historical}
               futureDates={data.futureDates}
@@ -297,103 +345,54 @@ export default function ForecastPage() {
         )}
       </div>
 
-      {/* ── Stats / analysis footer ─────────────────────────────────────────── */}
+      {/* ── footer ───────────────────────────────────────────────────────────── */}
       {data && (
-        <div className="shrink-0 border-t border-[#1a1a1a] px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
-          style={{ background: "rgba(8,8,8,0.98)" }}
+        <div className="shrink-0 px-6 py-4 flex items-center gap-6 flex-wrap"
+          style={{
+            background: "rgba(8,8,8,0.90)",
+            backdropFilter: "blur(20px)",
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+          }}
         >
-          {/* Scenario stats */}
-          <div className="flex items-center gap-5 text-xs">
-            {/* Bull */}
-            {lastBull != null && (() => {
-              const { str } = fmtPct(data.lastClose, lastBull);
-              return (
-                <div className="flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-[#22c55e]" />
-                  <span className="text-[#3a3a3a]">Bull</span>
-                  <span className="font-mono text-[#22c55e] font-semibold">${lastBull.toFixed(2)}</span>
-                  <span className="text-[#22c55e] text-[10px]">{str}</span>
-                </div>
-              );
-            })()}
-
-            {/* Base */}
-            {lastBase != null && (() => {
-              const { pct, str } = fmtPct(data.lastClose, lastBase);
-              const col = pct >= 0 ? "#c0c0cc" : "#ef4444";
-              return (
-                <div className="flex items-center gap-1.5">
-                  <Minus className="w-3.5 h-3.5" style={{ color: col }} />
-                  <span className="text-[#3a3a3a]">Base</span>
-                  <span className="font-mono font-semibold" style={{ color: col }}>${lastBase.toFixed(2)}</span>
-                  <span className="text-[10px]" style={{ color: col }}>{str}</span>
-                </div>
-              );
-            })()}
-
-            {/* Bear */}
-            {lastBear != null && (() => {
-              const { str } = fmtPct(data.lastClose, lastBear);
-              return (
-                <div className="flex items-center gap-1.5">
-                  <TrendingDown className="w-3.5 h-3.5 text-[#ef4444]" />
-                  <span className="text-[#3a3a3a]">Bear</span>
-                  <span className="font-mono text-[#ef4444] font-semibold">${lastBear.toFixed(2)}</span>
-                  <span className="text-[#ef4444] text-[10px]">{str}</span>
-                </div>
-              );
-            })()}
+          {/* scenarios */}
+          <div className="flex items-center gap-6">
+            <ScenStat label="Bull" price={bull} from={data.lastClose} color="rgba(34,197,94,0.85)"
+              icon={<TrendingUp className="w-3 h-3" />} />
+            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.06)" }} />
+            <ScenStat label="Base" price={base} from={data.lastClose} color="rgba(192,192,204,0.85)"
+              icon={<Minus className="w-3 h-3" />} />
+            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.06)" }} />
+            <ScenStat label="Bear" price={bear} from={data.lastClose} color="rgba(239,68,68,0.85)"
+              icon={<TrendingDown className="w-3 h-3" />} />
           </div>
 
-          {/* Divider */}
-          {data.analysis && <div className="w-px h-4 bg-[#1e1e1e] shrink-0 hidden sm:block" />}
-
-          {/* Claude analysis */}
+          {/* analysis */}
           {data.analysis && (
-            <div className="flex items-start gap-1.5 min-w-0 flex-1">
-              <Sparkles className="w-3 h-3 text-[#c0c0cc] shrink-0 mt-px" />
-              <p className="text-[11px] text-[#767676] leading-relaxed">{data.analysis}</p>
-            </div>
+            <>
+              <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.06)" }}
+                className="hidden md:block shrink-0" />
+              <div className="flex items-start gap-2 min-w-0 flex-1 hidden md:flex">
+                <Sparkles className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "rgba(192,192,204,0.4)" }} />
+                <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  {data.analysis}
+                </p>
+              </div>
+            </>
           )}
 
-          {/* Confidence */}
-          <div className="ml-auto flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-[#3a3a3a]">Confidence</span>
-              <div className="flex items-center gap-1">
-                <div className="w-16 h-1.5 rounded-full bg-[#1a1a1a] overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{
-                      width: `${data.confidence}%`,
-                      backgroundColor:
-                        data.confidence >= 66 ? "#22c55e"
-                        : data.confidence >= 40 ? "#f59e0b"
-                        : "#ef4444",
-                    }}
-                  />
-                </div>
-                <span
-                  className="text-[10px] font-mono font-semibold tabular-nums"
-                  style={{
-                    color:
-                      data.confidence >= 66 ? "#22c55e"
-                      : data.confidence >= 40 ? "#f59e0b"
-                      : "#ef4444",
-                  }}
-                >
-                  {data.confidence}%
-                </span>
-              </div>
+          {/* confidence + meta */}
+          <div className="ml-auto flex items-center gap-4 shrink-0">
+            <ConfidenceRing value={data.confidence} />
+            <div className="hidden lg:block text-right">
+              <div className="text-[9px] uppercase tracking-widest"
+                style={{ color: "rgba(255,255,255,0.15)" }}>Model</div>
+              <div className="text-[10px] font-mono"
+                style={{ color: "rgba(255,255,255,0.25)" }}>claude-sonnet-4-6</div>
             </div>
-            <span className="text-[9px] text-[#2a2a2a] hidden lg:block">
-              claude-sonnet-4-6 · {data.nHistory}d · {data.nForecast}d
-            </span>
           </div>
         </div>
       )}
 
-      {/* Command palette */}
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
