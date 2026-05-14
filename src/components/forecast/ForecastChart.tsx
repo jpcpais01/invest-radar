@@ -16,7 +16,7 @@ interface Props {
 const M = { top: 28, right: 72, bottom: 36, left: 16 };
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-const isIntraday = (tf: string) => tf === "5m" || tf === "1h";
+const isIntraday = (tf: string) => tf === "1m" || tf === "5m" || tf === "1h";
 
 function fmtDateShort(ts: number) {
   return new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });

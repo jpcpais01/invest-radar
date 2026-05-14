@@ -25,15 +25,15 @@ interface ForecastData {
   backtestActuals?: number[];
 }
 
-type Timeframe = "5m" | "1h" | "1d";
-const TIMEFRAME_OPTS: Timeframe[] = ["5m", "1h", "1d"];
+type Timeframe = "1m" | "5m" | "1h" | "1d";
+const TIMEFRAME_OPTS: Timeframe[] = ["1m", "5m", "1h", "1d"];
 const HISTORY_OPTS  = [30, 60, 90, 120, 252];
 const FORECAST_OPTS = [5, 10, 15, 20, 30];
 const RUNS_OPTS     = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const REWIND_OPTS   = [15, 30, 45, 60];
 
 function tfCandleLabel(tf: Timeframe) {
-  return tf === "1d" ? "day" : tf === "1h" ? "1h candle" : "5m candle";
+  return tf === "1d" ? "day" : tf === "1h" ? "1h candle" : tf === "5m" ? "5m candle" : "1m candle";
 }
 
 function pct(from: number, to: number) {

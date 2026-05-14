@@ -9,15 +9,15 @@ import * as ti from "technicalindicators";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── timeframe helpers ────────────────────────────────────────────────────────
-type TF = "5m" | "1h" | "1d";
+type TF = "1m" | "5m" | "1h" | "1d";
 
-const INTERVAL_SEC: Record<TF, number>      = { "5m": 300,  "1h": 3600, "1d": 86400 };
-const CANDLES_PER_DAY: Record<TF, number>   = { "5m": 78,   "1h": 7,    "1d": 1 };
-const TF_LABEL: Record<TF, string>          = { "5m": "5-minute", "1h": "hourly", "1d": "daily" };
+const INTERVAL_SEC: Record<TF, number>      = { "1m": 60,   "5m": 300,  "1h": 3600, "1d": 86400 };
+const CANDLES_PER_DAY: Record<TF, number>   = { "1m": 390,  "5m": 78,   "1h": 7,    "1d": 1 };
+const TF_LABEL: Record<TF, string>          = { "1m": "1-minute", "5m": "5-minute", "1h": "hourly", "1d": "daily" };
 
 /** Human-readable label for an individual candle */
 function candleLabel(tf: TF) {
-  return tf === "1d" ? "day" : tf === "1h" ? "hour" : "5 minutes";
+  return tf === "1d" ? "day" : tf === "1h" ? "hour" : tf === "5m" ? "5 minutes" : "minute";
 }
 
 /**
@@ -177,7 +177,7 @@ export async function GET(req: NextRequest) {
 
   // Validate timeframe
   const rawTF = sp.get("timeframe") ?? "1d";
-  const tf: TF = (rawTF === "5m" || rawTF === "1h" || rawTF === "1d") ? rawTF : "1d";
+  const tf: TF = (rawTF === "1m" || rawTF === "5m" || rawTF === "1h" || rawTF === "1d") ? rawTF : "1d";
 
   try {
     // Fetch enough calendar days to cover nHistory candles
@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
 
     // Filter pre-market / after-hours for intraday non-crypto assets.
     // Crypto trades 24/7 so we never filter it.
-    const filterSession = tf !== "1d" && !isCrypto(ticker);
+    const filterSession = (tf === "1m" || tf === "5m" || tf === "1h") && !isCrypto(ticker);
     const bars = filterSession
       ? rawBars.filter(b => isRegularSession(b.time))
       : rawBars;
