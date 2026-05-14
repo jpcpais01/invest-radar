@@ -313,7 +313,7 @@ export default function ForecastChart({
           return (
             <path key={pi}
               d={smooth(pts)} fill="none"
-              stroke="rgba(255,255,255,0.10)" strokeWidth="10"
+              stroke="rgba(255,255,255,0.10)" strokeWidth="50"
               strokeLinecap="round" strokeLinejoin="round"
               clipPath={`url(#${uid}cl)`}
             />
