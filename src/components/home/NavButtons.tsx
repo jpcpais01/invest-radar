@@ -105,7 +105,8 @@ export function AskAIBtn({ open, onClick }: { open: boolean; onClick: () => void
           style={{ filter: "drop-shadow(0 0 5px rgba(147,197,253,0.70))" }}
         />
         <span className="relative z-10 whitespace-nowrap">Ask AI</span>
-        {open && <X className="w-3 h-3 ml-0.5 relative z-10 opacity-60" />}
+        <X className="w-3 h-3 ml-0.5 relative z-10 transition-opacity duration-150"
+          style={{ opacity: open ? 0.6 : 0 }} />
       </button>
     </>
   );
