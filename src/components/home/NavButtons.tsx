@@ -174,7 +174,7 @@ export function TerminalBtn({ ticker }: { ticker: string }) {
          screen_x = gx + sin(φ)·cos(λ)·R
          screen_y = gy − cos(φ)·R·0.78 + sin(φ)·sin(λ)·R·0.22
          z_depth  = sin(φ)·sin(λ)  → [-1, 1], positive = towards viewer */
-    function drawGlobe() {
+    function drawGlobe(ctx: CanvasRenderingContext2D) {
       const LON = 7, LAT = 4, SEGS = 16;
 
       /* longitude arcs */
@@ -235,7 +235,7 @@ export function TerminalBtn({ ticker }: { ticker: string }) {
     function tick() {
       ctx.clearRect(0, 0, W, H);
 
-      drawGlobe();
+      drawGlobe(ctx);
 
       if (fr % 24 === 0) spawn();
       fr++;
