@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
-import { Search, Terminal, Compass, Sparkles, X } from "lucide-react";
+import { Search, Terminal, Compass, Sparkles, X, LineChart } from "lucide-react";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
@@ -111,6 +111,15 @@ export default function HomePage() {
               </>
             )}
           </div>
+
+          {/* Forecast button */}
+          <a
+            href="/forecast"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#c0c0cc28] bg-[#c0c0cc08] text-[#c0c0cc] text-xs font-medium hover:bg-[#c0c0cc15] hover:border-[#c0c0cc44] transition-colors"
+          >
+            <LineChart className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:block whitespace-nowrap">Forecast</span>
+          </a>
 
           {/* Terminal button */}
           <a
