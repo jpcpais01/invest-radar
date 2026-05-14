@@ -36,12 +36,27 @@ function nextCandleTimes(fromSec: number, n: number, tf: TF): number[] {
   return times;
 }
 
-/** Format a bar timestamp for the price table */
+/** Format a bar timestamp for the price table.
+ *  Daily bars: YYYY-MM-DD (date only, timezone irrelevant for daily).
+ *  Intraday:   "YYYY-MM-DD HH:MM ET" in America/New_York so the AI sees
+ *              standard market-session hours (09:30 open, 16:00 close). */
 function fmtTime(sec: number, tf: TF): string {
   const d = new Date(sec * 1000);
-  if (tf === "1d") return d.toISOString().split("T")[0];
-  // "2024-01-15 14:30" UTC
-  return d.toISOString().replace("T", " ").slice(0, 16);
+  if (tf === "1d") {
+    // Use NY date so overnight UTC rollover never shifts the label by a day
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(d); // "YYYY-MM-DD"
+  }
+  // Intraday: show date + time in NY timezone
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")} ET`;
 }
 
 // ── AI call ──────────────────────────────────────────────────────────────────
