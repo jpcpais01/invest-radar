@@ -167,7 +167,7 @@ export default function ForecastPage() {
   const bear = data?.scenarios.bear.at(-1) ?? null;
 
   return (
-    <div className="flex flex-col" style={{ background: "#080808", height: "100dvh", minHeight: "-webkit-fill-available" }}>
+    <div className="flex flex-col" style={{ position: "fixed", inset: 0, background: "#080808" }}>
 
       {/* ── top bar ──────────────────────────────────────────────────────────── */}
       <header className="shrink-0 z-20"
