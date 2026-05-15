@@ -54,12 +54,15 @@ export async function GET(req: NextRequest) {
   const aiEnabled = sp.get("aiEnabled") !== "false";
 
   // Indicator periods
-  const rsiPeriod = Math.min(50, Math.max(2,  parseInt(sp.get("rsiPeriod") ?? "14")));
-  const emaFastP  = Math.min(100, Math.max(2, parseInt(sp.get("emaFast")   ?? "9")));
-  const emaSlowP  = Math.min(200, Math.max(2, parseInt(sp.get("emaSlow")   ?? "21")));
-  const bbPeriod  = Math.min(100, Math.max(2, parseInt(sp.get("bbPeriod")  ?? "20")));
-  const stochKP   = Math.min(50, Math.max(2,  parseInt(sp.get("stochK")   ?? "14")));
-  const stochDP   = Math.min(20, Math.max(1,  parseInt(sp.get("stochD")   ?? "3")));
+  const rsiPeriod  = Math.min(50,  Math.max(2, parseInt(sp.get("rsiPeriod") ?? "14")));
+  const emaFastP   = Math.min(100, Math.max(2, parseInt(sp.get("emaFast")   ?? "9")));
+  const emaSlowP   = Math.min(200, Math.max(2, parseInt(sp.get("emaSlow")   ?? "21")));
+  const macdFastP  = Math.min(50,  Math.max(2, parseInt(sp.get("macdFast")  ?? "12")));
+  const macdSlowP  = Math.min(200, Math.max(2, parseInt(sp.get("macdSlow")  ?? "26")));
+  const macdSigP   = Math.min(50,  Math.max(1, parseInt(sp.get("macdSig")   ?? "9")));
+  const bbPeriod   = Math.min(100, Math.max(2, parseInt(sp.get("bbPeriod")  ?? "20")));
+  const stochKP    = Math.min(50,  Math.max(2, parseInt(sp.get("stochK")    ?? "14")));
+  const stochDP    = Math.min(20,  Math.max(1, parseInt(sp.get("stochD")    ?? "3")));
 
   const rawTF = sp.get("timeframe") ?? "1d";
   const tf: TF = (rawTF === "1m" || rawTF === "5m" || rawTF === "1h" || rawTF === "1d") ? rawTF : "1d";
@@ -92,7 +95,7 @@ export async function GET(req: NextRequest) {
     const emaFastV  = ti.EMA.calculate({ values: closes, period: emaFastP });
     const emaSlowV  = ti.EMA.calculate({ values: closes, period: emaSlowP });
     const macdVals  = ti.MACD.calculate({
-      values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
+      values: closes, fastPeriod: macdFastP, slowPeriod: macdSlowP, signalPeriod: macdSigP,
       SimpleMAOscillator: false, SimpleMASignal: false,
     });
     const bbVals    = ti.BollingerBands.calculate({ values: closes, period: bbPeriod, stdDev: 2 });
@@ -105,7 +108,7 @@ export async function GET(req: NextRequest) {
     const rsiOff   = rsiPeriod;         // RSI needs period+1 bars for first value
     const emaFOff  = emaFastP - 1;
     const emaSOff  = emaSlowP - 1;
-    const macdOff  = 25 + 8;            // (slowPeriod-1) + (signalPeriod-1) for 12/26/9
+    const macdOff  = (macdSlowP - 1) + (macdSigP - 1);
     const bbOff    = bbPeriod - 1;
     const stochOff = stochKP - 1 + stochDP - 1;
 

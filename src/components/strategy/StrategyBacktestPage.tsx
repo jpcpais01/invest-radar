@@ -48,6 +48,7 @@ interface BacktestData {
 
 interface IndicatorParams {
   rsiPeriod: number; emaFast: number; emaSlow: number;
+  macdFast: number; macdSlow: number; macdSig: number;
   bbPeriod: number; stochK: number; stochD: number;
 }
 
@@ -62,8 +63,8 @@ const COND_META: Record<ConditionType, {
   rsi_gt:         { label: "RSI Above",       badge: "RSI",  badgeColor: "#f97316", hasThreshold: true,  thresholdDefault: 70, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `RSI(${ip.rsiPeriod}) > ${c.threshold}` },
   ema_cross_up:   { label: "EMA Cross Up",    badge: "EMA",  badgeColor: "#3b82f6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses above EMA(${ip.emaSlow})` },
   ema_cross_down: { label: "EMA Cross Down",  badge: "EMA",  badgeColor: "#3b82f6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses below EMA(${ip.emaSlow})` },
-  macd_cross_up:  { label: "MACD Cross Up",   badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD crosses above signal line` },
-  macd_cross_down:{ label: "MACD Cross Down", badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD crosses below signal line` },
+  macd_cross_up:  { label: "MACD Cross Up",   badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `MACD(${ip.macdFast},${ip.macdSlow},${ip.macdSig}) crosses above signal` },
+  macd_cross_down:{ label: "MACD Cross Down", badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `MACD(${ip.macdFast},${ip.macdSlow},${ip.macdSig}) crosses below signal` },
   bb_lower:       { label: "BB Lower Band",   badge: "BB",   badgeColor: "#06b6d4", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price < BB(${ip.bbPeriod}) lower band` },
   bb_upper:       { label: "BB Upper Band",   badge: "BB",   badgeColor: "#06b6d4", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price > BB(${ip.bbPeriod}) upper band` },
   stoch_lt:       { label: "Stoch Below",     badge: "Stch", badgeColor: "#ec4899", hasThreshold: true,  thresholdDefault: 20, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `Stoch(${ip.stochK}) %K < ${c.threshold}` },
@@ -545,15 +546,18 @@ function SignalColumn({
 // ─── indicator params panel ────────────────────────────────────────────────────
 function IndParamsPanel({ ip, onChange }: { ip: IndicatorParams; onChange: (patch: Partial<IndicatorParams>) => void }) {
   return (
-    <div className="grid grid-cols-3 md:grid-cols-6 gap-x-5 gap-y-2 px-4 py-2"
+    <div className="grid grid-cols-3 md:grid-cols-9 gap-x-4 gap-y-2 px-4 py-2"
       style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
       {([
-        ["RSI Period", "rsiPeriod", 2, 50],
-        ["EMA Fast",   "emaFast",   2, 100],
-        ["EMA Slow",   "emaSlow",   2, 200],
-        ["BB Period",  "bbPeriod",  2, 100],
-        ["Stoch K",    "stochK",    2, 50],
-        ["Stoch D",    "stochD",    1, 20],
+        ["RSI Period", "rsiPeriod", 2,  50],
+        ["EMA Fast",   "emaFast",   2,  100],
+        ["EMA Slow",   "emaSlow",   2,  200],
+        ["MACD Fast",  "macdFast",  2,  50],
+        ["MACD Slow",  "macdSlow",  2,  200],
+        ["MACD Sig",   "macdSig",   1,  50],
+        ["BB Period",  "bbPeriod",  2,  100],
+        ["Stoch K",    "stochK",    2,  50],
+        ["Stoch D",    "stochD",    1,  20],
       ] as [string, keyof IndicatorParams, number, number][]).map(([label, key, min, max]) => (
         <div key={key} className="flex items-center gap-1.5">
           <span className="text-[9px] uppercase tracking-wide shrink-0" style={{ color: "rgba(255,255,255,0.22)" }}>{label}</span>
@@ -583,7 +587,9 @@ export default function StrategyBacktestPage() {
 
   // Indicator periods
   const [ip, setIp] = useState<IndicatorParams>({
-    rsiPeriod: 14, emaFast: 9, emaSlow: 21, bbPeriod: 20, stochK: 14, stochD: 3,
+    rsiPeriod: 14, emaFast: 9, emaSlow: 21,
+    macdFast: 12, macdSlow: 26, macdSig: 9,
+    bbPeriod: 20, stochK: 14, stochD: 3,
   });
   const [indParamsOpen, setIndParamsOpen] = useState(false);
 
@@ -622,8 +628,9 @@ export default function StrategyBacktestPage() {
         technicals: String(technicals), timeframe,
         aiEnabled: String(aiEnabled),
         rsiPeriod: String(ip.rsiPeriod), emaFast: String(ip.emaFast),
-        emaSlow: String(ip.emaSlow), bbPeriod: String(ip.bbPeriod),
-        stochK: String(ip.stochK), stochD: String(ip.stochD),
+        emaSlow: String(ip.emaSlow),
+        macdFast: String(ip.macdFast), macdSlow: String(ip.macdSlow), macdSig: String(ip.macdSig),
+        bbPeriod: String(ip.bbPeriod), stochK: String(ip.stochK), stochD: String(ip.stochD),
       });
       const res  = await fetch(`/api/ai/strategy-backtest?${params}`);
       const json = await res.json();
