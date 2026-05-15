@@ -12,21 +12,20 @@ import StrategyChart, { CurvePoint, ChartTrade } from "./StrategyChart";
 // ─── types ────────────────────────────────────────────────────────────────────
 type Timeframe = "1m" | "5m" | "1h" | "1d";
 
-/** All possible condition types. Direction is implicit:
- *  _lt / _cross_up / _lower / _stoch_lt → long
- *  _gt / _cross_down / _upper / _stoch_gt → short */
+/** Each condition evaluates to boolean — direction comes from which group it lives in. */
 type ConditionType =
   | "rsi_lt" | "rsi_gt"
   | "ema_cross_up" | "ema_cross_down"
   | "macd_cross_up" | "macd_cross_down"
   | "bb_lower" | "bb_upper"
-  | "stoch_lt" | "stoch_gt";
+  | "stoch_lt" | "stoch_gt"
+  | "ai_long" | "ai_short";
 
 interface Condition {
   id: string;
   type: ConditionType;
   enabled: boolean;
-  threshold: number; // used by RSI and Stoch conditions
+  threshold: number;
 }
 
 interface EnrichedCandle {
@@ -48,35 +47,37 @@ interface BacktestData {
 }
 
 interface IndicatorParams {
-  rsiPeriod: number;
-  emaFast: number;
-  emaSlow: number;
-  bbPeriod: number;
-  stochK: number;
-  stochD: number;
+  rsiPeriod: number; emaFast: number; emaSlow: number;
+  bbPeriod: number; stochK: number; stochD: number;
 }
 
 // ─── condition metadata ───────────────────────────────────────────────────────
 const COND_META: Record<ConditionType, {
   label: string; badge: string; badgeColor: string;
-  dir: "long" | "short"; hasThreshold: boolean; thresholdDefault: number;
+  hasThreshold: boolean; thresholdDefault: number;
   thresholdMin: number; thresholdMax: number;
   description: (c: Condition, ip: IndicatorParams) => string;
 }> = {
-  rsi_lt:         { label: "RSI Oversold",      badge: "RSI",   badgeColor: "#f97316", dir: "long",  hasThreshold: true,  thresholdDefault: 30, thresholdMin: 5,  thresholdMax: 49, description: (c, ip) => `RSI(${ip.rsiPeriod}) < ${c.threshold}` },
-  rsi_gt:         { label: "RSI Overbought",    badge: "RSI",   badgeColor: "#f97316", dir: "short", hasThreshold: true,  thresholdDefault: 70, thresholdMin: 51, thresholdMax: 95, description: (c, ip) => `RSI(${ip.rsiPeriod}) > ${c.threshold}` },
-  ema_cross_up:   { label: "EMA Bullish Cross", badge: "EMA",   badgeColor: "#3b82f6", dir: "long",  hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses above EMA(${ip.emaSlow})` },
-  ema_cross_down: { label: "EMA Bearish Cross", badge: "EMA",   badgeColor: "#3b82f6", dir: "short", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses below EMA(${ip.emaSlow})` },
-  macd_cross_up:  { label: "MACD Bullish",      badge: "MACD",  badgeColor: "#8b5cf6", dir: "long",  hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD(12,26,9) crosses above signal` },
-  macd_cross_down:{ label: "MACD Bearish",      badge: "MACD",  badgeColor: "#8b5cf6", dir: "short", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD(12,26,9) crosses below signal` },
-  bb_lower:       { label: "BB Oversold",       badge: "BB",    badgeColor: "#06b6d4", dir: "long",  hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price closes below BB(${ip.bbPeriod}) lower band` },
-  bb_upper:       { label: "BB Overbought",     badge: "BB",    badgeColor: "#06b6d4", dir: "short", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price closes above BB(${ip.bbPeriod}) upper band` },
-  stoch_lt:       { label: "Stoch Oversold",    badge: "Stoch", badgeColor: "#ec4899", dir: "long",  hasThreshold: true,  thresholdDefault: 20, thresholdMin: 5,  thresholdMax: 49, description: (c, ip) => `Stoch(${ip.stochK},${ip.stochD}) %K < ${c.threshold}` },
-  stoch_gt:       { label: "Stoch Overbought",  badge: "Stoch", badgeColor: "#ec4899", dir: "short", hasThreshold: true,  thresholdDefault: 80, thresholdMin: 51, thresholdMax: 95, description: (c, ip) => `Stoch(${ip.stochK},${ip.stochD}) %K > ${c.threshold}` },
+  rsi_lt:         { label: "RSI Below",       badge: "RSI",  badgeColor: "#f97316", hasThreshold: true,  thresholdDefault: 30, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `RSI(${ip.rsiPeriod}) < ${c.threshold}` },
+  rsi_gt:         { label: "RSI Above",       badge: "RSI",  badgeColor: "#f97316", hasThreshold: true,  thresholdDefault: 70, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `RSI(${ip.rsiPeriod}) > ${c.threshold}` },
+  ema_cross_up:   { label: "EMA Cross Up",    badge: "EMA",  badgeColor: "#3b82f6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses above EMA(${ip.emaSlow})` },
+  ema_cross_down: { label: "EMA Cross Down",  badge: "EMA",  badgeColor: "#3b82f6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses below EMA(${ip.emaSlow})` },
+  macd_cross_up:  { label: "MACD Cross Up",   badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD crosses above signal line` },
+  macd_cross_down:{ label: "MACD Cross Down", badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD crosses below signal line` },
+  bb_lower:       { label: "BB Lower Band",   badge: "BB",   badgeColor: "#06b6d4", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price < BB(${ip.bbPeriod}) lower band` },
+  bb_upper:       { label: "BB Upper Band",   badge: "BB",   badgeColor: "#06b6d4", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price > BB(${ip.bbPeriod}) upper band` },
+  stoch_lt:       { label: "Stoch Below",     badge: "Stch", badgeColor: "#ec4899", hasThreshold: true,  thresholdDefault: 20, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `Stoch(${ip.stochK}) %K < ${c.threshold}` },
+  stoch_gt:       { label: "Stoch Above",     badge: "Stch", badgeColor: "#ec4899", hasThreshold: true,  thresholdDefault: 80, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `Stoch(${ip.stochK}) %K > ${c.threshold}` },
+  ai_long:        { label: "AI Says Long",    badge: "AI",   badgeColor: "#a78bfa", hasThreshold: true,  thresholdDefault: 60, thresholdMin: 51, thresholdMax: 95, description: (c) => `AI bullish agreement ≥ ${c.threshold}%` },
+  ai_short:       { label: "AI Says Short",   badge: "AI",   badgeColor: "#a78bfa", hasThreshold: true,  thresholdDefault: 60, thresholdMin: 51, thresholdMax: 95, description: (c) => `AI bearish agreement ≥ ${c.threshold}%` },
 };
 
+const BUY_SUGGESTIONS:   ConditionType[] = ["rsi_lt", "ema_cross_up",   "macd_cross_up",   "bb_lower", "stoch_lt", "ai_long"];
+const SHORT_SUGGESTIONS: ConditionType[] = ["rsi_gt", "ema_cross_down", "macd_cross_down", "bb_upper", "stoch_gt", "ai_short"];
+const ALL_CONDITIONS:    ConditionType[] = ["rsi_lt", "rsi_gt", "ema_cross_up", "ema_cross_down", "macd_cross_up", "macd_cross_down", "bb_lower", "bb_upper", "stoch_lt", "stoch_gt", "ai_long", "ai_short"];
+
 // ─── signal evaluation ────────────────────────────────────────────────────────
-function evalCondition(cond: Condition, c: EnrichedCandle): boolean {
+function evalCondition(cond: Condition, c: EnrichedCandle, aiEnabled: boolean): boolean {
   switch (cond.type) {
     case "rsi_lt":
       return c.rsi != null && c.rsi < cond.threshold;
@@ -106,62 +107,38 @@ function evalCondition(cond: Condition, c: EnrichedCandle): boolean {
       return c.stochK != null && c.stochK < cond.threshold;
     case "stoch_gt":
       return c.stochK != null && c.stochK > cond.threshold;
+    case "ai_long":
+      if (!aiEnabled || c.totalPaths === 0) return false;
+      return (c.upCount / c.totalPaths) * 100 >= cond.threshold;
+    case "ai_short":
+      if (!aiEnabled || c.totalPaths === 0) return false;
+      return ((c.totalPaths - c.upCount) / c.totalPaths) * 100 >= cond.threshold;
   }
 }
 
-function indicatorSignal(
-  candle: EnrichedCandle,
-  conditions: Condition[],
-  logic: "AND" | "OR",
-): "long" | "short" | null {
-  const active = conditions.filter(c => c.enabled);
-  if (active.length === 0) return null;
-
-  if (logic === "AND") {
-    // All conditions must fire AND all must agree on direction
-    const results = active.map(cond => evalCondition(cond, candle) ? COND_META[cond.type].dir : null);
-    if (results.some(r => r === null)) return null;
-    const dirs = new Set(results);
-    if (dirs.size !== 1) return null; // conflicting
-    return results[0] as "long" | "short";
-  } else {
-    // OR: any condition fires; take majority direction
-    const fired = active.filter(cond => evalCondition(cond, candle));
-    if (fired.length === 0) return null;
-    const longs  = fired.filter(c => COND_META[c.type].dir === "long").length;
-    const shorts = fired.filter(c => COND_META[c.type].dir === "short").length;
-    if (longs === shorts) return null;
-    return longs > shorts ? "long" : "short";
-  }
-}
-
-function aiSignal(c: EnrichedCandle, minAgreement: number): "long" | "short" | null {
-  if (c.totalPaths === 0) return null;
-  const down = c.totalPaths - c.upCount;
-  const agreement = Math.max(c.upCount, down) / c.totalPaths;
-  if (agreement < minAgreement) return null;
-  return c.upCount >= down ? "long" : "short";
+function evalGroup(conditions: Condition[], logic: "AND" | "OR", c: EnrichedCandle, aiEnabled: boolean): boolean {
+  const active = conditions.filter(cond => cond.enabled);
+  if (active.length === 0) return false;
+  if (logic === "AND") return active.every(cond => evalCondition(cond, c, aiEnabled));
+  return active.some(cond => evalCondition(cond, c, aiEnabled));
 }
 
 function getSignal(
-  candle: EnrichedCandle,
+  c: EnrichedCandle,
+  buyConditions: Condition[], buyLogic: "AND" | "OR",
+  shortConditions: Condition[], shortLogic: "AND" | "OR",
   aiEnabled: boolean,
-  minAgreement: number,
-  conditions: Condition[],
-  condLogic: "AND" | "OR",
 ): "long" | "short" | null {
-  const activeConditions = conditions.filter(c => c.enabled);
-  const hasConditions = activeConditions.length > 0;
+  const hasBuy   = buyConditions.some(c => c.enabled);
+  const hasShort = shortConditions.some(c => c.enabled);
+  if (!hasBuy && !hasShort) return null;
 
-  if (aiEnabled && !hasConditions) return aiSignal(candle, minAgreement);
-  if (!aiEnabled && !hasConditions) return null;
-  if (!aiEnabled) return indicatorSignal(candle, conditions, condLogic);
+  const buyFires   = hasBuy   && evalGroup(buyConditions,   buyLogic,   c, aiEnabled);
+  const shortFires = hasShort && evalGroup(shortConditions, shortLogic, c, aiEnabled);
 
-  // Both AI and indicators: must agree
-  const ai  = aiSignal(candle, minAgreement);
-  const ind = indicatorSignal(candle, conditions, condLogic);
-  if (ai === null || ind === null || ai !== ind) return null;
-  return ai;
+  if (buyFires && !shortFires)  return "long";
+  if (shortFires && !buyFires)  return "short";
+  return null; // conflict or nothing
 }
 
 // ─── derived results ──────────────────────────────────────────────────────────
@@ -178,11 +155,11 @@ interface Derived {
 
 function deriveResults(
   data: BacktestData,
+  buyConditions: Condition[], buyLogic: "AND" | "OR",
+  shortConditions: Condition[], shortLogic: "AND" | "OR",
   aiEnabled: boolean,
-  minAgreement: number,
-  conditions: Condition[],
-  condLogic: "AND" | "OR",
   stopLossPct: number,
+  stopAndReverse: boolean,
 ): Derived | null {
   const cs = data.candles;
   if (cs.length < 2) return null;
@@ -215,26 +192,39 @@ function deriveResults(
 
   for (let i = 0; i < cs.length; i++) {
     const c = cs[i];
-    const sig = getSignal(c, aiEnabled, minAgreement, conditions, condLogic);
+    const sig = getSignal(c, buyConditions, buyLogic, shortConditions, shortLogic, aiEnabled);
 
+    let reversedThisCandle = false;
+
+    // 1. Manage live trade
     if (live && live.entryIdx < i) {
       const stopHit = stopEnabled &&
         (live.direction === "long" ? c.low <= live.stopPrice : c.high >= live.stopPrice);
       if (stopHit) {
+        // Stop-loss always just closes, never reverses
         closeTrade(live.stopPrice, c.time, i, "stop");
       } else if (sig && sig !== live.direction) {
+        // Opposite signal — close the trade
         closeTrade(c.close, c.time, i, "reversal");
+        reversedThisCandle = true;
       }
     }
 
+    // 2. Open a new trade if flat and a signal exists (not on the last candle)
     if (!live && i < cs.length - 1 && sig) {
-      live = {
-        direction: sig, entryPrice: c.close, entryTime: c.time, entryIdx: i,
-        stopPrice: sig === "long" ? c.close * (1 - stopLossPct / 100) : c.close * (1 + stopLossPct / 100),
-        entryConfidence: c.confidence, entryAnalysis: c.analysis,
-      };
+      // Only open immediately on reversal if Stop & Reverse is enabled
+      if (!reversedThisCandle || stopAndReverse) {
+        live = {
+          direction: sig, entryPrice: c.close, entryTime: c.time, entryIdx: i,
+          stopPrice: sig === "long"
+            ? c.close * (1 - stopLossPct / 100)
+            : c.close * (1 + stopLossPct / 100),
+          entryConfidence: c.confidence, entryAnalysis: c.analysis,
+        };
+      }
     }
 
+    // 3. Mark-to-market equity
     let eq = realized;
     if (live && live.entryIdx <= i) {
       const rawRet = (c.close - live.entryPrice) / live.entryPrice;
@@ -307,17 +297,7 @@ function GateSlider({ label, value, display, min, max, step, onChange }:
         className="flex-1 min-w-[80px] h-1 cursor-pointer"
         style={{ accentColor: ACCENT }} />
       <span className="text-[11px] font-mono font-semibold shrink-0 tabular-nums"
-        style={{ color: "#c4b5fd", minWidth: 40, textAlign: "right" }}>{display}</span>
-    </div>
-  );
-}
-
-function Stat({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>{label}</span>
-      <span className="text-sm font-semibold font-mono" style={{ color: color ?? "rgba(255,255,255,0.85)" }}>{value}</span>
-      {sub && <span className="text-[9px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>{sub}</span>}
+        style={{ color: "#c4b5fd", minWidth: 36, textAlign: "right" }}>{display}</span>
     </div>
   );
 }
@@ -357,6 +337,34 @@ function NumberInput({ value, min, max, onChange }: { value: number; min: number
   );
 }
 
+function Stat({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>{label}</span>
+      <span className="text-sm font-semibold font-mono" style={{ color: color ?? "rgba(255,255,255,0.85)" }}>{value}</span>
+      {sub && <span className="text-[9px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>{sub}</span>}
+    </div>
+  );
+}
+
+// ─── logic toggle ─────────────────────────────────────────────────────────────
+function LogicToggle({ value, onChange }: { value: "AND" | "OR"; onChange: (v: "AND" | "OR") => void }) {
+  return (
+    <div className="flex rounded overflow-hidden shrink-0"
+      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+      {(["AND", "OR"] as const).map(l => (
+        <button key={l} onClick={() => onChange(l)}
+          className="px-1.5 py-0.5 text-[8px] font-bold tracking-widest border-r last:border-r-0 transition-all"
+          style={{
+            borderColor: "rgba(255,255,255,0.06)",
+            background: value === l ? "rgba(167,139,250,0.18)" : "transparent",
+            color: value === l ? "#c4b5fd" : "rgba(255,255,255,0.25)",
+          }}>{l}</button>
+      ))}
+    </div>
+  );
+}
+
 // ─── condition card ────────────────────────────────────────────────────────────
 function ConditionCard({
   cond, ip, onChange, onRemove,
@@ -367,62 +375,58 @@ function ConditionCard({
 }) {
   const meta = COND_META[cond.type];
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all"
+    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all"
       style={{
-        background: cond.enabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
-        border: `1px solid ${cond.enabled ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.04)"}`,
+        background: cond.enabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+        border: `1px solid ${cond.enabled ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)"}`,
         opacity: cond.enabled ? 1 : 0.5,
       }}>
       {/* enable toggle */}
       <Toggle on={cond.enabled} onChange={v => onChange(cond.id, { enabled: v })} />
 
       {/* badge */}
-      <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
-        style={{ background: `${meta.badgeColor}22`, color: meta.badgeColor, border: `1px solid ${meta.badgeColor}44` }}>
+      <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded shrink-0"
+        style={{ background: `${meta.badgeColor}22`, color: meta.badgeColor, border: `1px solid ${meta.badgeColor}33` }}>
         {meta.badge}
       </span>
 
       {/* description */}
-      <span className="text-[11px] flex-1 min-w-0 truncate" style={{ color: "rgba(255,255,255,0.55)" }}>
+      <span className="text-[10px] flex-1 min-w-0 truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
         {meta.description(cond, ip)}
       </span>
 
-      {/* direction chip */}
-      <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0"
-        style={{
-          background: meta.dir === "long" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
-          color: meta.dir === "long" ? "#22c55e" : "#ef4444",
-          border: `1px solid ${meta.dir === "long" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
-        }}>
-        {meta.dir}
-      </span>
-
-      {/* threshold slider (RSI and Stoch) */}
+      {/* threshold slider */}
       {meta.hasThreshold && (
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <input type="range"
             min={meta.thresholdMin} max={meta.thresholdMax} step={1} value={cond.threshold}
             onChange={e => onChange(cond.id, { threshold: parseInt(e.target.value) })}
-            className="w-16 h-1 cursor-pointer" style={{ accentColor: meta.badgeColor }} />
-          <span className="text-[10px] font-mono tabular-nums w-6 text-right"
+            className="w-14 h-0.5 cursor-pointer" style={{ accentColor: meta.badgeColor }} />
+          <span className="text-[9px] font-mono tabular-nums w-5 text-right"
             style={{ color: meta.badgeColor }}>{cond.threshold}</span>
         </div>
       )}
 
       {/* remove */}
       <button onClick={() => onRemove(cond.id)}
-        className="shrink-0 p-0.5 rounded transition-colors"
-        style={{ color: "rgba(255,255,255,0.2)" }}
-        onMouseEnter={e => (e.currentTarget.style.color = "rgba(239,68,68,0.7)")}
-        onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.2)")}>
-        <X className="w-3 h-3" />
+        className="shrink-0 p-0.5 rounded transition-colors ml-0.5"
+        style={{ color: "rgba(255,255,255,0.18)" }}
+        onMouseEnter={e => (e.currentTarget.style.color = "rgba(239,68,68,0.65)")}
+        onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.18)")}>
+        <X className="w-2.5 h-2.5" />
       </button>
     </div>
   );
 }
 
 // ─── add-signal dropdown ──────────────────────────────────────────────────────
-function AddSignalMenu({ onAdd }: { onAdd: (type: ConditionType) => void }) {
+function AddSignalMenu({
+  suggestions, aiEnabled, onAdd,
+}: {
+  suggestions: ConditionType[];
+  aiEnabled: boolean;
+  onAdd: (type: ConditionType) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -433,62 +437,54 @@ function AddSignalMenu({ onAdd }: { onAdd: (type: ConditionType) => void }) {
     return () => document.removeEventListener("mousedown", fn);
   }, [open]);
 
-  const groups: { title: string; types: ConditionType[] }[] = [
-    { title: "RSI",           types: ["rsi_lt", "rsi_gt"] },
-    { title: "EMA Cross",     types: ["ema_cross_up", "ema_cross_down"] },
-    { title: "MACD",          types: ["macd_cross_up", "macd_cross_down"] },
-    { title: "Bollinger Bands", types: ["bb_lower", "bb_upper"] },
-    { title: "Stochastic",    types: ["stoch_lt", "stoch_gt"] },
+  // Show suggested first, then the rest
+  const others = ALL_CONDITIONS.filter(t => !suggestions.includes(t));
+  const sections: { title: string; types: ConditionType[] }[] = [
+    { title: "Suggested", types: suggestions },
+    { title: "Other",     types: others },
   ];
 
   return (
-    <div className="relative shrink-0" ref={ref}>
+    <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all"
+        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all"
         style={{
-          background: open ? "rgba(167,139,250,0.14)" : "rgba(255,255,255,0.04)",
-          border: `1px solid ${open ? "rgba(167,139,250,0.35)" : "rgba(255,255,255,0.08)"}`,
-          color: open ? "#c4b5fd" : "rgba(255,255,255,0.45)",
+          background: open ? "rgba(167,139,250,0.12)" : "rgba(255,255,255,0.04)",
+          border: `1px solid ${open ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.07)"}`,
+          color: open ? "#c4b5fd" : "rgba(255,255,255,0.4)",
         }}>
-        <Plus className="w-3 h-3" />
-        Add Signal
-        <ChevronDown className="w-3 h-3" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+        <Plus className="w-2.5 h-2.5" />
+        Add
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+        <div className="absolute left-0 top-full mt-1 z-50 rounded-xl overflow-hidden"
           style={{
             background: "rgba(14,14,16,0.98)", border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 220,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 240,
           }}>
-          {groups.map(g => (
+          {sections.map(g => (
             <div key={g.title}>
               <div className="px-3 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-widest"
-                style={{ color: "rgba(255,255,255,0.25)" }}>{g.title}</div>
+                style={{ color: "rgba(255,255,255,0.22)" }}>{g.title}</div>
               {g.types.map(t => {
                 const m = COND_META[t];
+                const isAI = t === "ai_long" || t === "ai_short";
+                const disabled = isAI && !aiEnabled;
                 return (
                   <button key={t}
-                    onClick={() => { onAdd(t); setOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
-                    style={{ color: "rgba(255,255,255,0.65)" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                    onClick={() => { if (!disabled) { onAdd(t); setOpen(false); } }}
+                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors"
+                    style={{ color: disabled ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.6)", cursor: disabled ? "not-allowed" : "pointer" }}
+                    onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                      style={{ background: `${m.badgeColor}22`, color: m.badgeColor }}>
+                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                      style={{ background: `${m.badgeColor}22`, color: disabled ? "rgba(255,255,255,0.2)" : m.badgeColor }}>
                       {m.badge}
                     </span>
-                    <div>
-                      <div className="text-[11px]">{m.label}</div>
-                      <div className="text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-                        {m.dir === "long" ? "→ Long entry" : "→ Short entry"}
-                      </div>
-                    </div>
-                    <span className="ml-auto text-[9px] font-semibold"
-                      style={{ color: m.dir === "long" ? "#22c55e" : "#ef4444" }}>
-                      {m.dir}
-                    </span>
+                    <span className="text-[11px]">{m.label}</span>
+                    {disabled && <span className="ml-auto text-[9px]" style={{ color: "rgba(255,255,255,0.2)" }}>AI off</span>}
                   </button>
                 );
               })}
@@ -501,10 +497,65 @@ function AddSignalMenu({ onAdd }: { onAdd: (type: ConditionType) => void }) {
   );
 }
 
+// ─── signal column ────────────────────────────────────────────────────────────
+function SignalColumn({
+  side, conditions, logic, ip, aiEnabled,
+  onLogicChange, onAdd, onConditionChange, onConditionRemove,
+}: {
+  side: "buy" | "short";
+  conditions: Condition[];
+  logic: "AND" | "OR";
+  ip: IndicatorParams;
+  aiEnabled: boolean;
+  onLogicChange: (v: "AND" | "OR") => void;
+  onAdd: (type: ConditionType) => void;
+  onConditionChange: (id: string, patch: Partial<Condition>) => void;
+  onConditionRemove: (id: string) => void;
+}) {
+  const isLong = side === "buy";
+  const color  = isLong ? "#22c55e" : "#ef4444";
+  const Icon   = isLong ? TrendingUp : TrendingDown;
+  const suggestions = isLong ? BUY_SUGGESTIONS : SHORT_SUGGESTIONS;
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-0">
+      {/* column header */}
+      <div className="flex items-center gap-2">
+        <Icon className="w-3 h-3 shrink-0" style={{ color }} />
+        <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0"
+          style={{ color }}>{isLong ? "Buy Signal" : "Short Signal"}</span>
+        {conditions.length > 1 && <LogicToggle value={logic} onChange={onLogicChange} />}
+        <div className="ml-auto">
+          <AddSignalMenu suggestions={suggestions} aiEnabled={aiEnabled} onAdd={onAdd} />
+        </div>
+      </div>
+
+      {/* condition cards */}
+      {conditions.length === 0 ? (
+        <div className="px-2 py-3 text-center rounded-lg"
+          style={{ border: `1px dashed ${color}22`, color: "rgba(255,255,255,0.2)" }}>
+          <p className="text-[10px] leading-relaxed">
+            {isLong ? "Conditions that trigger a long entry" : "Conditions that trigger a short entry"}
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {conditions.map(cond => (
+            <ConditionCard
+              key={cond.id} cond={cond} ip={ip}
+              onChange={onConditionChange} onRemove={onConditionRemove}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── indicator params panel ────────────────────────────────────────────────────
 function IndParamsPanel({ ip, onChange }: { ip: IndicatorParams; onChange: (patch: Partial<IndicatorParams>) => void }) {
   return (
-    <div className="grid grid-cols-3 md:grid-cols-6 gap-x-5 gap-y-2.5 px-4 py-2.5"
+    <div className="grid grid-cols-3 md:grid-cols-6 gap-x-5 gap-y-2 px-4 py-2"
       style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
       {([
         ["RSI Period", "rsiPeriod", 2, 50],
@@ -514,8 +565,8 @@ function IndParamsPanel({ ip, onChange }: { ip: IndicatorParams; onChange: (patc
         ["Stoch K",    "stochK",    2, 50],
         ["Stoch D",    "stochD",    1, 20],
       ] as [string, keyof IndicatorParams, number, number][]).map(([label, key, min, max]) => (
-        <div key={key} className="flex items-center gap-2">
-          <span className="text-[9px] uppercase tracking-wide shrink-0" style={{ color: "rgba(255,255,255,0.25)" }}>{label}</span>
+        <div key={key} className="flex items-center gap-1.5">
+          <span className="text-[9px] uppercase tracking-wide shrink-0" style={{ color: "rgba(255,255,255,0.22)" }}>{label}</span>
           <NumberInput value={ip[key]} min={min} max={max} onChange={v => onChange({ [key]: v })} />
         </div>
       ))}
@@ -528,7 +579,6 @@ export default function StrategyBacktestPage() {
   const router = useRouter();
   const { activeTicker, setActiveTicker } = useTickerStore();
 
-  // Global params
   const [ticker,    setTicker]    = useState(activeTicker || "AAPL");
   const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [nWindow,   setNWindow]   = useState(60);
@@ -540,27 +590,27 @@ export default function StrategyBacktestPage() {
   const [nForecast,   setNForecast]   = useState(10);
   const [nRuns,       setNRuns]       = useState(1);
   const [technicals,  setTechnicals]  = useState(true);
-  const [minAgreement, setMinAgreement] = useState(0.6);
 
-  // Indicator params (used at run time; changing these requires a new run)
+  // Indicator periods
   const [ip, setIp] = useState<IndicatorParams>({
     rsiPeriod: 14, emaFast: 9, emaSlow: 21, bbPeriod: 20, stochK: 14, stochD: 3,
   });
   const [indParamsOpen, setIndParamsOpen] = useState(false);
 
   // Strategy builder
-  const [conditions,  setConditions]  = useState<Condition[]>([]);
-  const [condLogic,   setCondLogic]   = useState<"AND" | "OR">("AND");
-  const [stopLossPct, setStopLossPct] = useState(3);
+  const [buyConditions,  setBuyConditions]  = useState<Condition[]>([]);
+  const [buyLogic,       setBuyLogic]       = useState<"AND" | "OR">("AND");
+  const [shortConditions, setShortConditions] = useState<Condition[]>([]);
+  const [shortLogic,     setShortLogic]     = useState<"AND" | "OR">("AND");
+  const [stopLossPct,    setStopLossPct]    = useState(3);
+  const [stopAndReverse, setStopAndReverse] = useState(false);
 
-  // Fetch / display
   const [loading,     setLoading]     = useState(false);
   const [data,        setData]        = useState<BacktestData | null>(null);
   const [error,       setError]       = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // ── cache ──────────────────────────────────────────────────────────────────
-  const cacheKey = `strategy-bt2-${ticker}`;
   const loadCache = useCallback((t: string): BacktestData | null => {
     try {
       const raw = localStorage.getItem(`strategy-bt2-${t}`);
@@ -569,8 +619,8 @@ export default function StrategyBacktestPage() {
       return d.candles && d.candles.length >= 2 ? d : null;
     } catch { return null; }
   }, []);
-  const saveCache = (d: BacktestData) => {
-    try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /**/ }
+  const saveCache = (t: string, d: BacktestData) => {
+    try { localStorage.setItem(`strategy-bt2-${t}`, JSON.stringify(d)); } catch { /**/ }
   };
 
   const runBacktest = useCallback(async () => {
@@ -589,7 +639,7 @@ export default function StrategyBacktestPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       const d = json as BacktestData;
-      setData(d); saveCache(d);
+      setData(d); saveCache(ticker, d);
     } catch (e) { setError(String(e)); }
     finally     { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -608,30 +658,27 @@ export default function StrategyBacktestPage() {
   };
 
   // Condition helpers
-  const addCondition = (type: ConditionType) => {
+  const addToGroup = (group: "buy" | "short", type: ConditionType) => {
     const meta = COND_META[type];
-    setConditions(prev => [...prev, {
-      id: `${type}-${Date.now()}`,
-      type,
-      enabled: true,
-      threshold: meta.thresholdDefault,
-    }]);
+    const cond: Condition = { id: `${type}-${Date.now()}`, type, enabled: true, threshold: meta.thresholdDefault };
+    if (group === "buy") setBuyConditions(prev => [...prev, cond]);
+    else setShortConditions(prev => [...prev, cond]);
   };
-  const patchCondition = (id: string, patch: Partial<Condition>) =>
-    setConditions(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
-  const removeCondition = (id: string) =>
-    setConditions(prev => prev.filter(c => c.id !== id));
+  const patchBuy   = (id: string, patch: Partial<Condition>) => setBuyConditions(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
+  const patchShort = (id: string, patch: Partial<Condition>) => setShortConditions(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
+  const removeBuy   = (id: string) => setBuyConditions(prev => prev.filter(c => c.id !== id));
+  const removeShort = (id: string) => setShortConditions(prev => prev.filter(c => c.id !== id));
 
   // Client-side simulation
   const result = useMemo(
-    () => (data ? deriveResults(data, aiEnabled, minAgreement, conditions, condLogic, stopLossPct) : null),
-    [data, aiEnabled, minAgreement, conditions, condLogic, stopLossPct],
+    () => data ? deriveResults(data, buyConditions, buyLogic, shortConditions, shortLogic, aiEnabled, stopLossPct, stopAndReverse) : null,
+    [data, buyConditions, buyLogic, shortConditions, shortLogic, aiEnabled, stopLossPct, stopAndReverse],
   );
 
   const fmtPF  = (pf: number) => (pf === Infinity ? "∞" : pf.toFixed(2));
   const fmtPct = (p: number)  => `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`;
 
-  const div = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
+  const sep = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
 
   return (
     <>
@@ -642,8 +689,7 @@ export default function StrategyBacktestPage() {
       <header className="shrink-0 z-20"
         style={{ background: "rgba(8,8,8,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
 
-        {/* main header row */}
-        <div className="px-4 md:px-5 h-13 flex items-center gap-3" style={{ height: 52 }}>
+        <div className="px-4 md:px-5 flex items-center gap-3" style={{ height: 52 }}>
           {/* back */}
           <button onClick={() => router.push("/")}
             className="flex items-center gap-1.5 transition-colors shrink-0"
@@ -653,7 +699,7 @@ export default function StrategyBacktestPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="text-xs hidden sm:inline">Home</span>
           </button>
-          {div}
+          {sep}
 
           {/* logo */}
           <div className="hidden md:flex items-center gap-1.5 shrink-0">
@@ -661,38 +707,35 @@ export default function StrategyBacktestPage() {
               style={{ border: "1px solid rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.08)" }}>
               <FlaskConical className="w-3 h-3" style={{ color: ACCENT }} />
             </div>
-            <span className="text-[10px] font-semibold"
-              style={{ color: "rgba(196,181,253,0.65)", letterSpacing: "0.06em" }}>STRATEGY LAB</span>
+            <span className="text-[10px] font-semibold" style={{ color: "rgba(196,181,253,0.65)", letterSpacing: "0.06em" }}>STRATEGY LAB</span>
           </div>
-          {div}
+          {sep}
 
           {/* ticker */}
           <button onClick={() => setPaletteOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all flex-1 min-w-0 max-w-[160px]"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all max-w-[140px] flex-1 min-w-0"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
             onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
             onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}>
             <span className="text-sm font-semibold font-mono text-white truncate">{ticker}</span>
             <ChevronDown className="w-3 h-3 shrink-0 ml-auto" style={{ color: "rgba(255,255,255,0.3)" }} />
           </button>
-          {div}
+          {sep}
 
           {/* TF */}
           <div className="flex rounded-lg overflow-hidden shrink-0"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
             {TIMEFRAME_OPTS.map(tf => (
               <button key={tf} onClick={() => setTimeframe(tf)}
-                className="px-2.5 py-1.5 text-[10px] font-mono font-medium tracking-wide transition-all border-r last:border-r-0"
+                className="px-2.5 py-1.5 text-[10px] font-mono font-medium border-r last:border-r-0 transition-all"
                 style={{
                   borderColor: "rgba(255,255,255,0.06)",
                   background: timeframe === tf ? "rgba(167,139,250,0.16)" : "transparent",
                   color: timeframe === tf ? "#c4b5fd" : "rgba(255,255,255,0.28)",
-                }}>
-                {tf}
-              </button>
+                }}>{tf}</button>
             ))}
           </div>
-          {div}
+          {sep}
 
           {/* HIST */}
           <div className="flex items-center gap-2 shrink-0">
@@ -700,10 +743,9 @@ export default function StrategyBacktestPage() {
             <SegPill options={WINDOW_OPTS} active={nWindow} onChange={setNWindow} />
           </div>
 
-          {/* spacer */}
           <div className="flex-1" />
 
-          {/* AI panel toggle */}
+          {/* AI toggle */}
           <button
             onClick={() => setAiPanelOpen(o => !o)}
             className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all shrink-0"
@@ -713,11 +755,12 @@ export default function StrategyBacktestPage() {
               color: aiPanelOpen ? "#c4b5fd" : "rgba(255,255,255,0.35)",
             }}>
             <Bot className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">AI Predictions</span>
-            <ChevronRight className="w-3 h-3 transition-transform" style={{ transform: aiPanelOpen ? "rotate(90deg)" : "none" }} />
+            <span className="hidden sm:inline">AI</span>
+            <ChevronRight className="w-3 h-3 transition-transform"
+              style={{ transform: aiPanelOpen ? "rotate(90deg)" : "none" }} />
             <Toggle on={aiEnabled} onChange={setAiEnabled} />
           </button>
-          {div}
+          {sep}
 
           {/* run */}
           <button onClick={runBacktest} disabled={loading}
@@ -729,15 +772,15 @@ export default function StrategyBacktestPage() {
               cursor: loading ? "not-allowed" : "pointer",
             }}>
             {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}
-            <span>{loading ? "Running…" : "Run Backtest"}</span>
+            <span>{loading ? "Running…" : "Run"}</span>
           </button>
         </div>
 
-        {/* AI panel (collapsible) */}
+        {/* AI panel */}
         {aiPanelOpen && (
-          <div className="px-4 md:px-5 py-3 flex flex-wrap items-center gap-4"
+          <div className="px-4 md:px-5 py-2.5 flex flex-wrap items-center gap-4"
             style={{ borderTop: "1px solid rgba(167,139,250,0.1)", background: "rgba(167,139,250,0.03)" }}>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5">
               <Bot className="w-3 h-3" style={{ color: ACCENT }} />
               <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#c4b5fd" }}>AI Settings</span>
               <span className="text-[9px] px-1.5 py-0.5 rounded ml-1"
@@ -745,17 +788,17 @@ export default function StrategyBacktestPage() {
                 {aiEnabled ? "on" : "off"}
               </span>
             </div>
-            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            {sep}
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Look</span>
               <SegPill options={LOOKBACK_OPTS} active={nLookback} onChange={setNLookback} />
             </div>
-            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            {sep}
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Fcst</span>
               <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} />
             </div>
-            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            {sep}
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Runs</span>
               <div className="flex items-center rounded-lg overflow-hidden"
@@ -768,7 +811,7 @@ export default function StrategyBacktestPage() {
                   className="px-2 py-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>+</button>
               </div>
             </div>
-            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            {sep}
             <button onClick={() => setTechnicals(v => !v)}
               className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium tracking-wide transition-all shrink-0"
               style={{
@@ -776,63 +819,39 @@ export default function StrategyBacktestPage() {
                 border: `1px solid ${technicals ? "rgba(192,192,204,0.28)" : "rgba(255,255,255,0.07)"}`,
                 color: technicals ? "rgba(210,210,220,0.9)" : "rgba(255,255,255,0.28)",
               }}>Technicals</button>
-            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
-            <div className="flex items-center gap-2.5 shrink-0" style={{ minWidth: 220 }}>
-              <GateSlider label="Agree" value={minAgreement} display={`${(minAgreement * 100).toFixed(0)}%`}
-                min={0} max={1} step={0.05} onChange={setMinAgreement} />
-            </div>
+            {!aiEnabled && (
+              <span className="text-[9px] ml-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+                Enable AI to use "AI Says Long / Short" conditions
+              </span>
+            )}
           </div>
         )}
       </header>
 
       {/* ── strategy builder ─────────────────────────────────────────────────── */}
       <div className="shrink-0"
-        style={{ background: "rgba(167,139,250,0.03)", borderBottom: "1px solid rgba(167,139,250,0.08)" }}>
+        style={{ background: "rgba(167,139,250,0.025)", borderBottom: "1px solid rgba(167,139,250,0.08)" }}>
 
-        {/* rule bar header */}
-        <div className="px-4 md:px-5 py-2.5 flex flex-wrap items-center gap-3">
+        {/* options row */}
+        <div className="px-4 md:px-5 pt-2.5 pb-2 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 shrink-0">
             <Zap className="w-3 h-3" style={{ color: ACCENT }} />
             <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#c4b5fd" }}>Strategy</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded ml-0.5"
+            <span className="text-[9px] px-1.5 py-0.5 rounded"
               style={{ background: "rgba(167,139,250,0.14)", color: "rgba(196,181,253,0.7)" }}>live</span>
           </div>
 
-          <AddSignalMenu onAdd={addCondition} />
+          {sep}
 
-          {conditions.length > 0 && (
-            <>
-              <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Logic</span>
-                <div className="flex rounded-md overflow-hidden"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  {(["AND", "OR"] as const).map(l => (
-                    <button key={l} onClick={() => setCondLogic(l)}
-                      className="px-2 py-1 text-[9px] font-bold tracking-widest border-r last:border-r-0 transition-all"
-                      style={{
-                        borderColor: "rgba(255,255,255,0.06)",
-                        background: condLogic === l ? "rgba(167,139,250,0.16)" : "transparent",
-                        color: condLogic === l ? "#c4b5fd" : "rgba(255,255,255,0.28)",
-                      }}>{l}</button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+          {/* stop & reverse */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Toggle on={stopAndReverse} onChange={setStopAndReverse} />
+            <span className="text-[10px]" style={{ color: stopAndReverse ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.28)" }}>
+              Stop & Reverse
+            </span>
+          </div>
 
-          <div className="flex-1" />
-
-          {/* indicator params toggle */}
-          <button
-            onClick={() => setIndParamsOpen(o => !o)}
-            className="text-[10px] px-2 py-1 rounded transition-colors shrink-0"
-            style={{ color: "rgba(255,255,255,0.25)" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}>
-            Indicator settings {indParamsOpen ? "▲" : "▼"}
-          </button>
-          {div}
+          {sep}
 
           {/* stop-loss */}
           <div className="shrink-0" style={{ minWidth: 200 }}>
@@ -841,40 +860,49 @@ export default function StrategyBacktestPage() {
               min={0} max={15} step={0.5} onChange={setStopLossPct} />
           </div>
 
-          {/* status chips */}
+          {/* indicator params */}
+          <button
+            onClick={() => setIndParamsOpen(o => !o)}
+            className="text-[10px] px-2 py-0.5 rounded transition-colors shrink-0 ml-auto"
+            style={{ color: "rgba(255,255,255,0.22)" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}>
+            Periods {indParamsOpen ? "▲" : "▼"}
+          </button>
+
+          {/* status */}
           {data?.failedCandles ? (
-            <span className="text-[10px] font-mono shrink-0" style={{ color: "#f59e0b" }}
-              title="These candles produced no AI signal.">
+            <span className="text-[10px] font-mono shrink-0" style={{ color: "#f59e0b" }}>
               ⚠ {data.failedCandles} failed
             </span>
           ) : null}
           {result && (
-            <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(255,255,255,0.3)" }}>
-              {result.summary.tradeCount} trades
+            <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(255,255,255,0.28)" }}>
+              {result.summary.tradeCount} trade{result.summary.tradeCount !== 1 ? "s" : ""}
             </span>
           )}
         </div>
 
-        {/* indicator params (collapsible) */}
-        {indParamsOpen && (
-          <IndParamsPanel ip={ip} onChange={patch => setIp(prev => ({ ...prev, ...patch }))} />
-        )}
+        {indParamsOpen && <IndParamsPanel ip={ip} onChange={patch => setIp(prev => ({ ...prev, ...patch }))} />}
 
-        {/* condition cards */}
-        {conditions.length > 0 && (
-          <div className="px-4 md:px-5 pb-2.5 flex flex-col gap-1.5">
-            {conditions.map(cond => (
-              <ConditionCard key={cond.id} cond={cond} ip={ip}
-                onChange={patchCondition} onRemove={removeCondition} />
-            ))}
-          </div>
-        )}
+        {/* two-column signal builder */}
+        <div className="px-4 md:px-5 pb-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <SignalColumn
+            side="buy" conditions={buyConditions} logic={buyLogic} ip={ip} aiEnabled={aiEnabled}
+            onLogicChange={setBuyLogic} onAdd={t => addToGroup("buy", t)}
+            onConditionChange={patchBuy} onConditionRemove={removeBuy}
+          />
+          <SignalColumn
+            side="short" conditions={shortConditions} logic={shortLogic} ip={ip} aiEnabled={aiEnabled}
+            onLogicChange={setShortLogic} onAdd={t => addToGroup("short", t)}
+            onConditionChange={patchShort} onConditionRemove={removeShort}
+          />
+        </div>
       </div>
 
       {/* ── chart ────────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden" style={{ flex: "1 1 0", minHeight: 0 }}>
 
-        {/* empty */}
         {!data && !loading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
@@ -884,8 +912,7 @@ export default function StrategyBacktestPage() {
             <div>
               <p className="text-base font-semibold text-white/60 mb-1.5">Strategy Backtest</p>
               <p className="text-sm text-white/25 max-w-[400px] leading-relaxed">
-                Build a strategy with technical signals — RSI, EMA Cross, MACD, Bollinger Bands, Stochastic.
-                Optionally layer AI predictions on top. Tune rules live; the equity curve recomputes instantly.
+                Build entry rules in the Buy and Short columns above, run the backtest, then tune rules live — the equity curve recomputes instantly.
               </p>
             </div>
             <button onClick={runBacktest}
@@ -897,7 +924,6 @@ export default function StrategyBacktestPage() {
           </div>
         )}
 
-        {/* loading */}
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
             <div className="relative w-14 h-14">
@@ -921,7 +947,6 @@ export default function StrategyBacktestPage() {
           </div>
         )}
 
-        {/* error */}
         {error && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
             <p className="text-sm text-red-400/80 text-center max-w-sm">{error}</p>
@@ -931,7 +956,6 @@ export default function StrategyBacktestPage() {
           </div>
         )}
 
-        {/* chart */}
         {data && result && !loading && (
           <div className="absolute inset-0">
             <StrategyChart
@@ -979,7 +1003,7 @@ export default function StrategyBacktestPage() {
           <div className="overflow-y-auto" style={{ maxHeight: 168 }}>
             {result.trades.length === 0 ? (
               <div className="px-4 py-6 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-                No trades — add signals above to generate entry rules, or loosen the stop-loss.
+                No trades — add conditions in the Buy or Short signal columns above.
               </div>
             ) : (
               <table className="w-full text-[10px]">
