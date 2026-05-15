@@ -434,7 +434,7 @@ export default function StrategyBacktestPage() {
         </div>
         <div className="flex-1 min-w-0 md:max-w-[300px]">
           <GateSlider label="Agree" value={minAgreement} display={`${(minAgreement * 100).toFixed(0)}%`}
-            min={0.5} max={1} step={0.05} onChange={setMinAgreement} />
+            min={0} max={1} step={0.05} onChange={setMinAgreement} />
         </div>
         <div className="flex-1 min-w-0 md:max-w-[300px]">
           <GateSlider label="Stop" value={stopLossPct} display={stopLossPct === 0 ? "off" : `${stopLossPct.toFixed(1)}%`}
