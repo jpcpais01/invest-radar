@@ -264,7 +264,7 @@ function deriveResults(
 // ─── small UI helpers ─────────────────────────────────────────────────────────
 const ACCENT = "#a78bfa";
 const TIMEFRAME_OPTS: Timeframe[] = ["1m", "5m", "1h", "1d"];
-const WINDOW_OPTS    = [20, 40, 60, 100, 150];
+const WINDOW_OPTS    = [20, 60, 150, 300, 500, 750, 1000];
 const LOOKBACK_OPTS  = [30, 60, 90, 120, 252];
 const FORECAST_OPTS  = [5, 10, 15, 20, 30];
 

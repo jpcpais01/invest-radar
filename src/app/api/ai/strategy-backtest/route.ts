@@ -46,7 +46,7 @@ function getInd<T>(arr: T[], offset: number, i: number): T | undefined {
 export async function GET(req: NextRequest) {
   const sp        = req.nextUrl.searchParams;
   const ticker    = (sp.get("ticker") ?? "AAPL").toUpperCase();
-  const nWindow   = Math.min(150, Math.max(10, parseInt(sp.get("window")    ?? "60")));
+  const nWindow   = Math.min(1000, Math.max(10, parseInt(sp.get("window")   ?? "60")));
   const nLookback = Math.min(252, Math.max(20, parseInt(sp.get("lookback")  ?? "120")));
   const nForecast = Math.min(30,  Math.max(3,  parseInt(sp.get("nForecast") ?? "10")));
   const nRuns     = Math.min(3,   Math.max(1,  parseInt(sp.get("nRuns")     ?? "1")));
