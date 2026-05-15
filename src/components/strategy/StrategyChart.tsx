@@ -4,26 +4,26 @@ import { useRef, useState, useEffect, useMemo, useId } from "react";
 // ── shared shapes ────────────────────────────────────────────────────────────
 export interface CurvePoint { time: number; equity: number }
 
-/** A decision point after the client-side trade gate has been applied. */
-export interface DerivedPoint {
-  time: number;
-  entryPrice: number;
-  exitTime: number;
-  exitPrice: number;
-  confidence: number;
-  predictedMovePct: number;
-  agreement: number;
+/** A closed trade from the client-side simulation. */
+export interface ChartTrade {
+  entryIdx: number;
+  exitIdx: number;
   direction: "long" | "short";
-  traded: boolean;
+  entryPrice: number;
+  exitPrice: number;
+  entryTime: number;
+  exitTime: number;
   pnlPct: number;
   won: boolean;
-  equityAfter: number;
+  reason: "reversal" | "stop" | "end";
+  entryConfidence: number;
+  entryAnalysis: string;
 }
 
 interface Props {
-  equityCurve:  CurvePoint[];   // [start, ...one per decision point]
+  equityCurve:  CurvePoint[];   // one point per candle
   buyHoldCurve: CurvePoint[];   // aligned 1:1 with equityCurve
-  points:       DerivedPoint[]; // one per decision point (equityCurve[i+1])
+  trades:       ChartTrade[];
   timeframe:    string;
 }
 
@@ -37,7 +37,7 @@ function fmtDate(ts: number, tf: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
 }
 
-export default function StrategyChart({ equityCurve, buyHoldCurve, points, timeframe }: Props) {
+export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timeframe }: Props) {
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize]     = useState<{ w: number; h: number } | null>(null);
@@ -54,6 +54,14 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
 
   const PAD = { t: 26, r: 16, b: 30, l: 52 };
 
+  // map candle index → trade events that start / end there
+  const events = useMemo(() => {
+    const entry = new Map<number, ChartTrade>();
+    const exit  = new Map<number, ChartTrade>();
+    for (const t of trades) { entry.set(t.entryIdx, t); exit.set(t.exitIdx, t); }
+    return { entry, exit };
+  }, [trades]);
+
   const geom = useMemo(() => {
     if (!size || equityCurve.length < 2) return null;
     const { w, h } = size;
@@ -67,7 +75,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
     lo -= span * 0.12; hi += span * 0.12;
 
     const n = equityCurve.length;
-    const x = (i: number) => PAD.l + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const x = (i: number) => PAD.l + (i / (n - 1)) * innerW;
     const y = (eq: number) => PAD.t + (1 - (eq - lo) / (hi - lo)) * innerH;
 
     const line = (curve: CurvePoint[]) =>
@@ -77,7 +85,6 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
     const bhPath    = line(buyHoldCurve);
     const areaPath  = `${stratPath} L${x(n - 1).toFixed(1)},${y(lo).toFixed(1)} L${x(0).toFixed(1)},${y(lo).toFixed(1)} Z`;
 
-    // y-axis ticks as % return
     const ticks = Array.from({ length: 5 }, (_, i) => {
       const eq = lo + (i / 4) * (hi - lo);
       return { eq, y: y(eq), label: `${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(0)}%` };
@@ -94,7 +101,6 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
     if (!geom) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const px   = e.clientX - rect.left;
-    // nearest index
     let best = 0, bestD = Infinity;
     for (let i = 0; i < geom.n; i++) {
       const d = Math.abs(geom.x(i) - px);
@@ -130,11 +136,22 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
             </g>
           ))}
 
-          {/* baseline at equity = 1 (break-even) */}
+          {/* break-even baseline */}
           {geom.lo < 1 && geom.hi > 1 && (
             <line x1={PAD.l} y1={geom.y(1)} x2={geom.w - PAD.r} y2={geom.y(1)}
               stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="3,3" />
           )}
+
+          {/* shade each trade's holding period */}
+          {trades.map((t, i) => {
+            const x0 = geom.x(t.entryIdx);
+            const x1 = geom.x(t.exitIdx);
+            const c  = t.direction === "long" ? "34,197,94" : "239,68,68";
+            return (
+              <rect key={`s${i}`} x={x0} y={PAD.t} width={Math.max(0.5, x1 - x0)} height={geom.innerH}
+                fill={`rgba(${c},0.05)`} />
+            );
+          })}
 
           {/* buy & hold */}
           <path d={geom.bhPath} fill="none"
@@ -147,20 +164,32 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
             stroke={stratColor} strokeWidth="2"
             strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* decision-point markers (skip index 0 = start) */}
-          {points.map((p, i) => {
-            const cx = geom.x(i + 1);
-            const cy = geom.y(p.equityAfter);
-            if (!p.traded) {
-              return <circle key={i} cx={cx} cy={cy} r="2.4" fill="#080808"
-                stroke="rgba(255,255,255,0.30)" strokeWidth="1" />;
-            }
-            const c = p.won ? "#22c55e" : "#ef4444";
-            return <circle key={i} cx={cx} cy={cy} r="3.2" fill={c}
-              stroke="#080808" strokeWidth="1.25" />;
+          {/* trade markers */}
+          {trades.map((t, i) => {
+            const ex = geom.x(t.exitIdx);
+            const ey = geom.y(equityCurve[t.exitIdx]?.equity ?? 1);
+            const en = geom.x(t.entryIdx);
+            const eny = geom.y(equityCurve[t.entryIdx]?.equity ?? 1);
+            const dirC = t.direction === "long" ? "#22c55e" : "#ef4444";
+            const exitC = t.won ? "#22c55e" : "#ef4444";
+            return (
+              <g key={`m${i}`}>
+                {/* entry: small triangle pointing in trade direction */}
+                <path
+                  d={t.direction === "long"
+                    ? `M${en},${eny - 4} L${en - 3.2},${eny + 2} L${en + 3.2},${eny + 2} Z`
+                    : `M${en},${eny + 4} L${en - 3.2},${eny - 2} L${en + 3.2},${eny - 2} Z`}
+                  fill={dirC} opacity="0.9" stroke="#080808" strokeWidth="0.75" />
+                {/* exit: filled dot (won/lost); stop-outs get a ring */}
+                {t.reason === "stop" && (
+                  <circle cx={ex} cy={ey} r="5" fill="none" stroke={exitC} strokeWidth="1" opacity="0.55" />
+                )}
+                <circle cx={ex} cy={ey} r="3" fill={exitC} stroke="#080808" strokeWidth="1.25" />
+              </g>
+            );
           })}
 
-          {/* x-axis labels: first, middle, last */}
+          {/* x-axis labels */}
           {[0, Math.floor(geom.n / 2), geom.n - 1].map((i, k) => {
             const ts = equityCurve[i]?.time;
             if (ts == null) return null;
@@ -195,9 +224,10 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
       {geom && hoverI != null && (() => {
         const eq = equityCurve[hoverI].equity;
         const bh = buyHoldCurve[hoverI].equity;
-        const pt = hoverI > 0 ? points[hoverI - 1] : null;
         const hx = geom.x(hoverI);
         const left = hx > geom.w / 2;
+        const entryT = events.entry.get(hoverI);
+        const exitT  = events.exit.get(hoverI);
         return (
           <div className="absolute pointer-events-none"
             style={{
@@ -206,50 +236,39 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, points, timef
               right: left ? geom.w - hx + 12 : undefined,
               background: "rgba(12,12,14,0.97)",
               border: "1px solid rgba(255,255,255,0.10)",
-              borderRadius: 8, padding: "8px 10px", minWidth: 168,
+              borderRadius: 8, padding: "8px 10px", minWidth: 174, maxWidth: 230,
               boxShadow: "0 12px 32px rgba(0,0,0,0.7)",
             }}>
-            {pt ? (
-              <>
-                <div className="text-[10px] font-mono mb-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  {fmtDate(pt.time, timeframe)}
+            <div className="text-[10px] font-mono mb-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {fmtDate(equityCurve[hoverI].time, timeframe)}
+            </div>
+            <Row label="Equity"   value={`${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(1)}%`} bright />
+            <Row label="Buy&hold" value={`${bh >= 1 ? "+" : ""}${((bh - 1) * 100).toFixed(1)}%`} />
+
+            {exitT && (
+              <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                <div className="flex items-center justify-between gap-3 mb-0.5">
+                  <span className="text-[9px] uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    {exitT.direction} closed · {exitT.reason}
+                  </span>
+                  <span className="text-[11px] font-mono font-semibold"
+                    style={{ color: exitT.won ? "#22c55e" : "#ef4444" }}>
+                    {exitT.pnlPct >= 0 ? "+" : ""}{exitT.pnlPct.toFixed(2)}%
+                  </span>
                 </div>
-                {pt.traded ? (
-                  <>
-                    <div className="flex items-center justify-between gap-4 mb-1">
-                      <span className="text-[10px] uppercase tracking-wide"
-                        style={{ color: pt.direction === "long" ? "#22c55e" : "#ef4444" }}>
-                        {pt.direction}
-                      </span>
-                      <span className="text-[11px] font-mono font-semibold"
-                        style={{ color: pt.won ? "#22c55e" : "#ef4444" }}>
-                        {pt.pnlPct >= 0 ? "+" : ""}{pt.pnlPct.toFixed(2)}%
-                      </span>
-                    </div>
-                    <Row label="Entry"  value={`$${pt.entryPrice.toFixed(2)}`} />
-                    <Row label="Exit"   value={`$${pt.exitPrice.toFixed(2)}`} />
-                  </>
-                ) : (
-                  <div className="text-[10px] mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    No trade — gate not met
-                  </div>
-                )}
-                <Row label="Pred move" value={`${pt.predictedMovePct >= 0 ? "+" : ""}${pt.predictedMovePct.toFixed(2)}%`} />
-                <Row label="Agreement" value={`${(pt.agreement * 100).toFixed(0)}%`} />
-                <Row label="Confidence" value={`${pt.confidence}`} />
-                <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-                  <Row label="Equity"   value={`${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(1)}%`} bright />
-                  <Row label="Buy&hold" value={`${bh >= 1 ? "+" : ""}${((bh - 1) * 100).toFixed(1)}%`} />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-[10px] font-mono mb-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  Start
-                </div>
-                <Row label="Equity"   value="+0.0%" bright />
-                <Row label="Buy&hold" value="+0.0%" />
-              </>
+                <Row label="Entry" value={`$${exitT.entryPrice.toFixed(2)}`} />
+                <Row label="Exit"  value={`$${exitT.exitPrice.toFixed(2)}`} />
+              </div>
+            )}
+            {entryT && !exitT && (
+              <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                <span className="text-[9px] uppercase tracking-wide"
+                  style={{ color: entryT.direction === "long" ? "#22c55e" : "#ef4444" }}>
+                  {entryT.direction} opened
+                </span>
+                <Row label="Entry" value={`$${entryT.entryPrice.toFixed(2)}`} />
+                <Row label="Conf"  value={`${entryT.entryConfidence}`} />
+              </div>
             )}
           </div>
         );

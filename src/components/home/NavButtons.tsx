@@ -31,7 +31,27 @@ const KEYFRAMES = `
     0%, 100% { opacity: 0.5; }
     50%       { opacity: 1.0; }
   }
+
+  /* Rising bubbles — science-beaker fizz for the Backtest button */
+  @keyframes bubbleRise {
+    0%   { transform: translateY(3px)  scale(0.4); opacity: 0; }
+    18%  { opacity: 0.85; }
+    80%  { opacity: 0.4; }
+    100% { transform: translateY(-21px) scale(1.05); opacity: 0; }
+  }
 `;
+
+/* Backtest-button bubbles — fixed values so SSR and client render identically */
+const BUBBLES = [
+  { left: "12%", size: 3,   dur: 2.6, delay: 0.0 },
+  { left: "24%", size: 2,   dur: 3.1, delay: 1.4 },
+  { left: "37%", size: 3.5, dur: 2.2, delay: 0.7 },
+  { left: "49%", size: 2.5, dur: 2.9, delay: 2.0 },
+  { left: "61%", size: 3,   dur: 2.4, delay: 0.4 },
+  { left: "72%", size: 2,   dur: 3.3, delay: 1.1 },
+  { left: "84%", size: 3.5, dur: 2.7, delay: 1.8 },
+  { left: "92%", size: 2.5, dur: 2.5, delay: 0.9 },
+];
 
 /* ════════════════════════════════════════════════════════════════════════════
    ASK AI — blue glassmorphism with light refraction
@@ -379,6 +399,22 @@ export function StrategyBtn() {
             filter: "blur(6px)",
           }}
         />
+        {/* rising bubbles — science-beaker fizz */}
+        <div className="absolute inset-0 pointer-events-none">
+          {BUBBLES.map((b, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                left: b.left, bottom: 0,
+                width: b.size, height: b.size,
+                background: "rgba(196,181,253,0.7)",
+                boxShadow: "0 0 3px rgba(196,181,253,0.5)",
+                animation: `bubbleRise ${b.dur}s ease-in ${b.delay}s infinite`,
+              }}
+            />
+          ))}
+        </div>
         {/* top-edge gleam */}
         <div
           className="absolute top-0 inset-x-3 h-px pointer-events-none"
