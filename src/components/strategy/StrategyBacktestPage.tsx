@@ -74,7 +74,6 @@ const COND_META: Record<ConditionType, {
 
 const BUY_SUGGESTIONS:   ConditionType[] = ["rsi_lt", "ema_cross_up",   "macd_cross_up",   "bb_lower", "stoch_lt", "ai_long"];
 const SHORT_SUGGESTIONS: ConditionType[] = ["rsi_gt", "ema_cross_down", "macd_cross_down", "bb_upper", "stoch_gt", "ai_short"];
-const ALL_CONDITIONS:    ConditionType[] = ["rsi_lt", "rsi_gt", "ema_cross_up", "ema_cross_down", "macd_cross_up", "macd_cross_down", "bb_lower", "bb_upper", "stoch_lt", "stoch_gt", "ai_long", "ai_short"];
 
 // ─── signal evaluation ────────────────────────────────────────────────────────
 function evalCondition(cond: Condition, c: EnrichedCandle, aiEnabled: boolean): boolean {
@@ -421,10 +420,11 @@ function ConditionCard({
 
 // ─── add-signal dropdown ──────────────────────────────────────────────────────
 function AddSignalMenu({
-  suggestions, aiEnabled, onAdd,
+  suggestions, aiEnabled, alignRight, onAdd,
 }: {
   suggestions: ConditionType[];
   aiEnabled: boolean;
+  alignRight?: boolean;
   onAdd: (type: ConditionType) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -436,13 +436,6 @@ function AddSignalMenu({
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
   }, [open]);
-
-  // Show suggested first, then the rest
-  const others = ALL_CONDITIONS.filter(t => !suggestions.includes(t));
-  const sections: { title: string; types: ConditionType[] }[] = [
-    { title: "Suggested", types: suggestions },
-    { title: "Other",     types: others },
-  ];
 
   return (
     <div className="relative" ref={ref}>
@@ -459,37 +452,34 @@ function AddSignalMenu({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 rounded-xl overflow-hidden"
+        <div className="absolute top-full mt-1 z-50 rounded-xl overflow-hidden"
           style={{
+            ...(alignRight ? { right: 0 } : { left: 0 }),
             background: "rgba(14,14,16,0.98)", border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 240,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 230,
           }}>
-          {sections.map(g => (
-            <div key={g.title}>
-              <div className="px-3 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-widest"
-                style={{ color: "rgba(255,255,255,0.22)" }}>{g.title}</div>
-              {g.types.map(t => {
-                const m = COND_META[t];
-                const isAI = t === "ai_long" || t === "ai_short";
-                const disabled = isAI && !aiEnabled;
-                return (
-                  <button key={t}
-                    onClick={() => { if (!disabled) { onAdd(t); setOpen(false); } }}
-                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors"
-                    style={{ color: disabled ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.6)", cursor: disabled ? "not-allowed" : "pointer" }}
-                    onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                      style={{ background: `${m.badgeColor}22`, color: disabled ? "rgba(255,255,255,0.2)" : m.badgeColor }}>
-                      {m.badge}
-                    </span>
-                    <span className="text-[11px]">{m.label}</span>
-                    {disabled && <span className="ml-auto text-[9px]" style={{ color: "rgba(255,255,255,0.2)" }}>AI off</span>}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          <div className="px-3 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-widest"
+            style={{ color: "rgba(255,255,255,0.22)" }}>Signals</div>
+          {suggestions.map(t => {
+            const m = COND_META[t];
+            const isAI = t === "ai_long" || t === "ai_short";
+            const disabled = isAI && !aiEnabled;
+            return (
+              <button key={t}
+                onClick={() => { if (!disabled) { onAdd(t); setOpen(false); } }}
+                className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors"
+                style={{ color: disabled ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.6)", cursor: disabled ? "not-allowed" : "pointer" }}
+                onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                  style={{ background: `${m.badgeColor}22`, color: disabled ? "rgba(255,255,255,0.2)" : m.badgeColor }}>
+                  {m.badge}
+                </span>
+                <span className="text-[11px]">{m.label}</span>
+                {disabled && <span className="ml-auto text-[9px]" style={{ color: "rgba(255,255,255,0.2)" }}>AI off</span>}
+              </button>
+            );
+          })}
           <div className="h-2" />
         </div>
       )}
@@ -526,7 +516,7 @@ function SignalColumn({
           style={{ color }}>{isLong ? "Buy Signal" : "Short Signal"}</span>
         {conditions.length > 1 && <LogicToggle value={logic} onChange={onLogicChange} />}
         <div className="ml-auto">
-          <AddSignalMenu suggestions={suggestions} aiEnabled={aiEnabled} onAdd={onAdd} />
+          <AddSignalMenu suggestions={suggestions} aiEnabled={aiEnabled} alignRight={!isLong} onAdd={onAdd} />
         </div>
       </div>
 
