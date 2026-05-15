@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
 import { Search, Compass } from "lucide-react";
-import { AskAIBtn, ForecastBtn, TerminalBtn } from "./NavButtons";
+import { AskAIBtn, ForecastBtn, TerminalBtn, StrategyBtn } from "./NavButtons";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
@@ -87,6 +87,7 @@ export default function HomePage() {
               )}
             </div>
             <ForecastBtn />
+            <StrategyBtn />
             <TerminalBtn ticker={activeTicker} />
           </div>
         </div>
@@ -133,6 +134,7 @@ export default function HomePage() {
           </div>
 
           <ForecastBtn />
+          <StrategyBtn />
           <TerminalBtn ticker={activeTicker} />
         </div>
       </header>

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Sparkles, LineChart, Terminal, X } from "lucide-react";
+import { Sparkles, LineChart, Terminal, FlaskConical, X } from "lucide-react";
 
 /* ─── shared keyframes ────────────────────────────────────────────────────── */
 const KEYFRAMES = `
@@ -330,5 +330,79 @@ export function TerminalBtn({ ticker }: { ticker: string }) {
         Terminal
       </span>
     </a>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BACKTEST — violet glass, the strategy lab
+   ════════════════════════════════════════════════════════════════════════════ */
+export function StrategyBtn() {
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
+      <a
+        href="/strategy"
+        className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(139,92,246,0.14) 0%, rgba(124,58,237,0.10) 50%, rgba(139,92,246,0.08) 100%)",
+          border: "1px solid rgba(167,139,250,0.30)",
+          color: "#c4b5fd",
+          textDecoration: "none",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          boxShadow:
+            "inset 0 1px 0 rgba(196,181,253,0.16), 0 0 10px rgba(139,92,246,0.08)",
+        }}
+      >
+        {/* blob 1 — violet, slow orbit */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            width: "60%", height: "200%",
+            top: "-50%", left: "-5%",
+            background:
+              "radial-gradient(ellipse at center, rgba(192,168,255,0.30) 0%, rgba(139,120,255,0.10) 45%, transparent 70%)",
+            animation: "glassBlob1 5.5s ease-in-out infinite",
+            filter: "blur(7px)",
+          }}
+        />
+        {/* blob 2 — indigo, different phase */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            width: "48%", height: "180%",
+            top: "-40%", left: "15%",
+            background:
+              "radial-gradient(ellipse at center, rgba(165,180,252,0.20) 0%, rgba(99,102,241,0.07) 45%, transparent 70%)",
+            animation: "glassBlob2 8s ease-in-out infinite",
+            filter: "blur(6px)",
+          }}
+        />
+        {/* top-edge gleam */}
+        <div
+          className="absolute top-0 inset-x-3 h-px pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(196,181,253,0.60), transparent)",
+          }}
+        />
+        {/* inner depth glow */}
+        <div
+          className="absolute inset-0 pointer-events-none rounded-md"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.12) 0%, transparent 70%)",
+            animation: "glassGlow 4s ease-in-out infinite",
+          }}
+        />
+
+        <FlaskConical
+          className="w-3.5 h-3.5 relative z-10 shrink-0"
+          style={{ filter: "drop-shadow(0 0 5px rgba(196,181,253,0.70))" }}
+        />
+        <span className="relative z-10 whitespace-nowrap">Backtest</span>
+      </a>
+    </>
   );
 }
