@@ -15,7 +15,8 @@ interface RawCandle {
 }
 interface BacktestData {
   ticker: string; timeframe: Timeframe; window: number; lookback: number;
-  nForecast: number; nRuns: number; withTech: boolean; candles: RawCandle[];
+  nForecast: number; nRuns: number; withTech: boolean;
+  failedCandles?: number; candles: RawCandle[];
 }
 
 const TIMEFRAME_OPTS: Timeframe[] = ["1m", "5m", "1h", "1d"];
@@ -440,11 +441,19 @@ export default function StrategyBacktestPage() {
           <GateSlider label="Stop" value={stopLossPct} display={stopLossPct === 0 ? "off" : `${stopLossPct.toFixed(1)}%`}
             min={0} max={15} step={0.5} onChange={setStopLossPct} />
         </div>
-        {result && (
-          <div className="text-[10px] font-mono shrink-0 md:ml-auto" style={{ color: "rgba(255,255,255,0.35)" }}>
-            {result.summary.tradeCount} trades · {result.summary.stopOuts} stopped
-          </div>
-        )}
+        <div className="flex items-center gap-3 shrink-0 md:ml-auto">
+          {data && data.failedCandles ? (
+            <span className="text-[10px] font-mono" style={{ color: "#f59e0b" }}
+              title="The model call failed for these candles — they produce no signal regardless of the agreement slider.">
+              ⚠ {data.failedCandles} candle{data.failedCandles > 1 ? "s" : ""} failed
+            </span>
+          ) : null}
+          {result && (
+            <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
+              {result.summary.tradeCount} trades · {result.summary.stopOuts} stopped
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ── chart area ───────────────────────────────────────────────────────── */}

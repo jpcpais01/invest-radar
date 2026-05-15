@@ -23,6 +23,20 @@ async function pool<T, R>(items: T[], limit: number, fn: (item: T, i: number) =>
   return results;
 }
 
+/** Retry a flaky async call with exponential backoff — model calls get rate-limited. */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  let lastErr: unknown;
+  for (let a = 0; a < attempts; a++) {
+    try { return await fn(); }
+    catch (e) {
+      lastErr = e;
+      if (a < attempts - 1)
+        await new Promise(r => setTimeout(r, 800 * 2 ** a + Math.random() * 500));
+    }
+  }
+  throw lastErr;
+}
+
 /**
  * Walk-forward backtest of the LLM forecast.
  *
@@ -73,8 +87,11 @@ export async function GET(req: NextRequest) {
     if (windowIdx.length < 2)
       return NextResponse.json({ error: "Not enough historical data for this configuration" }, { status: 400 });
 
-    // Analyse every candle in the window (bounded concurrency).
-    const candles = await pool(windowIdx, 12, async (bi) => {
+    // Analyse every candle in the window. Lower concurrency + per-call retry so
+    // transient rate-limit errors don't silently turn candles into dead,
+    // signal-less holes in the backtest.
+    let failedCandles = 0;
+    const candles = await pool(windowIdx, 6, async (bi) => {
       const c = bars[bi];
       try {
         const feedSlice  = bars.slice(bi - nLookback + 1, bi + 1);
@@ -82,12 +99,16 @@ export async function GET(req: NextRequest) {
         const priceTable = buildPriceTable(feedSlice, tf);
         const techNote   = withTech ? buildTechnicalsNote(feedSlice, c.close, atr14) : "";
 
-        const results = await Promise.all(
+        // Each run retried independently; the candle survives as long as ≥1 run lands.
+        const settled = await Promise.allSettled(
           Array.from({ length: nRuns }, () =>
-            runOnce(ticker, fmtTime(c.time, tf), c.close, nForecast, priceTable, feedSlice.length, tf, techNote)),
+            withRetry(() => runOnce(ticker, fmtTime(c.time, tf), c.close, nForecast, priceTable, feedSlice.length, tf, techNote))),
         );
+        const ok = settled.filter((s): s is PromiseFulfilledResult<Awaited<ReturnType<typeof runOnce>>> =>
+          s.status === "fulfilled").map(s => s.value);
+        if (ok.length === 0) throw settled.find(s => s.status === "rejected") ?? new Error("all runs failed");
 
-        const agg     = aggregate(results, c.close, atr14, nForecast);
+        const agg     = aggregate(ok, c.close, atr14, nForecast);
         const finals  = agg.predictions.map(p => p[p.length - 1]);
         const upCount = finals.filter(f => f > c.close).length;
 
@@ -97,7 +118,8 @@ export async function GET(req: NextRequest) {
           confidence: agg.confidence, analysis: agg.analysis,
         };
       } catch (e) {
-        console.error(`strategy-backtest: candle @${bi} failed —`, e);
+        failedCandles++;
+        console.error(`strategy-backtest: candle @${bi} failed after retries —`, e);
         // keep the candle (OHLC still needed for stop-loss) but mark it signal-less
         return {
           time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
@@ -108,7 +130,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ticker, timeframe: tf, window: nWindow, lookback: nLookback,
-      nForecast, nRuns, withTech, candles,
+      nForecast, nRuns, withTech, failedCandles, candles,
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
