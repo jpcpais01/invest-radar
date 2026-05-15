@@ -1,6 +1,9 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { ArrowLeft, FlaskConical, RefreshCw, ChevronDown, Zap, TrendingUp, TrendingDown } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  ArrowLeft, FlaskConical, RefreshCw, ChevronDown, Zap,
+  TrendingUp, TrendingDown, Plus, X, Bot, ChevronRight,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTickerStore } from "@/store/tickerStore";
 import CommandPalette from "@/components/search/CommandPalette";
@@ -9,24 +12,159 @@ import StrategyChart, { CurvePoint, ChartTrade } from "./StrategyChart";
 // ─── types ────────────────────────────────────────────────────────────────────
 type Timeframe = "1m" | "5m" | "1h" | "1d";
 
-interface RawCandle {
+/** All possible condition types. Direction is implicit:
+ *  _lt / _cross_up / _lower / _stoch_lt → long
+ *  _gt / _cross_down / _upper / _stoch_gt → short */
+type ConditionType =
+  | "rsi_lt" | "rsi_gt"
+  | "ema_cross_up" | "ema_cross_down"
+  | "macd_cross_up" | "macd_cross_down"
+  | "bb_lower" | "bb_upper"
+  | "stoch_lt" | "stoch_gt";
+
+interface Condition {
+  id: string;
+  type: ConditionType;
+  enabled: boolean;
+  threshold: number; // used by RSI and Stoch conditions
+}
+
+interface EnrichedCandle {
   time: number; open: number; high: number; low: number; close: number;
   upCount: number; totalPaths: number; confidence: number; analysis: string;
+  rsi: number | null;
+  emaFast: number | null; emaSlow: number | null;
+  macdLine: number | null; macdSig: number | null;
+  bbUpper: number | null; bbLower: number | null;
+  stochK: number | null; stochD: number | null;
+  prevEmaFast: number | null; prevEmaSlow: number | null;
+  prevMacdLine: number | null; prevMacdSig: number | null;
 }
+
 interface BacktestData {
   ticker: string; timeframe: Timeframe; window: number; lookback: number;
-  nForecast: number; nRuns: number; withTech: boolean;
-  failedCandles?: number; candles: RawCandle[];
+  nForecast: number; nRuns: number; withTech: boolean; aiEnabled: boolean;
+  failedCandles?: number; candles: EnrichedCandle[];
 }
 
-const TIMEFRAME_OPTS: Timeframe[] = ["1m", "5m", "1h", "1d"];
-const WINDOW_OPTS   = [20, 40, 60, 100, 150];
-const LOOKBACK_OPTS = [30, 60, 90, 120, 252];
-const FORECAST_OPTS = [5, 10, 15, 20, 30];
+interface IndicatorParams {
+  rsiPeriod: number;
+  emaFast: number;
+  emaSlow: number;
+  bbPeriod: number;
+  stochK: number;
+  stochD: number;
+}
 
-const ACCENT = "#a78bfa"; // violet — the strategy lab signature
+// ─── condition metadata ───────────────────────────────────────────────────────
+const COND_META: Record<ConditionType, {
+  label: string; badge: string; badgeColor: string;
+  dir: "long" | "short"; hasThreshold: boolean; thresholdDefault: number;
+  thresholdMin: number; thresholdMax: number;
+  description: (c: Condition, ip: IndicatorParams) => string;
+}> = {
+  rsi_lt:         { label: "RSI Oversold",      badge: "RSI",   badgeColor: "#f97316", dir: "long",  hasThreshold: true,  thresholdDefault: 30, thresholdMin: 5,  thresholdMax: 49, description: (c, ip) => `RSI(${ip.rsiPeriod}) < ${c.threshold}` },
+  rsi_gt:         { label: "RSI Overbought",    badge: "RSI",   badgeColor: "#f97316", dir: "short", hasThreshold: true,  thresholdDefault: 70, thresholdMin: 51, thresholdMax: 95, description: (c, ip) => `RSI(${ip.rsiPeriod}) > ${c.threshold}` },
+  ema_cross_up:   { label: "EMA Bullish Cross", badge: "EMA",   badgeColor: "#3b82f6", dir: "long",  hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses above EMA(${ip.emaSlow})` },
+  ema_cross_down: { label: "EMA Bearish Cross", badge: "EMA",   badgeColor: "#3b82f6", dir: "short", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses below EMA(${ip.emaSlow})` },
+  macd_cross_up:  { label: "MACD Bullish",      badge: "MACD",  badgeColor: "#8b5cf6", dir: "long",  hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD(12,26,9) crosses above signal` },
+  macd_cross_down:{ label: "MACD Bearish",      badge: "MACD",  badgeColor: "#8b5cf6", dir: "short", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: () => `MACD(12,26,9) crosses below signal` },
+  bb_lower:       { label: "BB Oversold",       badge: "BB",    badgeColor: "#06b6d4", dir: "long",  hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price closes below BB(${ip.bbPeriod}) lower band` },
+  bb_upper:       { label: "BB Overbought",     badge: "BB",    badgeColor: "#06b6d4", dir: "short", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price closes above BB(${ip.bbPeriod}) upper band` },
+  stoch_lt:       { label: "Stoch Oversold",    badge: "Stoch", badgeColor: "#ec4899", dir: "long",  hasThreshold: true,  thresholdDefault: 20, thresholdMin: 5,  thresholdMax: 49, description: (c, ip) => `Stoch(${ip.stochK},${ip.stochD}) %K < ${c.threshold}` },
+  stoch_gt:       { label: "Stoch Overbought",  badge: "Stoch", badgeColor: "#ec4899", dir: "short", hasThreshold: true,  thresholdDefault: 80, thresholdMin: 51, thresholdMax: 95, description: (c, ip) => `Stoch(${ip.stochK},${ip.stochD}) %K > ${c.threshold}` },
+};
 
-// ─── client-side trade simulation ────────────────────────────────────────────
+// ─── signal evaluation ────────────────────────────────────────────────────────
+function evalCondition(cond: Condition, c: EnrichedCandle): boolean {
+  switch (cond.type) {
+    case "rsi_lt":
+      return c.rsi != null && c.rsi < cond.threshold;
+    case "rsi_gt":
+      return c.rsi != null && c.rsi > cond.threshold;
+    case "ema_cross_up":
+      return c.emaFast != null && c.emaSlow != null
+          && c.prevEmaFast != null && c.prevEmaSlow != null
+          && c.prevEmaFast <= c.prevEmaSlow && c.emaFast > c.emaSlow;
+    case "ema_cross_down":
+      return c.emaFast != null && c.emaSlow != null
+          && c.prevEmaFast != null && c.prevEmaSlow != null
+          && c.prevEmaFast >= c.prevEmaSlow && c.emaFast < c.emaSlow;
+    case "macd_cross_up":
+      return c.macdLine != null && c.macdSig != null
+          && c.prevMacdLine != null && c.prevMacdSig != null
+          && c.prevMacdLine <= c.prevMacdSig && c.macdLine > c.macdSig;
+    case "macd_cross_down":
+      return c.macdLine != null && c.macdSig != null
+          && c.prevMacdLine != null && c.prevMacdSig != null
+          && c.prevMacdLine >= c.prevMacdSig && c.macdLine < c.macdSig;
+    case "bb_lower":
+      return c.bbLower != null && c.close < c.bbLower;
+    case "bb_upper":
+      return c.bbUpper != null && c.close > c.bbUpper;
+    case "stoch_lt":
+      return c.stochK != null && c.stochK < cond.threshold;
+    case "stoch_gt":
+      return c.stochK != null && c.stochK > cond.threshold;
+  }
+}
+
+function indicatorSignal(
+  candle: EnrichedCandle,
+  conditions: Condition[],
+  logic: "AND" | "OR",
+): "long" | "short" | null {
+  const active = conditions.filter(c => c.enabled);
+  if (active.length === 0) return null;
+
+  if (logic === "AND") {
+    // All conditions must fire AND all must agree on direction
+    const results = active.map(cond => evalCondition(cond, candle) ? COND_META[cond.type].dir : null);
+    if (results.some(r => r === null)) return null;
+    const dirs = new Set(results);
+    if (dirs.size !== 1) return null; // conflicting
+    return results[0] as "long" | "short";
+  } else {
+    // OR: any condition fires; take majority direction
+    const fired = active.filter(cond => evalCondition(cond, candle));
+    if (fired.length === 0) return null;
+    const longs  = fired.filter(c => COND_META[c.type].dir === "long").length;
+    const shorts = fired.filter(c => COND_META[c.type].dir === "short").length;
+    if (longs === shorts) return null;
+    return longs > shorts ? "long" : "short";
+  }
+}
+
+function aiSignal(c: EnrichedCandle, minAgreement: number): "long" | "short" | null {
+  if (c.totalPaths === 0) return null;
+  const down = c.totalPaths - c.upCount;
+  const agreement = Math.max(c.upCount, down) / c.totalPaths;
+  if (agreement < minAgreement) return null;
+  return c.upCount >= down ? "long" : "short";
+}
+
+function getSignal(
+  candle: EnrichedCandle,
+  aiEnabled: boolean,
+  minAgreement: number,
+  conditions: Condition[],
+  condLogic: "AND" | "OR",
+): "long" | "short" | null {
+  const activeConditions = conditions.filter(c => c.enabled);
+  const hasConditions = activeConditions.length > 0;
+
+  if (aiEnabled && !hasConditions) return aiSignal(candle, minAgreement);
+  if (!aiEnabled && !hasConditions) return null;
+  if (!aiEnabled) return indicatorSignal(candle, conditions, condLogic);
+
+  // Both AI and indicators: must agree
+  const ai  = aiSignal(candle, minAgreement);
+  const ind = indicatorSignal(candle, conditions, condLogic);
+  if (ai === null || ind === null || ai !== ind) return null;
+  return ai;
+}
+
+// ─── derived results ──────────────────────────────────────────────────────────
 interface Derived {
   trades: ChartTrade[];
   equityCurve: CurvePoint[];
@@ -38,21 +176,14 @@ interface Derived {
   };
 }
 
-/** A candle's directional signal, or null if the agreement gate isn't met. */
-function signalOf(c: RawCandle, minAgreement: number): "long" | "short" | null {
-  if (c.totalPaths === 0) return null;
-  const down = c.totalPaths - c.upCount;
-  const agreement = Math.max(c.upCount, down) / c.totalPaths;
-  if (agreement < minAgreement) return null;
-  return c.upCount >= down ? "long" : "short";
-}
-
-/**
- * Walk the window candle by candle, maintaining a single live position.
- * A trade opens when flat + a signal exists; it closes when an opposite
- * signal appears or the stop-loss is hit. Equity is marked-to-market.
- */
-function deriveResults(data: BacktestData, minAgreement: number, stopLossPct: number): Derived | null {
+function deriveResults(
+  data: BacktestData,
+  aiEnabled: boolean,
+  minAgreement: number,
+  conditions: Condition[],
+  condLogic: "AND" | "OR",
+  stopLossPct: number,
+): Derived | null {
   const cs = data.candles;
   if (cs.length < 2) return null;
   const stopEnabled = stopLossPct > 0;
@@ -84,32 +215,26 @@ function deriveResults(data: BacktestData, minAgreement: number, stopLossPct: nu
 
   for (let i = 0; i < cs.length; i++) {
     const c = cs[i];
+    const sig = getSignal(c, aiEnabled, minAgreement, conditions, condLogic);
 
-    // 1. manage a trade opened on an earlier candle
     if (live && live.entryIdx < i) {
       const stopHit = stopEnabled &&
         (live.direction === "long" ? c.low <= live.stopPrice : c.high >= live.stopPrice);
       if (stopHit) {
         closeTrade(live.stopPrice, c.time, i, "stop");
-      } else {
-        const sig = signalOf(c, minAgreement);
-        if (sig && sig !== live.direction) closeTrade(c.close, c.time, i, "reversal");
+      } else if (sig && sig !== live.direction) {
+        closeTrade(c.close, c.time, i, "reversal");
       }
     }
 
-    // 2. open a fresh trade if flat and a signal exists (never on the final candle)
-    if (!live && i < cs.length - 1) {
-      const sig = signalOf(c, minAgreement);
-      if (sig) {
-        live = {
-          direction: sig, entryPrice: c.close, entryTime: c.time, entryIdx: i,
-          stopPrice: sig === "long" ? c.close * (1 - stopLossPct / 100) : c.close * (1 + stopLossPct / 100),
-          entryConfidence: c.confidence, entryAnalysis: c.analysis,
-        };
-      }
+    if (!live && i < cs.length - 1 && sig) {
+      live = {
+        direction: sig, entryPrice: c.close, entryTime: c.time, entryIdx: i,
+        stopPrice: sig === "long" ? c.close * (1 - stopLossPct / 100) : c.close * (1 + stopLossPct / 100),
+        entryConfidence: c.confidence, entryAnalysis: c.analysis,
+      };
     }
 
-    // 3. mark-to-market equity at this candle's close
     let eq = realized;
     if (live && live.entryIdx <= i) {
       const rawRet = (c.close - live.entryPrice) / live.entryPrice;
@@ -119,7 +244,6 @@ function deriveResults(data: BacktestData, minAgreement: number, stopLossPct: nu
     buyHoldCurve.push({ time: c.time, equity: c.close / firstClose });
   }
 
-  // close any position still open at the end of the window
   if (live) {
     const last = cs[cs.length - 1];
     closeTrade(last.close, last.time, cs.length - 1, "end");
@@ -147,7 +271,13 @@ function deriveResults(data: BacktestData, minAgreement: number, stopLossPct: nu
   };
 }
 
-// ─── small controls ───────────────────────────────────────────────────────────
+// ─── small UI helpers ─────────────────────────────────────────────────────────
+const ACCENT = "#a78bfa";
+const TIMEFRAME_OPTS: Timeframe[] = ["1m", "5m", "1h", "1d"];
+const WINDOW_OPTS    = [20, 40, 60, 100, 150];
+const LOOKBACK_OPTS  = [30, 60, 90, 120, 252];
+const FORECAST_OPTS  = [5, 10, 15, 20, 30];
+
 function SegPill({ options, active, onChange }: { options: number[]; active: number; onChange: (v: number) => void }) {
   return (
     <div className="flex rounded-lg overflow-hidden"
@@ -167,69 +297,6 @@ function SegPill({ options, active, onChange }: { options: number[]; active: num
   );
 }
 
-function TimeframePill({ active, onChange }: { active: Timeframe; onChange: (v: Timeframe) => void }) {
-  return (
-    <div className="flex items-center gap-1.5 shrink-0">
-      <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>TF</span>
-      <div className="flex rounded-lg overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-        {TIMEFRAME_OPTS.map(tf => (
-          <button key={tf} onClick={() => onChange(tf)}
-            className="px-2.5 py-1.5 text-[10px] font-medium font-mono tracking-wide transition-all duration-150 border-r last:border-r-0"
-            style={{
-              borderColor: "rgba(255,255,255,0.06)",
-              background: active === tf ? "rgba(167,139,250,0.16)" : "transparent",
-              color: active === tf ? "#c4b5fd" : "rgba(255,255,255,0.28)",
-            }}>
-            {tf}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LabeledSeg({ label, hint, options, active, onChange }:
-  { label: string; hint: string; options: number[]; active: number; onChange: (v: number) => void }) {
-  return (
-    <div className="flex items-center gap-2 shrink-0" title={hint}>
-      <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>{label}</span>
-      <SegPill options={options} active={active} onChange={onChange} />
-    </div>
-  );
-}
-
-function RunsStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  return (
-    <div className="flex items-center gap-1.5 shrink-0" title="Independent model runs per candle">
-      <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Runs</span>
-      <div className="flex items-center rounded-lg overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-        <button onClick={() => onChange(Math.max(1, value - 1))}
-          className="px-2 py-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>−</button>
-        <span className="text-[10px] font-mono font-medium px-1.5"
-          style={{ color: "rgba(255,255,255,0.65)", minWidth: 14, textAlign: "center" }}>{value}</span>
-        <button onClick={() => onChange(Math.min(3, value + 1))}
-          className="px-2 py-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>+</button>
-      </div>
-    </div>
-  );
-}
-
-function TechToggle({ active, onChange }: { active: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button onClick={() => onChange(!active)}
-      className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium tracking-wide transition-all shrink-0"
-      style={{
-        background: active ? "rgba(192,192,204,0.12)" : "rgba(255,255,255,0.04)",
-        border: `1px solid ${active ? "rgba(192,192,204,0.28)" : "rgba(255,255,255,0.07)"}`,
-        color: active ? "rgba(210,210,220,0.9)" : "rgba(255,255,255,0.28)",
-      }}>
-      Technicals
-    </button>
-  );
-}
-
 function GateSlider({ label, value, display, min, max, step, onChange }:
   { label: string; value: number; display: string; min: number; max: number; step: number; onChange: (v: number) => void }) {
   return (
@@ -240,7 +307,7 @@ function GateSlider({ label, value, display, min, max, step, onChange }:
         className="flex-1 min-w-[80px] h-1 cursor-pointer"
         style={{ accentColor: ACCENT }} />
       <span className="text-[11px] font-mono font-semibold shrink-0 tabular-nums"
-        style={{ color: "#c4b5fd", minWidth: 46, textAlign: "right" }}>{display}</span>
+        style={{ color: "#c4b5fd", minWidth: 40, textAlign: "right" }}>{display}</span>
     </div>
   );
 }
@@ -255,49 +322,270 @@ function Stat({ label, value, color, sub }: { label: string; value: string; colo
   );
 }
 
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div
+      role="switch" aria-checked={on}
+      onClick={e => { e.stopPropagation(); onChange(!on); }}
+      style={{
+        width: 32, height: 18, borderRadius: 9, position: "relative", display: "inline-flex",
+        alignItems: "center", cursor: "pointer", flexShrink: 0,
+        background: on ? "rgba(167,139,250,0.55)" : "rgba(255,255,255,0.12)",
+        border: `1px solid ${on ? "rgba(167,139,250,0.7)" : "rgba(255,255,255,0.15)"}`,
+        transition: "background 0.15s, border-color 0.15s",
+      }}>
+      <span style={{
+        position: "absolute", top: 2, left: on ? 15 : 3, width: 12, height: 12,
+        borderRadius: "50%", transition: "left 0.2s",
+        background: on ? "#c4b5fd" : "rgba(255,255,255,0.45)",
+      }} />
+    </div>
+  );
+}
+
+function NumberInput({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
+  return (
+    <input
+      type="number" min={min} max={max} value={value}
+      onChange={e => onChange(Math.min(max, Math.max(min, parseInt(e.target.value) || min)))}
+      className="w-12 text-center text-[10px] font-mono rounded px-1 py-0.5"
+      style={{
+        background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+        color: "rgba(255,255,255,0.7)", outline: "none",
+      }}
+    />
+  );
+}
+
+// ─── condition card ────────────────────────────────────────────────────────────
+function ConditionCard({
+  cond, ip, onChange, onRemove,
+}: {
+  cond: Condition; ip: IndicatorParams;
+  onChange: (id: string, patch: Partial<Condition>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const meta = COND_META[cond.type];
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all"
+      style={{
+        background: cond.enabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
+        border: `1px solid ${cond.enabled ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.04)"}`,
+        opacity: cond.enabled ? 1 : 0.5,
+      }}>
+      {/* enable toggle */}
+      <Toggle on={cond.enabled} onChange={v => onChange(cond.id, { enabled: v })} />
+
+      {/* badge */}
+      <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
+        style={{ background: `${meta.badgeColor}22`, color: meta.badgeColor, border: `1px solid ${meta.badgeColor}44` }}>
+        {meta.badge}
+      </span>
+
+      {/* description */}
+      <span className="text-[11px] flex-1 min-w-0 truncate" style={{ color: "rgba(255,255,255,0.55)" }}>
+        {meta.description(cond, ip)}
+      </span>
+
+      {/* direction chip */}
+      <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0"
+        style={{
+          background: meta.dir === "long" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+          color: meta.dir === "long" ? "#22c55e" : "#ef4444",
+          border: `1px solid ${meta.dir === "long" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+        }}>
+        {meta.dir}
+      </span>
+
+      {/* threshold slider (RSI and Stoch) */}
+      {meta.hasThreshold && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <input type="range"
+            min={meta.thresholdMin} max={meta.thresholdMax} step={1} value={cond.threshold}
+            onChange={e => onChange(cond.id, { threshold: parseInt(e.target.value) })}
+            className="w-16 h-1 cursor-pointer" style={{ accentColor: meta.badgeColor }} />
+          <span className="text-[10px] font-mono tabular-nums w-6 text-right"
+            style={{ color: meta.badgeColor }}>{cond.threshold}</span>
+        </div>
+      )}
+
+      {/* remove */}
+      <button onClick={() => onRemove(cond.id)}
+        className="shrink-0 p-0.5 rounded transition-colors"
+        style={{ color: "rgba(255,255,255,0.2)" }}
+        onMouseEnter={e => (e.currentTarget.style.color = "rgba(239,68,68,0.7)")}
+        onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.2)")}>
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+// ─── add-signal dropdown ──────────────────────────────────────────────────────
+function AddSignalMenu({ onAdd }: { onAdd: (type: ConditionType) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const fn = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [open]);
+
+  const groups: { title: string; types: ConditionType[] }[] = [
+    { title: "RSI",           types: ["rsi_lt", "rsi_gt"] },
+    { title: "EMA Cross",     types: ["ema_cross_up", "ema_cross_down"] },
+    { title: "MACD",          types: ["macd_cross_up", "macd_cross_down"] },
+    { title: "Bollinger Bands", types: ["bb_lower", "bb_upper"] },
+    { title: "Stochastic",    types: ["stoch_lt", "stoch_gt"] },
+  ];
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all"
+        style={{
+          background: open ? "rgba(167,139,250,0.14)" : "rgba(255,255,255,0.04)",
+          border: `1px solid ${open ? "rgba(167,139,250,0.35)" : "rgba(255,255,255,0.08)"}`,
+          color: open ? "#c4b5fd" : "rgba(255,255,255,0.45)",
+        }}>
+        <Plus className="w-3 h-3" />
+        Add Signal
+        <ChevronDown className="w-3 h-3" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+          style={{
+            background: "rgba(14,14,16,0.98)", border: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 220,
+          }}>
+          {groups.map(g => (
+            <div key={g.title}>
+              <div className="px-3 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-widest"
+                style={{ color: "rgba(255,255,255,0.25)" }}>{g.title}</div>
+              {g.types.map(t => {
+                const m = COND_META[t];
+                return (
+                  <button key={t}
+                    onClick={() => { onAdd(t); setOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                    style={{ color: "rgba(255,255,255,0.65)" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                      style={{ background: `${m.badgeColor}22`, color: m.badgeColor }}>
+                      {m.badge}
+                    </span>
+                    <div>
+                      <div className="text-[11px]">{m.label}</div>
+                      <div className="text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                        {m.dir === "long" ? "→ Long entry" : "→ Short entry"}
+                      </div>
+                    </div>
+                    <span className="ml-auto text-[9px] font-semibold"
+                      style={{ color: m.dir === "long" ? "#22c55e" : "#ef4444" }}>
+                      {m.dir}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          <div className="h-2" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── indicator params panel ────────────────────────────────────────────────────
+function IndParamsPanel({ ip, onChange }: { ip: IndicatorParams; onChange: (patch: Partial<IndicatorParams>) => void }) {
+  return (
+    <div className="grid grid-cols-3 md:grid-cols-6 gap-x-5 gap-y-2.5 px-4 py-2.5"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      {([
+        ["RSI Period", "rsiPeriod", 2, 50],
+        ["EMA Fast",   "emaFast",   2, 100],
+        ["EMA Slow",   "emaSlow",   2, 200],
+        ["BB Period",  "bbPeriod",  2, 100],
+        ["Stoch K",    "stochK",    2, 50],
+        ["Stoch D",    "stochD",    1, 20],
+      ] as [string, keyof IndicatorParams, number, number][]).map(([label, key, min, max]) => (
+        <div key={key} className="flex items-center gap-2">
+          <span className="text-[9px] uppercase tracking-wide shrink-0" style={{ color: "rgba(255,255,255,0.25)" }}>{label}</span>
+          <NumberInput value={ip[key]} min={min} max={max} onChange={v => onChange({ [key]: v })} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 export default function StrategyBacktestPage() {
   const router = useRouter();
   const { activeTicker, setActiveTicker } = useTickerStore();
 
-  const [ticker,     setTicker]     = useState(activeTicker || "AAPL");
-  const [nWindow,    setNWindow]    = useState(60);
-  const [nLookback,  setNLookback]  = useState(120);
-  const [nForecast,  setNForecast]  = useState(10);
-  const [nRuns,      setNRuns]      = useState(1);
-  const [technicals, setTechnicals] = useState(true);
-  const [timeframe,  setTimeframe]  = useState<Timeframe>("1d");
+  // Global params
+  const [ticker,    setTicker]    = useState(activeTicker || "AAPL");
+  const [timeframe, setTimeframe] = useState<Timeframe>("1d");
+  const [nWindow,   setNWindow]   = useState(60);
 
-  // live rules — applied client-side, no re-run needed
+  // AI params
+  const [aiEnabled,   setAiEnabled]   = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [nLookback,   setNLookback]   = useState(120);
+  const [nForecast,   setNForecast]   = useState(10);
+  const [nRuns,       setNRuns]       = useState(1);
+  const [technicals,  setTechnicals]  = useState(true);
   const [minAgreement, setMinAgreement] = useState(0.6);
-  const [stopLossPct,  setStopLossPct]  = useState(3);
 
+  // Indicator params (used at run time; changing these requires a new run)
+  const [ip, setIp] = useState<IndicatorParams>({
+    rsiPeriod: 14, emaFast: 9, emaSlow: 21, bbPeriod: 20, stochK: 14, stochD: 3,
+  });
+  const [indParamsOpen, setIndParamsOpen] = useState(false);
+
+  // Strategy builder
+  const [conditions,  setConditions]  = useState<Condition[]>([]);
+  const [condLogic,   setCondLogic]   = useState<"AND" | "OR">("AND");
+  const [stopLossPct, setStopLossPct] = useState(3);
+
+  // Fetch / display
   const [loading,     setLoading]     = useState(false);
   const [data,        setData]        = useState<BacktestData | null>(null);
   const [error,       setError]       = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // ── cache ──────────────────────────────────────────────────────────────────
-  const loadCache = (t: string): BacktestData | null => {
+  const cacheKey = `strategy-bt2-${ticker}`;
+  const loadCache = useCallback((t: string): BacktestData | null => {
     try {
-      const raw = localStorage.getItem(`strategy-bt-${t}`);
+      const raw = localStorage.getItem(`strategy-bt2-${t}`);
       if (!raw) return null;
       const d = JSON.parse(raw) as BacktestData;
       return d.candles && d.candles.length >= 2 ? d : null;
     } catch { return null; }
-  };
+  }, []);
   const saveCache = (d: BacktestData) => {
-    try { localStorage.setItem(`strategy-bt-${d.ticker}`, JSON.stringify(d)); } catch { /**/ }
+    try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /**/ }
   };
 
-  const runBacktest = useCallback(async (
-    t: string, window: number, lookback: number, fore: number, runs: number, tech: boolean, tf: Timeframe,
-  ) => {
+  const runBacktest = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const url = `/api/ai/strategy-backtest?ticker=${t}&window=${window}&lookback=${lookback}`
-        + `&nForecast=${fore}&nRuns=${runs}&technicals=${tech}&timeframe=${tf}`;
-      const res  = await fetch(url);
+      const params = new URLSearchParams({
+        ticker, window: String(nWindow), lookback: String(nLookback),
+        nForecast: String(nForecast), nRuns: String(nRuns),
+        technicals: String(technicals), timeframe,
+        aiEnabled: String(aiEnabled),
+        rsiPeriod: String(ip.rsiPeriod), emaFast: String(ip.emaFast),
+        emaSlow: String(ip.emaSlow), bbPeriod: String(ip.bbPeriod),
+        stochK: String(ip.stochK), stochD: String(ip.stochD),
+      });
+      const res  = await fetch(`/api/ai/strategy-backtest?${params}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       const d = json as BacktestData;
@@ -305,7 +593,7 @@ export default function StrategyBacktestPage() {
     } catch (e) { setError(String(e)); }
     finally     { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ticker, nWindow, nLookback, nForecast, nRuns, technicals, timeframe, aiEnabled, ip]);
 
   useEffect(() => {
     const cached = loadCache(ticker);
@@ -319,145 +607,273 @@ export default function StrategyBacktestPage() {
     setTicker(u); setActiveTicker(u); setPaletteOpen(false);
   };
 
-  // client-side simulation — recomputes instantly when the rule sliders move
+  // Condition helpers
+  const addCondition = (type: ConditionType) => {
+    const meta = COND_META[type];
+    setConditions(prev => [...prev, {
+      id: `${type}-${Date.now()}`,
+      type,
+      enabled: true,
+      threshold: meta.thresholdDefault,
+    }]);
+  };
+  const patchCondition = (id: string, patch: Partial<Condition>) =>
+    setConditions(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
+  const removeCondition = (id: string) =>
+    setConditions(prev => prev.filter(c => c.id !== id));
+
+  // Client-side simulation
   const result = useMemo(
-    () => (data ? deriveResults(data, minAgreement, stopLossPct) : null),
-    [data, minAgreement, stopLossPct],
+    () => (data ? deriveResults(data, aiEnabled, minAgreement, conditions, condLogic, stopLossPct) : null),
+    [data, aiEnabled, minAgreement, conditions, condLogic, stopLossPct],
   );
 
   const fmtPF  = (pf: number) => (pf === Infinity ? "∞" : pf.toFixed(2));
-  const fmtPct = (p: number) => `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`;
+  const fmtPct = (p: number)  => `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`;
+
+  const div = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
 
   return (
     <>
     <style dangerouslySetInnerHTML={{ __html: `@keyframes chartIn { from { opacity: 0 } to { opacity: 1 } }` }} />
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, background: "#080808" }}>
 
-      {/* ── top bar ──────────────────────────────────────────────────────────── */}
+      {/* ── header ───────────────────────────────────────────────────────────── */}
       <header className="shrink-0 z-20"
-        style={{ background: "rgba(8,8,8,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-        {(() => {
-          const backBtn = (
-            <button onClick={() => router.push("/")}
-              className="flex items-center gap-1.5 group transition-colors shrink-0"
-              style={{ color: "rgba(255,255,255,0.28)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}>
-              <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-              <span className="text-xs">Home</span>
-            </button>
-          );
-          const logo = (
-            <div className="flex items-center gap-1.5 shrink-0">
-              <div className="w-5 h-5 rounded flex items-center justify-center"
-                style={{ border: "1px solid rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.08)" }}>
-                <FlaskConical className="w-3 h-3" style={{ color: ACCENT }} />
-              </div>
-              <span className="hidden md:inline text-[10px] font-semibold"
-                style={{ color: "rgba(196,181,253,0.65)", letterSpacing: "0.06em" }}>STRATEGY LAB</span>
+        style={{ background: "rgba(8,8,8,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+
+        {/* main header row */}
+        <div className="px-4 md:px-5 h-13 flex items-center gap-3" style={{ height: 52 }}>
+          {/* back */}
+          <button onClick={() => router.push("/")}
+            className="flex items-center gap-1.5 transition-colors shrink-0"
+            style={{ color: "rgba(255,255,255,0.28)" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="text-xs hidden sm:inline">Home</span>
+          </button>
+          {div}
+
+          {/* logo */}
+          <div className="hidden md:flex items-center gap-1.5 shrink-0">
+            <div className="w-5 h-5 rounded flex items-center justify-center"
+              style={{ border: "1px solid rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.08)" }}>
+              <FlaskConical className="w-3 h-3" style={{ color: ACCENT }} />
             </div>
-          );
-          const tickerBtn = (
-            <button onClick={() => setPaletteOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all flex-1 min-w-0"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
-              onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}>
-              <span className="text-sm font-semibold font-mono text-white truncate">{ticker}</span>
-              <ChevronDown className="w-3 h-3 shrink-0 ml-auto" style={{ color: "rgba(255,255,255,0.3)" }} />
-            </button>
-          );
-          const runBtn = (
-            <button onClick={() => runBacktest(ticker, nWindow, nLookback, nForecast, nRuns, technicals, timeframe)}
-              disabled={loading}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
+            <span className="text-[10px] font-semibold"
+              style={{ color: "rgba(196,181,253,0.65)", letterSpacing: "0.06em" }}>STRATEGY LAB</span>
+          </div>
+          {div}
+
+          {/* ticker */}
+          <button onClick={() => setPaletteOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all flex-1 min-w-0 max-w-[160px]"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}>
+            <span className="text-sm font-semibold font-mono text-white truncate">{ticker}</span>
+            <ChevronDown className="w-3 h-3 shrink-0 ml-auto" style={{ color: "rgba(255,255,255,0.3)" }} />
+          </button>
+          {div}
+
+          {/* TF */}
+          <div className="flex rounded-lg overflow-hidden shrink-0"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            {TIMEFRAME_OPTS.map(tf => (
+              <button key={tf} onClick={() => setTimeframe(tf)}
+                className="px-2.5 py-1.5 text-[10px] font-mono font-medium tracking-wide transition-all border-r last:border-r-0"
+                style={{
+                  borderColor: "rgba(255,255,255,0.06)",
+                  background: timeframe === tf ? "rgba(167,139,250,0.16)" : "transparent",
+                  color: timeframe === tf ? "#c4b5fd" : "rgba(255,255,255,0.28)",
+                }}>
+                {tf}
+              </button>
+            ))}
+          </div>
+          {div}
+
+          {/* HIST */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Hist</span>
+            <SegPill options={WINDOW_OPTS} active={nWindow} onChange={setNWindow} />
+          </div>
+
+          {/* spacer */}
+          <div className="flex-1" />
+
+          {/* AI panel toggle */}
+          <button
+            onClick={() => setAiPanelOpen(o => !o)}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all shrink-0"
+            style={{
+              background: aiPanelOpen ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${aiPanelOpen ? "rgba(167,139,250,0.25)" : "rgba(255,255,255,0.07)"}`,
+              color: aiPanelOpen ? "#c4b5fd" : "rgba(255,255,255,0.35)",
+            }}>
+            <Bot className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">AI Predictions</span>
+            <ChevronRight className="w-3 h-3 transition-transform" style={{ transform: aiPanelOpen ? "rotate(90deg)" : "none" }} />
+            <Toggle on={aiEnabled} onChange={setAiEnabled} />
+          </button>
+          {div}
+
+          {/* run */}
+          <button onClick={runBacktest} disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
+            style={{
+              background: loading ? "rgba(255,255,255,0.04)" : "rgba(167,139,250,0.14)",
+              border: `1px solid ${loading ? "rgba(255,255,255,0.06)" : "rgba(167,139,250,0.4)"}`,
+              color: loading ? "rgba(255,255,255,0.25)" : "#c4b5fd",
+              cursor: loading ? "not-allowed" : "pointer",
+            }}>
+            {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}
+            <span>{loading ? "Running…" : "Run Backtest"}</span>
+          </button>
+        </div>
+
+        {/* AI panel (collapsible) */}
+        {aiPanelOpen && (
+          <div className="px-4 md:px-5 py-3 flex flex-wrap items-center gap-4"
+            style={{ borderTop: "1px solid rgba(167,139,250,0.1)", background: "rgba(167,139,250,0.03)" }}>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Bot className="w-3 h-3" style={{ color: ACCENT }} />
+              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#c4b5fd" }}>AI Settings</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded ml-1"
+                style={{ background: aiEnabled ? "rgba(167,139,250,0.18)" : "rgba(255,255,255,0.06)", color: aiEnabled ? "#c4b5fd" : "rgba(255,255,255,0.3)" }}>
+                {aiEnabled ? "on" : "off"}
+              </span>
+            </div>
+            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Look</span>
+              <SegPill options={LOOKBACK_OPTS} active={nLookback} onChange={setNLookback} />
+            </div>
+            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Fcst</span>
+              <SegPill options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} />
+            </div>
+            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Runs</span>
+              <div className="flex items-center rounded-lg overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <button onClick={() => setNRuns(v => Math.max(1, v - 1))}
+                  className="px-2 py-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>−</button>
+                <span className="text-[10px] font-mono font-medium px-1.5"
+                  style={{ color: "rgba(255,255,255,0.65)", minWidth: 14, textAlign: "center" }}>{nRuns}</span>
+                <button onClick={() => setNRuns(v => Math.min(3, v + 1))}
+                  className="px-2 py-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>+</button>
+              </div>
+            </div>
+            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            <button onClick={() => setTechnicals(v => !v)}
+              className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium tracking-wide transition-all shrink-0"
               style={{
-                background: loading ? "rgba(255,255,255,0.04)" : "rgba(167,139,250,0.14)",
-                border: `1px solid ${loading ? "rgba(255,255,255,0.06)" : "rgba(167,139,250,0.4)"}`,
-                color: loading ? "rgba(255,255,255,0.25)" : "#c4b5fd",
-                cursor: loading ? "not-allowed" : "pointer",
-              }}>
-              {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}
-              <span>{loading ? "Backtesting…" : "Run Backtest"}</span>
-            </button>
-          );
-          const div = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
-          const controls = (
-            <>
-              <TimeframePill active={timeframe} onChange={setTimeframe} />
-              {div}
-              <LabeledSeg label="Hist" hint="How many candles the backtest walks"
-                options={WINDOW_OPTS} active={nWindow} onChange={setNWindow} />
-              {div}
-              <LabeledSeg label="Look" hint="How many past candles the model sees at each step"
-                options={LOOKBACK_OPTS} active={nLookback} onChange={setNLookback} />
-              {div}
-              <LabeledSeg label="Fcst" hint="How many candles ahead the model projects"
-                options={FORECAST_OPTS} active={nForecast} onChange={setNForecast} />
-              {div}
-              <RunsStepper value={nRuns} onChange={setNRuns} />
-              {div}
-              <TechToggle active={technicals} onChange={setTechnicals} />
-            </>
-          );
-          return (
-            <>
-              {/* MOBILE */}
-              <div className="md:hidden">
-                <div className="px-4 h-12 flex items-center gap-3">
-                  {backBtn}{div}{tickerBtn}{runBtn}
-                </div>
-                <div className="px-4 h-10 flex items-center gap-4 overflow-x-auto"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                  {controls}
-                </div>
-              </div>
-              {/* DESKTOP */}
-              <div className="hidden md:flex px-5 h-14 items-center gap-4">
-                {backBtn}{div}{logo}{div}{tickerBtn}
-                <div className="flex items-center gap-4 ml-auto overflow-x-auto">
-                  {controls}{div}{runBtn}
-                </div>
-              </div>
-            </>
-          );
-        })()}
+                background: technicals ? "rgba(192,192,204,0.12)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${technicals ? "rgba(192,192,204,0.28)" : "rgba(255,255,255,0.07)"}`,
+                color: technicals ? "rgba(210,210,220,0.9)" : "rgba(255,255,255,0.28)",
+              }}>Technicals</button>
+            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+            <div className="flex items-center gap-2.5 shrink-0" style={{ minWidth: 220 }}>
+              <GateSlider label="Agree" value={minAgreement} display={`${(minAgreement * 100).toFixed(0)}%`}
+                min={0} max={1} step={0.05} onChange={setMinAgreement} />
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* ── live rule bar ────────────────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 md:px-5 py-2.5 flex flex-col md:flex-row md:items-center gap-2.5 md:gap-6"
-        style={{ background: "rgba(167,139,250,0.04)", borderBottom: "1px solid rgba(167,139,250,0.10)" }}>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Zap className="w-3 h-3" style={{ color: ACCENT }} />
-          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#c4b5fd" }}>Trade Rules</span>
-          <span className="text-[9px] px-1.5 py-0.5 rounded ml-0.5"
-            style={{ background: "rgba(167,139,250,0.14)", color: "rgba(196,181,253,0.7)" }}>live</span>
-        </div>
-        <div className="flex-1 min-w-0 md:max-w-[300px]">
-          <GateSlider label="Agree" value={minAgreement} display={`${(minAgreement * 100).toFixed(0)}%`}
-            min={0} max={1} step={0.05} onChange={setMinAgreement} />
-        </div>
-        <div className="flex-1 min-w-0 md:max-w-[300px]">
-          <GateSlider label="Stop" value={stopLossPct} display={stopLossPct === 0 ? "off" : `${stopLossPct.toFixed(1)}%`}
-            min={0} max={15} step={0.5} onChange={setStopLossPct} />
-        </div>
-        <div className="flex items-center gap-3 shrink-0 md:ml-auto">
-          {data && data.failedCandles ? (
-            <span className="text-[10px] font-mono" style={{ color: "#f59e0b" }}
-              title="The model call failed for these candles — they produce no signal regardless of the agreement slider.">
-              ⚠ {data.failedCandles} candle{data.failedCandles > 1 ? "s" : ""} failed
+      {/* ── strategy builder ─────────────────────────────────────────────────── */}
+      <div className="shrink-0"
+        style={{ background: "rgba(167,139,250,0.03)", borderBottom: "1px solid rgba(167,139,250,0.08)" }}>
+
+        {/* rule bar header */}
+        <div className="px-4 md:px-5 py-2.5 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Zap className="w-3 h-3" style={{ color: ACCENT }} />
+            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#c4b5fd" }}>Strategy</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded ml-0.5"
+              style={{ background: "rgba(167,139,250,0.14)", color: "rgba(196,181,253,0.7)" }}>live</span>
+          </div>
+
+          <AddSignalMenu onAdd={addCondition} />
+
+          {conditions.length > 0 && (
+            <>
+              <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)" }} />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Logic</span>
+                <div className="flex rounded-md overflow-hidden"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  {(["AND", "OR"] as const).map(l => (
+                    <button key={l} onClick={() => setCondLogic(l)}
+                      className="px-2 py-1 text-[9px] font-bold tracking-widest border-r last:border-r-0 transition-all"
+                      style={{
+                        borderColor: "rgba(255,255,255,0.06)",
+                        background: condLogic === l ? "rgba(167,139,250,0.16)" : "transparent",
+                        color: condLogic === l ? "#c4b5fd" : "rgba(255,255,255,0.28)",
+                      }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex-1" />
+
+          {/* indicator params toggle */}
+          <button
+            onClick={() => setIndParamsOpen(o => !o)}
+            className="text-[10px] px-2 py-1 rounded transition-colors shrink-0"
+            style={{ color: "rgba(255,255,255,0.25)" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}>
+            Indicator settings {indParamsOpen ? "▲" : "▼"}
+          </button>
+          {div}
+
+          {/* stop-loss */}
+          <div className="shrink-0" style={{ minWidth: 200 }}>
+            <GateSlider label="Stop" value={stopLossPct}
+              display={stopLossPct === 0 ? "off" : `${stopLossPct.toFixed(1)}%`}
+              min={0} max={15} step={0.5} onChange={setStopLossPct} />
+          </div>
+
+          {/* status chips */}
+          {data?.failedCandles ? (
+            <span className="text-[10px] font-mono shrink-0" style={{ color: "#f59e0b" }}
+              title="These candles produced no AI signal.">
+              ⚠ {data.failedCandles} failed
             </span>
           ) : null}
           {result && (
-            <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
-              {result.summary.tradeCount} trades · {result.summary.stopOuts} stopped
+            <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(255,255,255,0.3)" }}>
+              {result.summary.tradeCount} trades
             </span>
           )}
         </div>
+
+        {/* indicator params (collapsible) */}
+        {indParamsOpen && (
+          <IndParamsPanel ip={ip} onChange={patch => setIp(prev => ({ ...prev, ...patch }))} />
+        )}
+
+        {/* condition cards */}
+        {conditions.length > 0 && (
+          <div className="px-4 md:px-5 pb-2.5 flex flex-col gap-1.5">
+            {conditions.map(cond => (
+              <ConditionCard key={cond.id} cond={cond} ip={ip}
+                onChange={patchCondition} onRemove={removeCondition} />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ── chart area ───────────────────────────────────────────────────────── */}
+      {/* ── chart ────────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden" style={{ flex: "1 1 0", minHeight: 0 }}>
+
         {/* empty */}
         {!data && !loading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
@@ -467,13 +883,12 @@ export default function StrategyBacktestPage() {
             </div>
             <div>
               <p className="text-base font-semibold text-white/60 mb-1.5">Strategy Backtest</p>
-              <p className="text-sm text-white/25 max-w-[380px] leading-relaxed">
-                The model is run on every one of the last {nWindow} candles, each time reading {nLookback} past
-                candles. A trade opens on a directional signal and closes on a reversal or a stop-loss. Tune the
-                rules live — the equity curve recomputes instantly.
+              <p className="text-sm text-white/25 max-w-[400px] leading-relaxed">
+                Build a strategy with technical signals — RSI, EMA Cross, MACD, Bollinger Bands, Stochastic.
+                Optionally layer AI predictions on top. Tune rules live; the equity curve recomputes instantly.
               </p>
             </div>
-            <button onClick={() => runBacktest(ticker, nWindow, nLookback, nForecast, nRuns, technicals, timeframe)}
+            <button onClick={runBacktest}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
               style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", color: "#c4b5fd" }}>
               <FlaskConical className="w-4 h-4" />
@@ -486,14 +901,21 @@ export default function StrategyBacktestPage() {
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
             <div className="relative w-14 h-14">
-              <div className="absolute inset-0 rounded-full animate-ping" style={{ border: "1px solid rgba(167,139,250,0.15)" }} />
-              <div className="absolute inset-0 rounded-full" style={{ border: "1px solid rgba(167,139,250,0.22)" }} />
-              <RefreshCw className="absolute inset-0 m-auto w-6 h-6 animate-spin" style={{ color: "rgba(167,139,250,0.6)" }} />
+              <div className="absolute inset-0 rounded-full animate-ping"
+                style={{ border: "1px solid rgba(167,139,250,0.15)" }} />
+              <div className="absolute inset-0 rounded-full"
+                style={{ border: "1px solid rgba(167,139,250,0.22)" }} />
+              <RefreshCw className="absolute inset-0 m-auto w-6 h-6 animate-spin"
+                style={{ color: "rgba(167,139,250,0.6)" }} />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-white/50 mb-1">Backtesting {ticker}</p>
+              <p className="text-sm font-medium text-white/50 mb-1">
+                {aiEnabled ? `Backtesting ${ticker} with AI…` : `Loading ${ticker}…`}
+              </p>
               <p className="text-xs text-white/25">
-                {nWindow} candles analysed × {nRuns} run{nRuns > 1 ? "s" : ""} · {nLookback} lookback · this takes a while
+                {aiEnabled
+                  ? `${nWindow} candles × ${nRuns} run${nRuns > 1 ? "s" : ""} · this takes a while`
+                  : `${nWindow} candles · computing indicators`}
               </p>
             </div>
           </div>
@@ -503,11 +925,9 @@ export default function StrategyBacktestPage() {
         {error && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
             <p className="text-sm text-red-400/80 text-center max-w-sm">{error}</p>
-            <button onClick={() => runBacktest(ticker, nWindow, nLookback, nForecast, nRuns, technicals, timeframe)}
-              className="text-xs px-4 py-1.5 rounded-lg transition-all"
-              style={{ color: "#c4b5fd", border: "1px solid rgba(167,139,250,0.2)" }}>
-              Retry
-            </button>
+            <button onClick={runBacktest}
+              className="text-xs px-4 py-1.5 rounded-lg"
+              style={{ color: "#c4b5fd", border: "1px solid rgba(167,139,250,0.2)" }}>Retry</button>
           </div>
         )}
 
@@ -529,7 +949,6 @@ export default function StrategyBacktestPage() {
         <div className="shrink-0"
           style={{ background: "rgba(8,8,8,0.92)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
 
-          {/* stats row */}
           <div className="px-4 md:px-6 py-3 flex items-center gap-5 md:gap-7 overflow-x-auto"
             style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <Stat label="Strategy"
@@ -547,18 +966,20 @@ export default function StrategyBacktestPage() {
             <div style={{ width: 1, height: 30, background: "rgba(255,255,255,0.06)" }} className="shrink-0" />
             <Stat label="Profit Factor" value={fmtPF(result.summary.profitFactor)} />
             <div style={{ width: 1, height: 30, background: "rgba(255,255,255,0.06)" }} className="shrink-0" />
-            <Stat label="Avg P&L" value={fmtPct(result.summary.avgPnlPct)}
+            <Stat label="Avg P&L"
+              value={fmtPct(result.summary.avgPnlPct)}
               color={result.summary.avgPnlPct >= 0 ? "#22c55e" : "#ef4444"} />
             <div style={{ width: 1, height: 30, background: "rgba(255,255,255,0.06)" }} className="shrink-0 hidden sm:block" />
-            <div className="hidden sm:block"><Stat label="Best / Worst"
-              value={`${fmtPct(result.summary.bestPct)} / ${fmtPct(result.summary.worstPct)}`} /></div>
+            <div className="hidden sm:block">
+              <Stat label="Best / Worst"
+                value={`${fmtPct(result.summary.bestPct)} / ${fmtPct(result.summary.worstPct)}`} />
+            </div>
           </div>
 
-          {/* trade log */}
           <div className="overflow-y-auto" style={{ maxHeight: 168 }}>
             {result.trades.length === 0 ? (
               <div className="px-4 py-6 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-                No trades — loosen the agreement gate to let signals through.
+                No trades — add signals above to generate entry rules, or loosen the stop-loss.
               </div>
             ) : (
               <table className="w-full text-[10px]">
@@ -587,18 +1008,15 @@ export default function StrategyBacktestPage() {
                         <td className="px-2 py-1.5">
                           <span className="flex items-center gap-1"
                             style={{ color: t.direction === "long" ? "#22c55e" : "#ef4444" }}>
-                            {t.direction === "long"
-                              ? <TrendingUp className="w-2.5 h-2.5" />
-                              : <TrendingDown className="w-2.5 h-2.5" />}
+                            {t.direction === "long" ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
                             {t.direction}
                           </span>
                         </td>
                         <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>${t.entryPrice.toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>${t.exitPrice.toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>{t.exitIdx - t.entryIdx}</td>
-                        <td className="px-2 py-1.5" style={{
-                          color: t.reason === "stop" ? "#f59e0b" : "rgba(255,255,255,0.4)",
-                        }}>{t.reason}</td>
+                        <td className="px-2 py-1.5"
+                          style={{ color: t.reason === "stop" ? "#f59e0b" : "rgba(255,255,255,0.4)" }}>{t.reason}</td>
                         <td className="px-4 py-1.5 text-right font-semibold"
                           style={{ color: t.won ? "#22c55e" : "#ef4444" }}>
                           {t.pnlPct >= 0 ? "+" : ""}{t.pnlPct.toFixed(2)}%
