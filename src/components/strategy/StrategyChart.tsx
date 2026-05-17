@@ -271,7 +271,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
           })}
 
           {/* investing: buy event markers (small upward triangles) */}
-          {buyEvents.map((b, i) => {
+          {showStrat && buyEvents.map((b, i) => {
             const bx = geom.x(b.idx);
             const by = geom.y(equityCurve[b.idx]?.equity ?? 1);
             const ac = accentColor ?? "#34d399";
