@@ -540,10 +540,10 @@ export default function StrategyBacktestPage() {
   const router = useRouter();
   const { activeTicker, setActiveTicker } = useTickerStore();
 
-  const [mode,      setMode]      = useState<Mode>("trading");
+  const [mode,      setMode]      = useState<Mode>("investing");
   const [ticker,    setTicker]    = useState(activeTicker || "AAPL");
   const [timeframe, setTimeframe] = useState<Timeframe>("1d");
-  const [nWindow,   setNWindow]   = useState(60);
+  const [nWindow,   setNWindow]   = useState(300);
   const [positionSize, setPosSize] = useState(100);
   const [ip, setIp] = useState<IndicatorParams>({ rsiPeriod: 14, emaFast: 9, emaSlow: 21, smaFast: 20, smaSlow: 50, bbPeriod: 20, stochK: 14, stochD: 3 });
   const [indParamsOpen, setIndParamsOpen] = useState(false);
@@ -848,19 +848,22 @@ export default function StrategyBacktestPage() {
           {mode === "investing" && investResult && (
             <div className="shrink-0" style={{ background: "rgba(8,8,8,0.92)", backdropFilter: "blur(20px)", borderTop: `1px solid ${INVEST_ACCENT}22` }}>
               <div className="px-4 md:px-6 py-3 flex items-center gap-5 md:gap-7 overflow-x-auto" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <Stat label="Portfolio" value={fmtDollar(investResult.summary.finalValue)} color={investResult.summary.returnPct >= 0 ? "#34d399" : "#ef4444"}
-                  sub={`${fmtPct(investResult.summary.returnPct)} on invested`} />
+                <Stat label="Strat Value" value={fmtDollar(investResult.summary.finalValue)} color={investResult.summary.returnPct >= 0 ? "#34d399" : "#ef4444"} sub={`${investResult.summary.nBuys} buys`} />
                 {vsep}
-                <Stat label="Invested" value={fmtDollar(investResult.summary.totalInvested)} sub={`${investResult.summary.nBuys} buys`} />
+                <Stat label="B&H Value" value={fmtDollar(investResult.summary.totalInvested * (1 + investResult.summary.bhReturnPct / 100))} sub={`same ${fmtDollar(investResult.summary.totalInvested)} invested`} />
                 {vsep}
-                <Stat label="B&H Equiv." value={fmtPct(investResult.summary.bhReturnPct)} color={investResult.summary.bhReturnPct >= 0 ? "rgba(52,211,153,0.65)" : "rgba(239,68,68,0.65)"}
-                  sub={investResult.summary.returnPct >= investResult.summary.bhReturnPct ? "you beat it" : "you trail it"} />
+                <Stat label="Portfolio % PnL" value={fmtPct(investResult.summary.returnPct)} color={investResult.summary.returnPct >= 0 ? "#34d399" : "#ef4444"}
+                  sub={investResult.summary.returnPct >= investResult.summary.bhReturnPct ? "beats B&H" : "trails B&H"} />
                 {vsep}
-                <Stat label="Strat CAGR" value={fmtPct(investResult.summary.cagrPct)} color={investResult.summary.cagrPct >= 0 ? "#34d399" : "#ef4444"} sub="annualised" />
+                <Stat label="B&H % PnL" value={fmtPct(investResult.summary.bhReturnPct)} color={investResult.summary.bhReturnPct >= 0 ? "rgba(52,211,153,0.6)" : "rgba(239,68,68,0.6)"} />
                 {vsep}
-                <Stat label="Strat Sharpe" value={investResult.summary.sharpe.toFixed(2)} sub={`B&H ${investResult.summary.bhSharpe.toFixed(2)}`} />
+                <Stat label="Strat Sharpe" value={investResult.summary.sharpe.toFixed(2)} color={investResult.summary.sharpe >= investResult.summary.bhSharpe ? "#34d399" : undefined} />
                 {vsep}
-                <Stat label="Strat Sortino" value={investResult.summary.sortino.toFixed(2)} sub={`B&H ${investResult.summary.bhSortino.toFixed(2)}`} />
+                <Stat label="B&H Sharpe" value={investResult.summary.bhSharpe.toFixed(2)} />
+                {vsep}
+                <Stat label="Strat Sortino" value={investResult.summary.sortino.toFixed(2)} color={investResult.summary.sortino >= investResult.summary.bhSortino ? "#34d399" : undefined} />
+                {vsep}
+                <Stat label="B&H Sortino" value={investResult.summary.bhSortino.toFixed(2)} />
               </div>
               <div className="overflow-y-auto" style={{ maxHeight: 168 }}>
                 {investResult.summary.nBuys === 0 ? (
