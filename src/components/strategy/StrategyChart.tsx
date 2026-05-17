@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect, useMemo, useId } from "react";
 
 // ── shared shapes ────────────────────────────────────────────────────────────
-export interface CurvePoint { time: number; equity: number }
+export interface CurvePoint { time: number; equity: number; price?: number; avgCost?: number; }
 
 /** A closed trade from the client-side simulation. */
 export interface ChartTrade {
@@ -265,8 +265,11 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
         const exitT   = events.exit.get(hoverI);
         const buyEvt  = buyEvents.find(b => b.idx === hoverI);
         const sellEvt = sellEvents.find(s => s.idx === hoverI);
-        const equityLabel    = isInvesting ? "Portfolio" : "Equity";
-        const buyHoldLabel   = isInvesting ? "UniformDCA" : "B&H";
+        const equityLabel  = isInvesting ? "Portfolio" : "Equity";
+        const buyHoldLabel = isInvesting ? "UniformDCA" : "B&H";
+        const sharePrice     = equityCurve[hoverI].price;
+        const stratAvgCost   = equityCurve[hoverI].avgCost;
+        const dcaAvgCost     = buyHoldCurve[hoverI].avgCost;
         return (
           <div className="absolute pointer-events-none"
             style={{
@@ -283,6 +286,13 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
             </div>
             <Row label={equityLabel} value={`${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(1)}%`} bright />
             <Row label={buyHoldLabel} value={`${bh >= 1 ? "+" : ""}${((bh - 1) * 100).toFixed(1)}%`} />
+            {isInvesting && sharePrice != null && (
+              <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                <Row label="Share price"   value={`$${sharePrice.toFixed(2)}`} />
+                {stratAvgCost != null && <Row label="Strat avg cost" value={`$${stratAvgCost.toFixed(2)}`} />}
+                {dcaAvgCost   != null && <Row label="DCA avg cost"   value={`$${dcaAvgCost.toFixed(2)}`} />}
+              </div>
+            )}
 
             {/* investing: buy event */}
             {buyEvt && (

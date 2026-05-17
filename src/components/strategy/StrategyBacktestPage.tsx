@@ -281,18 +281,26 @@ function deriveInvesting(
       buyEvents.push({ idx: i, price: c.close, weight: techWeight, strategy: "custom" });
     }
 
-    portfolioCurve.push({ time: c.time, equity: totalInvested > 0 ? (accShares * c.close) / totalInvested : 1 });
+    portfolioCurve.push({
+      time: c.time,
+      equity:  totalInvested > 0 ? (accShares * c.close) / totalInvested : 1,
+      price:   c.close,
+      avgCost: accShares > 0 ? totalInvested / accShares : undefined,
+    });
   }
 
   // Build uniform-DCA baseline: same total capital spread evenly across every candle.
-  // Both curves now have identical denominators, so the comparison answers purely
-  // "did signal timing beat buying the same amount every candle?"
   const perCandle = totalInvested > 0 ? totalInvested / cs.length : 0;
   let uShares = 0;
   for (let i = 0; i < cs.length; i++) {
     uShares += perCandle / cs[i].close;
     const uInvestedSoFar = (i + 1) * perCandle;
-    bhCurve.push({ time: cs[i].time, equity: uInvestedSoFar > 0 ? (uShares * cs[i].close) / uInvestedSoFar : 1 });
+    bhCurve.push({
+      time: cs[i].time,
+      equity:  uInvestedSoFar > 0 ? (uShares * cs[i].close) / uInvestedSoFar : 1,
+      price:   cs[i].close,
+      avgCost: uShares > 0 ? uInvestedSoFar / uShares : undefined,
+    });
   }
 
   const last = cs[cs.length - 1];
