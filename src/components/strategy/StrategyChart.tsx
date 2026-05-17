@@ -26,14 +26,29 @@ export interface BuyEvent  { idx: number; price: number; weight?: number; strate
 /** Investing-mode sell event (e.g. NoMondays weekly exit). */
 export interface SellEvent { idx: number; price: number; entryPrice: number; pnlPct: number; won: boolean; }
 
+export interface ChartToggles {
+  showStrat:    boolean;
+  showBH:       boolean;
+  showAlpha:    boolean;
+  showStratVal: boolean;
+  showDCAVal:   boolean;
+  showValDiff:  boolean;
+}
+export const DEFAULT_TOGGLES: ChartToggles = {
+  showStrat: true, showBH: true, showAlpha: true,
+  showStratVal: false, showDCAVal: false, showValDiff: false,
+};
+
 interface Props {
-  equityCurve:  CurvePoint[];   // one point per candle
-  buyHoldCurve: CurvePoint[];   // aligned 1:1 with equityCurve
+  equityCurve:  CurvePoint[];
+  buyHoldCurve: CurvePoint[];
   trades:       ChartTrade[];
   timeframe:    string;
-  accentColor?: string;         // investing mode accent
+  accentColor?: string;
   buyEvents?:   BuyEvent[];
   sellEvents?:  SellEvent[];
+  toggles?:     ChartToggles;
+  onToggle?:    (key: keyof ChartToggles, value: boolean) => void;
 }
 
 const isIntraday = (tf: string) => tf === "1m" || tf === "5m" || tf === "1h";
@@ -46,18 +61,20 @@ function fmtDate(ts: number, tf: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
 }
 
-export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timeframe, accentColor, buyEvents = [], sellEvents = [] }: Props) {
+export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timeframe, accentColor, buyEvents = [], sellEvents = [], toggles: togglesProp, onToggle }: Props) {
   const isInvesting = buyEvents.length > 0 || sellEvents.length > 0;
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [size, setSize]       = useState<{ w: number; h: number } | null>(null);
-  const [hoverI, setHoverI]   = useState<number | null>(null);
-  const [showStrat,    setShowStrat]    = useState(true);
-  const [showBH,       setShowBH]       = useState(true);
-  const [showAlpha,    setShowAlpha]    = useState(true);
-  const [showStratVal, setShowStratVal] = useState(false);
-  const [showDCAVal,   setShowDCAVal]   = useState(false);
-  const [showValDiff,  setShowValDiff]  = useState(false);
+  const [size, setSize]     = useState<{ w: number; h: number } | null>(null);
+  const [hoverI, setHoverI] = useState<number | null>(null);
+
+  const [localToggles, setLocalToggles] = useState<ChartToggles>(DEFAULT_TOGGLES);
+  const t = togglesProp ?? localToggles;
+  const toggle = onToggle
+    ? (key: keyof ChartToggles) => onToggle(key, !t[key])
+    : (key: keyof ChartToggles) => setLocalToggles(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const { showStrat, showBH, showAlpha, showStratVal, showDCAVal, showValDiff } = t;
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -516,19 +533,19 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
 
       {/* line toggles */}
       <div className="absolute flex items-center gap-1" style={{ top: 6, left: PAD.l }}>
-        <Toggle active={showStrat} color={stratColor}             label="Strat"      onClick={() => setShowStrat(v => !v)} />
-        <Toggle active={showBH}    color="rgba(255,255,255,0.55)" label={bhLabel}    onClick={() => setShowBH(v => !v)} />
+        <Toggle active={showStrat} color={stratColor}             label="Strat"    onClick={() => toggle("showStrat")} />
+        <Toggle active={showBH}    color="rgba(255,255,255,0.55)" label={bhLabel}  onClick={() => toggle("showBH")} />
         {isInvesting && (
-          <Toggle active={showAlpha}    color="#a78bfa"                    label="Alpha"     onClick={() => setShowAlpha(v => !v)} />
+          <Toggle active={showAlpha}    color="#a78bfa"                    label="Alpha"   onClick={() => toggle("showAlpha")} />
         )}
         {isInvesting && (
-          <Toggle active={showStratVal} color={stratColor}                 label="Strat $"   onClick={() => setShowStratVal(v => !v)} />
+          <Toggle active={showStratVal} color={stratColor}                 label="Strat $" onClick={() => toggle("showStratVal")} />
         )}
         {isInvesting && (
-          <Toggle active={showDCAVal}   color="rgba(255,255,255,0.55)"     label="DCA $"     onClick={() => setShowDCAVal(v => !v)} />
+          <Toggle active={showDCAVal}   color="rgba(255,255,255,0.55)"     label="DCA $"   onClick={() => toggle("showDCAVal")} />
         )}
         {isInvesting && (
-          <Toggle active={showValDiff}  color="#fbbf24"                    label="Outperf"   onClick={() => setShowValDiff(v => !v)} />
+          <Toggle active={showValDiff}  color="#fbbf24"                    label="Outperf" onClick={() => toggle("showValDiff")} />
         )}
       </div>
     </div>

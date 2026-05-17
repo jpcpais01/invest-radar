@@ -7,7 +7,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useTickerStore } from "@/store/tickerStore";
 import CommandPalette from "@/components/search/CommandPalette";
-import StrategyChart, { CurvePoint, ChartTrade, BuyEvent, SellEvent } from "./StrategyChart";
+import StrategyChart, { CurvePoint, ChartTrade, BuyEvent, SellEvent, ChartToggles, DEFAULT_TOGGLES } from "./StrategyChart";
 
 // ── types ──────────────────────────────────────────────────────────────────────
 type Mode = "trading" | "investing";
@@ -580,6 +580,10 @@ export default function StrategyBacktestPage() {
   const router = useRouter();
   const { activeTicker, setActiveTicker } = useTickerStore();
 
+  const [chartToggles, setChartToggles] = useState<ChartToggles>(DEFAULT_TOGGLES);
+  const onToggle = (key: keyof ChartToggles, value: boolean) =>
+    setChartToggles(prev => ({ ...prev, [key]: value }));
+
   const [mode,      setMode]      = useState<Mode>("investing");
   const [ticker,    setTicker]    = useState(activeTicker || "QQQ");
   const [timeframe, setTimeframe] = useState<Timeframe>("1d");
@@ -829,13 +833,15 @@ export default function StrategyBacktestPage() {
           )}
           {data && mode === "trading" && tradingResult && !loading && (
             <div className="absolute inset-0">
-              <StrategyChart equityCurve={tradingResult.equityCurve} buyHoldCurve={tradingResult.buyHoldCurve} trades={tradingResult.trades} timeframe={data.timeframe} />
+              <StrategyChart equityCurve={tradingResult.equityCurve} buyHoldCurve={tradingResult.buyHoldCurve} trades={tradingResult.trades} timeframe={data.timeframe}
+                toggles={chartToggles} onToggle={onToggle} />
             </div>
           )}
           {data && mode === "investing" && investResult && !loading && (
             <div className="absolute inset-0">
               <StrategyChart equityCurve={investResult.portfolioCurve} buyHoldCurve={investResult.bhCurve} trades={[]} timeframe={data.timeframe}
-                buyEvents={investResult.buyEvents} sellEvents={investResult.sellEvents} accentColor={INVEST_ACCENT} />
+                buyEvents={investResult.buyEvents} sellEvents={investResult.sellEvents} accentColor={INVEST_ACCENT}
+                toggles={chartToggles} onToggle={onToggle} />
             </div>
           )}
         </div>
