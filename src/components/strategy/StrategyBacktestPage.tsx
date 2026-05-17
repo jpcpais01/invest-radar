@@ -104,14 +104,14 @@ function evalGroup(conditions: Condition[], logic: "AND" | "OR", c: EnrichedCand
   return logic === "AND" ? active.every(x => evalCondition(x, c)) : active.some(x => evalCondition(x, c));
 }
 
-function evalPrebuiltBuy(s: PrebuiltStrategy, c: EnrichedCandle, prev: EnrichedCandle | null, next: EnrichedCandle | null): boolean {
+function evalPrebuiltBuy(s: PrebuiltStrategy, c: EnrichedCandle, prev: EnrichedCandle | null, next: EnrichedCandle | null, prevprev: EnrichedCandle | null): boolean {
   if (s === "none") return false;
   const day = new Date(c.time * 1000).getUTCDay();
   switch (s) {
     case "fridayyy":     return day === 4;
     case "nomondays":    return day === 1;
-    case "buythedip":    return c.close < c.open;
-    case "buytheddip":   return c.close < c.open && prev != null && prev.close < prev.open;
+    case "buythedip":    return prev != null && c.close < prev.close;
+    case "buytheddip":   return prev != null && c.close < prev.close && prevprev != null && prev.close < prevprev.close;
     case "firstofmonth": return !prev || new Date(prev.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
     case "lastofmonth":  return !next || new Date(next.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
   }
@@ -221,7 +221,7 @@ function deriveInvesting(
   let nomOpenShares = 0, nomOpenPrice = 0, nomRealized = 0;
 
   for (let i = 0; i < cs.length; i++) {
-    const c = cs[i], prev = i > 0 ? cs[i - 1] : null, next = i < cs.length - 1 ? cs[i + 1] : null;
+    const c = cs[i], prev = i > 0 ? cs[i - 1] : null, next = i < cs.length - 1 ? cs[i + 1] : null, prevprev = i > 1 ? cs[i - 2] : null;
 
     if (prebuilt === "nomondays") {
       const day = new Date(c.time * 1000).getUTCDay();
@@ -240,7 +240,7 @@ function deriveInvesting(
       const pv = nomRealized + nomOpenShares * c.close;
       portfolioCurve.push({ time: c.time, equity: totalInvested > 0 ? pv / totalInvested : 1 });
     } else {
-      const prebuiltSig = evalPrebuiltBuy(prebuilt, c, prev, next);
+      const prebuiltSig = evalPrebuiltBuy(prebuilt, c, prev, next, prevprev);
       const techSig     = buyConds.some(x => x.enabled) ? evalGroup(buyConds, buyLogic, c) : false;
       if (prebuiltSig || techSig) {
         accShares += positionSize / c.close;
