@@ -16,7 +16,7 @@ interface TickerState {
 export const useTickerStore = create<TickerState>()(
   persist(
     (set) => ({
-      activeTicker: "AAPL",
+      activeTicker: "QQQ",
       watchlist: ["AAPL", "NVDA", "TSLA", "SPY", "QQQ", "MSFT"],
       activeTimeframe: "3M",
       setActiveTicker: (ticker) => set({ activeTicker: ticker.toUpperCase() }),
