@@ -364,12 +364,67 @@ function Toggle({ on, onChange, accent = TRADING_ACCENT }: { on: boolean; onChan
   );
 }
 
-function NumberInput({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
+function NumericInput({
+  value, min, max, step = 1, onChange, accent, decimals = 0,
+}: {
+  value: number; min: number; max: number; step?: number;
+  onChange: (v: number) => void; accent?: string; decimals?: number;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const clamp = (v: number) => Math.max(min, Math.min(max, v));
+  const fmt   = (v: number) => decimals > 0 ? v.toFixed(decimals) : String(v);
+  const step_ = (dir: 1 | -1) => {
+    onChange(clamp(parseFloat((value + dir * step).toFixed(10))));
+  };
+  const textC   = accent ?? "rgba(255,255,255,0.75)";
+  const borderC = accent ? `${accent}44` : "rgba(255,255,255,0.12)";
+  const btnC    = accent ? `${accent}99` : "rgba(255,255,255,0.3)";
+  const btnHov  = accent ?? "rgba(255,255,255,0.75)";
   return (
-    <input type="number" min={min} max={max} value={value} onChange={e => onChange(Math.min(max, Math.max(min, parseInt(e.target.value) || min)))}
-      className="w-12 text-center text-[10px] font-mono rounded px-1 py-0.5"
-      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", outline: "none" }} />
+    <div className="flex items-center rounded overflow-hidden"
+      style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${borderC}` }}>
+      <button
+        onClick={() => step_(-1)}
+        className="flex items-center justify-center px-1.5 py-0.5 text-[12px] leading-none font-mono select-none transition-colors"
+        style={{ color: btnC, borderRight: `1px solid ${borderC}` }}
+        onMouseEnter={e => (e.currentTarget.style.color = btnHov)}
+        onMouseLeave={e => (e.currentTarget.style.color = btnC)}>
+        −
+      </button>
+      <input
+        type="text" inputMode="decimal"
+        value={draft ?? fmt(value)}
+        onFocus={() => setDraft(fmt(value))}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => {
+          if (draft !== null) {
+            const v = parseFloat(draft);
+            if (!isNaN(v)) onChange(clamp(parseFloat(v.toFixed(10))));
+          }
+          setDraft(null);
+        }}
+        onKeyDown={e => {
+          if (e.key === "Enter")   { (e.target as HTMLInputElement).blur(); }
+          if (e.key === "ArrowUp")   { e.preventDefault(); step_(1); }
+          if (e.key === "ArrowDown") { e.preventDefault(); step_(-1); }
+        }}
+        className="w-10 text-center text-[10px] font-mono bg-transparent outline-none py-0.5 min-w-0"
+        style={{ color: textC }}
+      />
+      <button
+        onClick={() => step_(1)}
+        className="flex items-center justify-center px-1.5 py-0.5 text-[12px] leading-none font-mono select-none transition-colors"
+        style={{ color: btnC, borderLeft: `1px solid ${borderC}` }}
+        onMouseEnter={e => (e.currentTarget.style.color = btnHov)}
+        onMouseLeave={e => (e.currentTarget.style.color = btnC)}>
+        +
+      </button>
+    </div>
   );
+}
+
+function NumberInput({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
+  return <NumericInput value={value} min={min} max={max} step={1} onChange={onChange} />;
 }
 
 function Stat({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
@@ -498,10 +553,8 @@ function InvestConditionColumn({ conditions, logic, ip, weight, onLogicChange, o
         {conditions.length > 0 && (
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[8px] uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.3)" }}>Weight</span>
-            <input type="number" min={0.1} max={10} step={0.1} value={weight}
-              onChange={e => onWeightChange(Math.max(0.1, Math.round((parseFloat(e.target.value) || 1) * 10) / 10))}
-              className="w-12 text-center text-[9px] font-mono rounded px-1 py-0.5"
-              style={{ background: "rgba(255,255,255,0.08)", border: `1px solid ${INVEST_ACCENT}44`, color: INVEST_ACCENT, outline: "none" }} />
+            <NumericInput value={weight} min={0.1} max={10} step={0.1} decimals={1}
+              onChange={v => onWeightChange(v)} accent={INVEST_ACCENT} />
             <span className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>×</span>
           </div>
         )}
@@ -560,10 +613,8 @@ function PrebuiltPicker({ value, onChange }: { value: ActivePrebuilt[]; onChange
               {active && ap && (
                 <div className="flex items-center gap-1.5 mt-0.5" onClick={e => e.stopPropagation()}>
                   <span className="text-[8px] uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.3)" }}>Weight</span>
-                  <input type="number" min={0.1} max={10} step={0.1} value={ap.weight}
-                    onChange={e => setWeight(key, parseFloat(e.target.value) || 1)}
-                    className="w-12 text-center text-[9px] font-mono rounded px-1 py-0.5"
-                    style={{ background: "rgba(255,255,255,0.08)", border: `1px solid ${INVEST_ACCENT}44`, color: INVEST_ACCENT, outline: "none" }} />
+                  <NumericInput value={ap.weight} min={0.1} max={10} step={0.1} decimals={1}
+                    onChange={v => setWeight(key, v)} accent={INVEST_ACCENT} />
                   <span className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>×</span>
                 </div>
               )}
@@ -742,9 +793,8 @@ export default function StrategyBacktestPage() {
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Position</span>
               <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>$</span>
-              <input type="number" min={1} max={100000} value={positionSize} onChange={e => setPosSize(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 text-center text-[10px] font-mono rounded px-1 py-0.5"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", outline: "none" }} />
+              <NumericInput value={positionSize} min={1} max={100000} step={10}
+                onChange={v => setPosSize(Math.max(1, v))} />
             </div>
             {sep}
             {/* trading-only stop controls */}
