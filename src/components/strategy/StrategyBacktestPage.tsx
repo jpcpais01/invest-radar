@@ -863,7 +863,7 @@ export default function StrategyBacktestPage() {
                 {vsep}
                 <Stat label="B&H Value" value={fmtDollar(investResult.summary.totalInvested * (1 + investResult.summary.bhReturnPct / 100))} sub={`same ${fmtDollar(investResult.summary.totalInvested)} invested`} />
                 {vsep}
-                <Stat label="Portfolio % PnL" value={fmtPct(investResult.summary.returnPct)} color={investResult.summary.returnPct >= 0 ? "#34d399" : "#ef4444"}
+                <Stat label="Strat % PnL" value={fmtPct(investResult.summary.returnPct)} color={investResult.summary.returnPct >= 0 ? "#34d399" : "#ef4444"}
                   sub={investResult.summary.returnPct >= investResult.summary.bhReturnPct ? "beats B&H" : "trails B&H"} />
                 {vsep}
                 <Stat label="B&H % PnL" value={fmtPct(investResult.summary.bhReturnPct)} color={investResult.summary.bhReturnPct >= 0 ? "rgba(52,211,153,0.6)" : "rgba(239,68,68,0.6)"} />
