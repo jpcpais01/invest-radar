@@ -266,7 +266,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
         const buyEvt  = buyEvents.find(b => b.idx === hoverI);
         const sellEvt = sellEvents.find(s => s.idx === hoverI);
         const equityLabel    = isInvesting ? "Portfolio" : "Equity";
-        const buyHoldLabel   = "B&H";
+        const buyHoldLabel   = isInvesting ? "UniformDCA" : "B&H";
         return (
           <div className="absolute pointer-events-none"
             style={{
