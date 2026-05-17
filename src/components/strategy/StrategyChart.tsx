@@ -144,8 +144,11 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
     const stratValues = equityCurve.map(p => p.value ?? 0);
     const dcaValues   = buyHoldCurve.map(p => p.value ?? 0);
     const outperfVals: (number | null)[] = stratValues.map((sv, i) => {
-      const dv = dcaValues[i];
-      return sv > 0 && dv > 1e-10 ? (sv - dv) / dv : null;
+      const dv  = dcaValues[i];
+      const deq = buyHoldCurve[i].equity;
+      if (sv <= 0 || dv < 1e-10 || deq < 1e-10) return null;
+      const uInvested = dv / deq; // total cash put into UniformDCA up to this candle
+      return (sv - dv) / uInvested;
     });
     const validOP = outperfVals.filter((v): v is number => v != null);
     const opLo = Math.min(...validOP, -1e-10), opHi = Math.max(...validOP, 1e-10);
