@@ -13,9 +13,11 @@ import StrategyChart, { CurvePoint, ChartTrade, BuyEvent, SellEvent } from "./St
 type Mode = "trading" | "investing";
 type Timeframe = "1m" | "5m" | "1h" | "1d";
 type PrebuiltStrategy =
-  | "none" | "fridayyy" | "nomondays"
+  | "none" | "fridayyy"
   | "buythedip" | "buytheddip"
   | "firstofmonth" | "lastofmonth";
+
+interface ActivePrebuilt { strategy: PrebuiltStrategy; weight: number; }
 
 type ConditionType =
   | "rsi_lt" | "rsi_gt"
@@ -49,14 +51,13 @@ interface IndicatorParams {
 const TRADING_ACCENT = "#a78bfa";
 const INVEST_ACCENT  = "#34d399";
 
-const PREBUILT_META: Record<PrebuiltStrategy, { label: string; description: string; hasExit: boolean }> = {
-  none:         { label: "Custom",        description: "Build with technical signals",                    hasExit: false },
-  fridayyy:     { label: "Fridayyy",      description: "Buy every Thursday close",                        hasExit: false },
-  nomondays:    { label: "NoMondays",     description: "Buy Mon close · sell Fri close",                  hasExit: true  },
-  buythedip:    { label: "BuyTheDip",    description: "Buy every negative-day close",                     hasExit: false },
-  buytheddip:   { label: "BuyTheDDip",   description: "Buy after 2 consecutive down-day closes",          hasExit: false },
-  firstofmonth: { label: "FirstOfMonth", description: "Buy on the first trading day of each month",       hasExit: false },
-  lastofmonth:  { label: "LastOfMonth",  description: "Buy on the last trading day of each month",        hasExit: false },
+const PREBUILT_META: Record<PrebuiltStrategy, { label: string; description: string }> = {
+  none:         { label: "Custom",        description: "Build with technical signals only"                   },
+  fridayyy:     { label: "Fridayyy",      description: "Buy every Thursday close"                            },
+  buythedip:    { label: "BuyTheDip",     description: "Buy every negative-day close"                        },
+  buytheddip:   { label: "BuyTheDDip",    description: "Buy after 2 consecutive down-day closes"             },
+  firstofmonth: { label: "FirstOfMonth",  description: "Buy on the first trading day of each month"          },
+  lastofmonth:  { label: "LastOfMonth",   description: "Buy on the last trading day of each month"           },
 };
 
 const COND_META: Record<ConditionType, {
@@ -109,12 +110,32 @@ function evalPrebuiltBuy(s: PrebuiltStrategy, c: EnrichedCandle, prev: EnrichedC
   const day = new Date(c.time * 1000).getUTCDay();
   switch (s) {
     case "fridayyy":     return day === 4;
-    case "nomondays":    return day === 1;
     case "buythedip":    return prev != null && c.close < prev.close;
     case "buytheddip":   return prev != null && c.close < prev.close && prevprev != null && prev.close < prevprev.close;
     case "firstofmonth": return !prev || new Date(prev.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
     case "lastofmonth":  return !next || new Date(next.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
   }
+}
+
+// ── analytics helpers ─────────────────────────────────────────────────────────
+const ANN_FACTOR: Record<string, number> = { "1m": 98280, "5m": 19656, "1h": 1638, "1d": 252 };
+
+function calcRatios(curve: CurvePoint[], tf: string): { sharpe: number; sortino: number; cagrPct: number } {
+  if (curve.length < 3) return { sharpe: 0, sortino: 0, cagrPct: 0 };
+  const ann = ANN_FACTOR[tf] ?? 252;
+  const rets: number[] = [];
+  for (let i = 1; i < curve.length; i++) rets.push(curve[i].equity / curve[i - 1].equity - 1);
+  const n = rets.length;
+  const mean = rets.reduce((s, r) => s + r, 0) / n;
+  const variance = rets.reduce((s, r) => s + (r - mean) ** 2, 0) / n;
+  const std = Math.sqrt(variance);
+  const downsideVar = rets.reduce((s, r) => s + Math.min(0, r) ** 2, 0) / n;
+  const downsideStd = Math.sqrt(downsideVar);
+  const sharpe   = std > 1e-10 ? (mean / std) * Math.sqrt(ann) : 0;
+  const sortino  = downsideStd > 1e-10 ? (mean / downsideStd) * Math.sqrt(ann) : 0;
+  const finalEq  = Math.max(curve[curve.length - 1].equity, 1e-10);
+  const cagrPct  = (Math.pow(finalEq, ann / n) - 1) * 100;
+  return { sharpe, sortino, cagrPct };
 }
 
 // ── trading engine ────────────────────────────────────────────────────────────
@@ -124,6 +145,8 @@ interface TradingDerived {
     totalReturnPct: number; buyHoldReturnPct: number; winRate: number;
     tradeCount: number; profitFactor: number; avgPnlPct: number;
     bestPct: number; worstPct: number; stopOuts: number;
+    cagrPct: number; sharpe: number; sortino: number;
+    bhCagrPct: number; bhSharpe: number; bhSortino: number;
   };
 }
 
@@ -184,6 +207,8 @@ function deriveTrading(
   const grossWin  = wins.reduce((s, t) => s + t.pnlPct, 0);
   const grossLoss = Math.abs(trades.filter(t => t.pnlPct < 0).reduce((s, t) => s + t.pnlPct, 0));
   const lastClose = cs[cs.length - 1].close;
+  const stRatios = calcRatios(equityCurve, data.timeframe);
+  const bhRatios = calcRatios(buyHoldCurve, data.timeframe);
   return {
     trades, equityCurve, buyHoldCurve,
     summary: {
@@ -194,6 +219,8 @@ function deriveTrading(
       bestPct: trades.length ? Math.max(...trades.map(t => t.pnlPct)) : 0,
       worstPct: trades.length ? Math.min(...trades.map(t => t.pnlPct)) : 0,
       stopOuts: trades.filter(t => t.reason === "stop").length,
+      cagrPct: stRatios.cagrPct, sharpe: stRatios.sharpe, sortino: stRatios.sortino,
+      bhCagrPct: bhRatios.cagrPct, bhSharpe: bhRatios.sharpe, bhSortino: bhRatios.sortino,
     },
   };
 }
@@ -202,12 +229,16 @@ function deriveTrading(
 interface InvestingDerived {
   portfolioCurve: CurvePoint[]; bhCurve: CurvePoint[];
   buyEvents: BuyEvent[]; sellEvents: SellEvent[];
-  summary: { totalInvested: number; finalValue: number; returnPct: number; bhReturnPct: number; nBuys: number; weeklyWinRate: number; };
+  summary: {
+    totalInvested: number; finalValue: number; returnPct: number; bhReturnPct: number; nBuys: number;
+    cagrPct: number; sharpe: number; sortino: number;
+    bhCagrPct: number; bhSharpe: number; bhSortino: number;
+  };
 }
 
 function deriveInvesting(
   data: BacktestData,
-  prebuilt: PrebuiltStrategy,
+  prebuilts: ActivePrebuilt[],
   buyConds: Condition[], buyLogic: "AND" | "OR",
   positionSize: number,
 ): InvestingDerived | null {
@@ -218,51 +249,48 @@ function deriveInvesting(
   const portfolioCurve: CurvePoint[] = [], bhCurve: CurvePoint[] = [];
   const buyEvents: BuyEvent[] = [], sellEvents: SellEvent[] = [];
   let accShares = 0;
-  let nomOpenShares = 0, nomOpenPrice = 0, nomRealized = 0;
 
   for (let i = 0; i < cs.length; i++) {
-    const c = cs[i], prev = i > 0 ? cs[i - 1] : null, next = i < cs.length - 1 ? cs[i + 1] : null, prevprev = i > 1 ? cs[i - 2] : null;
+    const c = cs[i];
+    const prev = i > 0 ? cs[i - 1] : null;
+    const next = i < cs.length - 1 ? cs[i + 1] : null;
+    const prevprev = i > 1 ? cs[i - 2] : null;
 
-    if (prebuilt === "nomondays") {
-      const day = new Date(c.time * 1000).getUTCDay();
-      if (nomOpenShares > 0 && (day === 5 || day === 1)) {
-        // Sell on Friday, or force-close an orphaned position before opening a new Monday one
-        const pnlPct = (c.close - nomOpenPrice) / nomOpenPrice * 100;
-        nomRealized += nomOpenShares * c.close;
-        if (day === 5) sellEvents.push({ idx: i, price: c.close, entryPrice: nomOpenPrice, pnlPct, won: pnlPct > 0 });
-        nomOpenShares = 0; nomOpenPrice = 0;
+    // fire each active prebuilt independently with its own weight
+    for (const { strategy, weight } of prebuilts) {
+      if (strategy === "none") continue;
+      if (evalPrebuiltBuy(strategy, c, prev, next, prevprev)) {
+        const cost = positionSize * weight;
+        accShares += cost / c.close;
+        totalInvested += cost;
+        buyEvents.push({ idx: i, price: c.close, weight, strategy });
       }
-      if (day === 1) {
-        nomOpenShares = positionSize / c.close; nomOpenPrice = c.close;
-        totalInvested += positionSize;
-        buyEvents.push({ idx: i, price: c.close });
-      }
-      const pv = nomRealized + nomOpenShares * c.close;
-      portfolioCurve.push({ time: c.time, equity: totalInvested > 0 ? pv / totalInvested : 1 });
-    } else {
-      const prebuiltSig = evalPrebuiltBuy(prebuilt, c, prev, next, prevprev);
-      const techSig     = buyConds.some(x => x.enabled) ? evalGroup(buyConds, buyLogic, c) : false;
-      if (prebuiltSig || techSig) {
-        accShares += positionSize / c.close;
-        totalInvested += positionSize;
-        buyEvents.push({ idx: i, price: c.close });
-      }
-      portfolioCurve.push({ time: c.time, equity: totalInvested > 0 ? (accShares * c.close) / totalInvested : 1 });
     }
+    // technical signals always buy at 1× position size
+    const techSig = buyConds.some(x => x.enabled) ? evalGroup(buyConds, buyLogic, c) : false;
+    if (techSig) {
+      accShares += positionSize / c.close;
+      totalInvested += positionSize;
+      buyEvents.push({ idx: i, price: c.close, weight: 1, strategy: "custom" });
+    }
+
+    portfolioCurve.push({ time: c.time, equity: totalInvested > 0 ? (accShares * c.close) / totalInvested : 1 });
     bhCurve.push({ time: c.time, equity: c.close / firstClose });
   }
 
   const last = cs[cs.length - 1];
-  const finalValue = prebuilt === "nomondays" ? nomRealized + nomOpenShares * last.close : accShares * last.close;
-  const wins = sellEvents.filter(e => e.won).length;
+  const finalValue = accShares * last.close;
+  const stRatios = calcRatios(portfolioCurve, data.timeframe);
+  const bhRatios = calcRatios(bhCurve, data.timeframe);
   return {
     portfolioCurve, bhCurve, buyEvents, sellEvents,
     summary: {
       totalInvested, finalValue,
-      returnPct:     totalInvested > 0 ? (finalValue / totalInvested - 1) * 100 : 0,
-      bhReturnPct:   (last.close / firstClose - 1) * 100,
-      nBuys:         buyEvents.length,
-      weeklyWinRate: sellEvents.length > 0 ? (wins / sellEvents.length) * 100 : 0,
+      returnPct:  totalInvested > 0 ? (finalValue / totalInvested - 1) * 100 : 0,
+      bhReturnPct: (last.close / firstClose - 1) * 100,
+      nBuys: buyEvents.length,
+      cagrPct: stRatios.cagrPct, sharpe: stRatios.sharpe, sortino: stRatios.sortino,
+      bhCagrPct: bhRatios.cagrPct, bhSharpe: bhRatios.sharpe, bhSortino: bhRatios.sortino,
     },
   };
 }
@@ -466,18 +494,40 @@ function IndParamsPanel({ ip, onChange }: { ip: IndicatorParams; onChange: (patc
   );
 }
 
-function PrebuiltPicker({ value, onChange }: { value: PrebuiltStrategy; onChange: (v: PrebuiltStrategy) => void }) {
+function PrebuiltPicker({ value, onChange }: { value: ActivePrebuilt[]; onChange: (v: ActivePrebuilt[]) => void }) {
+  const toggle = (key: PrebuiltStrategy) => {
+    if (key === "none") return;
+    const exists = value.find(p => p.strategy === key);
+    if (exists) onChange(value.filter(p => p.strategy !== key));
+    else onChange([...value, { strategy: key, weight: 1 }]);
+  };
+  const setWeight = (key: PrebuiltStrategy, w: number) => {
+    onChange(value.map(p => p.strategy === key ? { ...p, weight: Math.max(0.1, Math.round(w * 10) / 10) } : p));
+  };
+  const strategies = (Object.entries(PREBUILT_META) as [PrebuiltStrategy, typeof PREBUILT_META[PrebuiltStrategy]][]).filter(([k]) => k !== "none");
   return (
     <div className="overflow-x-auto -mx-4 px-4 md:-mx-5 md:px-5">
       <div className="flex gap-2 pb-1" style={{ minWidth: "max-content" }}>
-        {(Object.entries(PREBUILT_META) as [PrebuiltStrategy, typeof PREBUILT_META[PrebuiltStrategy]][]).map(([key, meta]) => {
-          const active = value === key;
+        {strategies.map(([key, meta]) => {
+          const active = value.some(p => p.strategy === key);
+          const ap = value.find(p => p.strategy === key);
           return (
-            <button key={key} onClick={() => onChange(key)} className="flex flex-col gap-0.5 px-3 py-2 rounded-xl text-left transition-all shrink-0"
-              style={{ background: active ? `${INVEST_ACCENT}18` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? `${INVEST_ACCENT}50` : "rgba(255,255,255,0.07)"}` }}>
+            <div key={key} className="flex flex-col gap-1.5 px-3 py-2 rounded-xl transition-all shrink-0"
+              style={{ background: active ? `${INVEST_ACCENT}18` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? `${INVEST_ACCENT}50` : "rgba(255,255,255,0.07)"}`, cursor: "pointer" }}
+              onClick={() => toggle(key)}>
               <span className="text-[11px] font-semibold leading-tight" style={{ color: active ? INVEST_ACCENT : "rgba(255,255,255,0.55)" }}>{meta.label}</span>
-              <span className="text-[9px] leading-snug" style={{ color: active ? `${INVEST_ACCENT}99` : "rgba(255,255,255,0.28)", maxWidth: 110 }}>{meta.description}</span>
-            </button>
+              <span className="text-[9px] leading-snug" style={{ color: active ? `${INVEST_ACCENT}99` : "rgba(255,255,255,0.28)", maxWidth: 120 }}>{meta.description}</span>
+              {active && ap && (
+                <div className="flex items-center gap-1.5 mt-0.5" onClick={e => e.stopPropagation()}>
+                  <span className="text-[8px] uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.3)" }}>Weight</span>
+                  <input type="number" min={0.1} max={10} step={0.1} value={ap.weight}
+                    onChange={e => setWeight(key, parseFloat(e.target.value) || 1)}
+                    className="w-12 text-center text-[9px] font-mono rounded px-1 py-0.5"
+                    style={{ background: "rgba(255,255,255,0.08)", border: `1px solid ${INVEST_ACCENT}44`, color: INVEST_ACCENT, outline: "none" }} />
+                  <span className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>×</span>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
@@ -507,7 +557,7 @@ export default function StrategyBacktestPage() {
   const [stopAndRev,  setStopAndRev]  = useState(false);
 
   // investing
-  const [prebuilt,       setPrebuilt]       = useState<PrebuiltStrategy>("none");
+  const [prebuilts,      setPrebuilts]      = useState<ActivePrebuilt[]>([]);
   const [investBuyConds, setInvestBuyConds] = useState<Condition[]>([]);
   const [investBuyLogic, setInvestBuyLogic] = useState<"AND"|"OR">("AND");
 
@@ -555,8 +605,8 @@ export default function StrategyBacktestPage() {
 
   const tradingResult = useMemo(() => mode === "trading" && data ? deriveTrading(data, buyConds, buyLogic, shortConds, shortLogic, stopLossPct, stopAndRev) : null,
     [mode, data, buyConds, buyLogic, shortConds, shortLogic, stopLossPct, stopAndRev]);
-  const investResult  = useMemo(() => mode === "investing" && data ? deriveInvesting(data, prebuilt, investBuyConds, investBuyLogic, positionSize) : null,
-    [mode, data, prebuilt, investBuyConds, investBuyLogic, positionSize]);
+  const investResult  = useMemo(() => mode === "investing" && data ? deriveInvesting(data, prebuilts, investBuyConds, investBuyLogic, positionSize) : null,
+    [mode, data, prebuilts, investBuyConds, investBuyLogic, positionSize]);
 
   const sep  = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
   const vsep = <div className="shrink-0" style={{ width: 1, height: 30, background: "rgba(255,255,255,0.06)" }} />;
@@ -675,7 +725,7 @@ export default function StrategyBacktestPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                <PrebuiltPicker value={prebuilt} onChange={setPrebuilt} />
+                <PrebuiltPicker value={prebuilts} onChange={setPrebuilts} />
                 <InvestConditionColumn conditions={investBuyConds} logic={investBuyLogic} ip={ip} onLogicChange={setInvestBuyLogic}
                   onAdd={t => setInvestBuyConds(p => [...p, mkCond(t)])} onConditionChange={patchArr(setInvestBuyConds)} onConditionRemove={removeArr(setInvestBuyConds)} />
               </div>
@@ -752,6 +802,12 @@ export default function StrategyBacktestPage() {
                 <div className="hidden sm:flex items-center gap-5 md:gap-7">
                   {vsep}
                   <Stat label="Best / Worst" value={`${fmtPct(tradingResult.summary.bestPct)} / ${fmtPct(tradingResult.summary.worstPct)}`} />
+                  {vsep}
+                  <Stat label="Strat CAGR" value={fmtPct(tradingResult.summary.cagrPct)} color={tradingResult.summary.cagrPct >= 0 ? "#22c55e" : "#ef4444"} sub="annualised" />
+                  {vsep}
+                  <Stat label="Strat Sharpe" value={tradingResult.summary.sharpe.toFixed(2)} sub={`B&H ${tradingResult.summary.bhSharpe.toFixed(2)}`} />
+                  {vsep}
+                  <Stat label="Strat Sortino" value={tradingResult.summary.sortino.toFixed(2)} sub={`B&H ${tradingResult.summary.bhSortino.toFixed(2)}`} />
                 </div>
               </div>
               <div className="overflow-y-auto" style={{ maxHeight: 168 }}>
@@ -795,89 +851,57 @@ export default function StrategyBacktestPage() {
                 <Stat label="Portfolio" value={fmtDollar(investResult.summary.finalValue)} color={investResult.summary.returnPct >= 0 ? "#34d399" : "#ef4444"}
                   sub={`${fmtPct(investResult.summary.returnPct)} on invested`} />
                 {vsep}
-                <Stat label="Invested" value={fmtDollar(investResult.summary.totalInvested)} sub={`${investResult.summary.nBuys} × ${fmtDollar(positionSize)}`} />
+                <Stat label="Invested" value={fmtDollar(investResult.summary.totalInvested)} sub={`${investResult.summary.nBuys} buys`} />
                 {vsep}
                 <Stat label="B&H Equiv." value={fmtPct(investResult.summary.bhReturnPct)} color={investResult.summary.bhReturnPct >= 0 ? "rgba(52,211,153,0.65)" : "rgba(239,68,68,0.65)"}
                   sub={investResult.summary.returnPct >= investResult.summary.bhReturnPct ? "you beat it" : "you trail it"} />
                 {vsep}
-                <Stat label="B&H Value" value={fmtDollar(investResult.summary.totalInvested * (1 + investResult.summary.bhReturnPct / 100))} sub="same capital held" />
-                {prebuilt === "nomondays" && investResult.sellEvents.length > 0 && (<>
-                  {vsep}
-                  <Stat label="Win Rate" value={`${investResult.summary.weeklyWinRate.toFixed(0)}%`} sub={`${investResult.sellEvents.length} weeks`} />
-                </>)}
+                <Stat label="Strat CAGR" value={fmtPct(investResult.summary.cagrPct)} color={investResult.summary.cagrPct >= 0 ? "#34d399" : "#ef4444"} sub="annualised" />
+                {vsep}
+                <Stat label="Strat Sharpe" value={investResult.summary.sharpe.toFixed(2)} sub={`B&H ${investResult.summary.bhSharpe.toFixed(2)}`} />
+                {vsep}
+                <Stat label="Strat Sortino" value={investResult.summary.sortino.toFixed(2)} sub={`B&H ${investResult.summary.bhSortino.toFixed(2)}`} />
               </div>
               <div className="overflow-y-auto" style={{ maxHeight: 168 }}>
                 {investResult.summary.nBuys === 0 ? (
                   <div className="px-4 py-6 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-                    {prebuilt === "none" ? "No signals — select a pre-built strategy or add technical conditions above." : `No ${PREBUILT_META[prebuilt].label} signals in this window.`}
+                    {"No signals — select a pre-built strategy or add technical conditions above."}
                   </div>
-                ) : prebuilt === "nomondays" ? (
-                  <table className="w-full text-[10px]">
-                    <thead className="sticky top-0" style={{ background: "rgba(10,10,12,0.97)" }}>
-                      <tr style={{ color: "rgba(255,255,255,0.3)" }}>
-                        <th className="text-left font-medium px-4 py-1.5">#</th><th className="text-left font-medium px-2 py-1.5">Monday</th>
-                        <th className="text-right font-medium px-2 py-1.5">Entry $</th><th className="text-left font-medium px-2 py-1.5">Friday</th>
-                        <th className="text-right font-medium px-2 py-1.5">Exit $</th><th className="text-right font-medium px-4 py-1.5">Week P&L</th>
-                      </tr>
-                    </thead>
-                    <tbody className="font-mono">
-                      {investResult.sellEvents.map((s, i) => {
-                        const buy = investResult.buyEvents[i];
-                        return (
-                          <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                            <td className="px-4 py-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>{i + 1}</td>
-                            <td className="px-2 py-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>{buy ? fmtDate(buy.idx >= 0 ? data.candles[buy.idx]?.time ?? 0 : 0) : "—"}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>${s.entryPrice.toFixed(2)}</td>
-                            <td className="px-2 py-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtDate(data.candles[s.idx]?.time ?? 0)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>${s.price.toFixed(2)}</td>
-                            <td className="px-4 py-1.5 text-right font-semibold" style={{ color: s.won ? "#34d399" : "#ef4444" }}>{s.pnlPct >= 0 ? "+" : ""}{s.pnlPct.toFixed(2)}%</td>
-                          </tr>
-                        );
-                      })}
-                      {investResult.buyEvents.length > investResult.sellEvents.length && (() => {
-                        const b = investResult.buyEvents[investResult.buyEvents.length - 1];
-                        const lastClose = data.candles[data.candles.length - 1].close;
-                        const openPnl = (lastClose - b.price) / b.price * 100;
-                        return (
-                          <tr style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                            <td className="px-4 py-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>{investResult.sellEvents.length + 1}</td>
-                            <td className="px-2 py-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtDate(data.candles[b.idx]?.time ?? 0)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>${b.price.toFixed(2)}</td>
-                            <td className="px-2 py-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>open</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>${lastClose.toFixed(2)}</td>
-                            <td className="px-4 py-1.5 text-right font-semibold" style={{ color: openPnl >= 0 ? "#34d399" : "#ef4444" }}>{openPnl >= 0 ? "+" : ""}{openPnl.toFixed(2)}%</td>
-                          </tr>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
                 ) : (
                   <table className="w-full text-[10px]">
                     <thead className="sticky top-0" style={{ background: "rgba(10,10,12,0.97)" }}>
                       <tr style={{ color: "rgba(255,255,255,0.3)" }}>
                         <th className="text-left font-medium px-4 py-1.5">#</th><th className="text-left font-medium px-2 py-1.5">Date</th>
+                        <th className="text-left font-medium px-2 py-1.5">Strategy</th>
                         <th className="text-right font-medium px-2 py-1.5">Buy $</th><th className="text-right font-medium px-2 py-1.5">Shares</th>
                         <th className="text-right font-medium px-2 py-1.5">Cum. Invested</th><th className="text-right font-medium px-2 py-1.5">Now</th>
                         <th className="text-right font-medium px-4 py-1.5">Position Return</th>
                       </tr>
                     </thead>
                     <tbody className="font-mono">
-                      {investResult.buyEvents.map((b, i) => {
+                      {(() => {
                         const lastClose = data.candles[data.candles.length - 1].close;
-                        const shares = positionSize / b.price;
-                        const ret    = (lastClose - b.price) / b.price * 100;
-                        return (
-                          <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                            <td className="px-4 py-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>{i + 1}</td>
-                            <td className="px-2 py-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtDate(data.candles[b.idx]?.time ?? 0)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>${b.price.toFixed(2)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>{shares.toFixed(4)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>{fmtDollar((i + 1) * positionSize)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtDollar(shares * lastClose)}</td>
-                            <td className="px-4 py-1.5 text-right font-semibold" style={{ color: ret >= 0 ? "#34d399" : "#ef4444" }}>{ret >= 0 ? "+" : ""}{ret.toFixed(2)}%</td>
-                          </tr>
-                        );
-                      })}
+                        let cumInvested = 0;
+                        return investResult.buyEvents.map((b, i) => {
+                          const cost   = positionSize * (b.weight ?? 1);
+                          const shares = cost / b.price;
+                          cumInvested += cost;
+                          const ret    = (lastClose - b.price) / b.price * 100;
+                          const stLabel = b.strategy === "custom" ? "Custom" : b.strategy ? (PREBUILT_META[b.strategy as PrebuiltStrategy]?.label ?? b.strategy) : "—";
+                          return (
+                            <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                              <td className="px-4 py-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>{i + 1}</td>
+                              <td className="px-2 py-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtDate(data.candles[b.idx]?.time ?? 0)}</td>
+                              <td className="px-2 py-1.5" style={{ color: "rgba(255,255,255,0.35)", fontSize: 9 }}>{stLabel}{(b.weight ?? 1) !== 1 ? ` ${b.weight}×` : ""}</td>
+                              <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>${b.price.toFixed(2)}</td>
+                              <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>{shares.toFixed(4)}</td>
+                              <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>{fmtDollar(cumInvested)}</td>
+                              <td className="px-2 py-1.5 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtDollar(shares * lastClose)}</td>
+                              <td className="px-4 py-1.5 text-right font-semibold" style={{ color: ret >= 0 ? "#34d399" : "#ef4444" }}>{ret >= 0 ? "+" : ""}{ret.toFixed(2)}%</td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 )}

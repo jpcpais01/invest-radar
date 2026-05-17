@@ -21,7 +21,7 @@ export interface ChartTrade {
 }
 
 /** Investing-mode buy event (DCA accumulation). */
-export interface BuyEvent  { idx: number; price: number; }
+export interface BuyEvent  { idx: number; price: number; weight?: number; strategy?: string; }
 
 /** Investing-mode sell event (e.g. NoMondays weekly exit). */
 export interface SellEvent { idx: number; price: number; entryPrice: number; pnlPct: number; won: boolean; }
