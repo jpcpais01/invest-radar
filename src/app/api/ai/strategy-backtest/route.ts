@@ -57,9 +57,8 @@ export async function GET(req: NextRequest) {
   const rsiPeriod  = Math.min(50,  Math.max(2, parseInt(sp.get("rsiPeriod") ?? "14")));
   const emaFastP   = Math.min(100, Math.max(2, parseInt(sp.get("emaFast")   ?? "9")));
   const emaSlowP   = Math.min(200, Math.max(2, parseInt(sp.get("emaSlow")   ?? "21")));
-  const macdFastP  = Math.min(50,  Math.max(2, parseInt(sp.get("macdFast")  ?? "12")));
-  const macdSlowP  = Math.min(200, Math.max(2, parseInt(sp.get("macdSlow")  ?? "26")));
-  const macdSigP   = Math.min(50,  Math.max(1, parseInt(sp.get("macdSig")   ?? "9")));
+  const smaFastP   = Math.min(100, Math.max(2, parseInt(sp.get("smaFast")   ?? "20")));
+  const smaSlowP   = Math.min(500, Math.max(2, parseInt(sp.get("smaSlow")   ?? "50")));
   const bbPeriod   = Math.min(100, Math.max(2, parseInt(sp.get("bbPeriod")  ?? "20")));
   const stochKP    = Math.min(50,  Math.max(2, parseInt(sp.get("stochK")    ?? "14")));
   const stochDP    = Math.min(20,  Math.max(1, parseInt(sp.get("stochD")    ?? "3")));
@@ -94,10 +93,8 @@ export async function GET(req: NextRequest) {
     const rsiVals   = ti.RSI.calculate({ values: closes, period: rsiPeriod });
     const emaFastV  = ti.EMA.calculate({ values: closes, period: emaFastP });
     const emaSlowV  = ti.EMA.calculate({ values: closes, period: emaSlowP });
-    const macdVals  = ti.MACD.calculate({
-      values: closes, fastPeriod: macdFastP, slowPeriod: macdSlowP, signalPeriod: macdSigP,
-      SimpleMAOscillator: false, SimpleMASignal: false,
-    });
+    const smaFastV  = ti.SMA.calculate({ values: closes, period: smaFastP });
+    const smaSlowV  = ti.SMA.calculate({ values: closes, period: smaSlowP });
     const bbVals    = ti.BollingerBands.calculate({ values: closes, period: bbPeriod, stdDev: 2 });
     const stochVals = ti.Stochastic.calculate({
       high: highs, low: lows, close: closes,
@@ -108,7 +105,8 @@ export async function GET(req: NextRequest) {
     const rsiOff   = rsiPeriod;         // RSI needs period+1 bars for first value
     const emaFOff  = emaFastP - 1;
     const emaSOff  = emaSlowP - 1;
-    const macdOff  = (macdSlowP - 1) + (macdSigP - 1);
+    const smaFOff  = smaFastP - 1;
+    const smaSOff  = smaSlowP - 1;
     const bbOff    = bbPeriod - 1;
     const stochOff = stochKP - 1 + stochDP - 1;
 
@@ -127,7 +125,8 @@ export async function GET(req: NextRequest) {
       const rsi      = getInd(rsiVals,   rsiOff,   bi) ?? null;
       const emaFast  = getInd(emaFastV,  emaFOff,  bi) ?? null;
       const emaSlow  = getInd(emaSlowV,  emaSOff,  bi) ?? null;
-      const macdOut  = getInd(macdVals,  macdOff,  bi);
+      const smaFast  = getInd(smaFastV,  smaFOff,  bi) ?? null;
+      const smaSlow  = getInd(smaSlowV,  smaSOff,  bi) ?? null;
       const bbOut    = getInd(bbVals,    bbOff,    bi);
       const stochOut = getInd(stochVals, stochOff, bi);
 
@@ -135,8 +134,8 @@ export async function GET(req: NextRequest) {
         rsi,
         emaFast,
         emaSlow,
-        macdLine:  macdOut?.MACD    ?? null,
-        macdSig:   macdOut?.signal  ?? null,
+        smaFast,
+        smaSlow,
         bbUpper:   bbOut?.upper     ?? null,
         bbLower:   bbOut?.lower     ?? null,
         stochK:    stochOut?.k      ?? null,
@@ -144,8 +143,8 @@ export async function GET(req: NextRequest) {
         // also carry previous-bar indicator values for cross detection
         prevEmaFast: getInd(emaFastV, emaFOff, bi - 1) ?? null,
         prevEmaSlow: getInd(emaSlowV, emaSOff, bi - 1) ?? null,
-        prevMacdLine: getInd(macdVals, macdOff, bi - 1)?.MACD   ?? null,
-        prevMacdSig:  getInd(macdVals, macdOff, bi - 1)?.signal ?? null,
+        prevSmaFast: getInd(smaFastV, smaFOff, bi - 1) ?? null,
+        prevSmaSlow: getInd(smaSlowV, smaSOff, bi - 1) ?? null,
       };
 
       if (!aiEnabled) {

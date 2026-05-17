@@ -16,7 +16,7 @@ type Timeframe = "1m" | "5m" | "1h" | "1d";
 type ConditionType =
   | "rsi_lt" | "rsi_gt"
   | "ema_cross_up" | "ema_cross_down"
-  | "macd_cross_up" | "macd_cross_down"
+  | "sma_cross_up" | "sma_cross_down"
   | "bb_lower" | "bb_upper"
   | "stoch_lt" | "stoch_gt"
   | "ai_long" | "ai_short";
@@ -33,11 +33,11 @@ interface EnrichedCandle {
   upCount: number; totalPaths: number; confidence: number; analysis: string;
   rsi: number | null;
   emaFast: number | null; emaSlow: number | null;
-  macdLine: number | null; macdSig: number | null;
+  smaFast: number | null; smaSlow: number | null;
   bbUpper: number | null; bbLower: number | null;
   stochK: number | null; stochD: number | null;
   prevEmaFast: number | null; prevEmaSlow: number | null;
-  prevMacdLine: number | null; prevMacdSig: number | null;
+  prevSmaFast: number | null; prevSmaSlow: number | null;
 }
 
 interface BacktestData {
@@ -48,7 +48,7 @@ interface BacktestData {
 
 interface IndicatorParams {
   rsiPeriod: number; emaFast: number; emaSlow: number;
-  macdFast: number; macdSlow: number; macdSig: number;
+  smaFast: number; smaSlow: number;
   bbPeriod: number; stochK: number; stochD: number;
 }
 
@@ -63,8 +63,8 @@ const COND_META: Record<ConditionType, {
   rsi_gt:         { label: "RSI Above",       badge: "RSI",  badgeColor: "#f97316", hasThreshold: true,  thresholdDefault: 70, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `RSI(${ip.rsiPeriod}) > ${c.threshold}` },
   ema_cross_up:   { label: "EMA Cross Up",    badge: "EMA",  badgeColor: "#3b82f6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses above EMA(${ip.emaSlow})` },
   ema_cross_down: { label: "EMA Cross Down",  badge: "EMA",  badgeColor: "#3b82f6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `EMA(${ip.emaFast}) crosses below EMA(${ip.emaSlow})` },
-  macd_cross_up:  { label: "MACD Cross Up",   badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `MACD(${ip.macdFast},${ip.macdSlow},${ip.macdSig}) crosses above signal` },
-  macd_cross_down:{ label: "MACD Cross Down", badge: "MACD", badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `MACD(${ip.macdFast},${ip.macdSlow},${ip.macdSig}) crosses below signal` },
+  sma_cross_up:   { label: "SMA Cross Up",    badge: "SMA",  badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `SMA(${ip.smaFast}) crosses above SMA(${ip.smaSlow})` },
+  sma_cross_down: { label: "SMA Cross Down",  badge: "SMA",  badgeColor: "#8b5cf6", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `SMA(${ip.smaFast}) crosses below SMA(${ip.smaSlow})` },
   bb_lower:       { label: "BB Lower Band",   badge: "BB",   badgeColor: "#06b6d4", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price < BB(${ip.bbPeriod}) lower band` },
   bb_upper:       { label: "BB Upper Band",   badge: "BB",   badgeColor: "#06b6d4", hasThreshold: false, thresholdDefault: 0,  thresholdMin: 0,  thresholdMax: 0,  description: (_c, ip) => `Price > BB(${ip.bbPeriod}) upper band` },
   stoch_lt:       { label: "Stoch Below",     badge: "Stch", badgeColor: "#ec4899", hasThreshold: true,  thresholdDefault: 20, thresholdMin: 5,  thresholdMax: 95, description: (c, ip) => `Stoch(${ip.stochK}) %K < ${c.threshold}` },
@@ -73,8 +73,8 @@ const COND_META: Record<ConditionType, {
   ai_short:       { label: "AI Says Short",   badge: "AI",   badgeColor: "#a78bfa", hasThreshold: true,  thresholdDefault: 60, thresholdMin: 51, thresholdMax: 95, description: (c) => `AI bearish agreement ≥ ${c.threshold}%` },
 };
 
-const BUY_SUGGESTIONS:   ConditionType[] = ["rsi_lt", "ema_cross_up",   "macd_cross_up",   "bb_lower", "stoch_lt", "ai_long"];
-const SHORT_SUGGESTIONS: ConditionType[] = ["rsi_gt", "ema_cross_down", "macd_cross_down", "bb_upper", "stoch_gt", "ai_short"];
+const BUY_SUGGESTIONS:   ConditionType[] = ["rsi_lt", "ema_cross_up",   "sma_cross_up",   "bb_lower", "stoch_lt", "ai_long"];
+const SHORT_SUGGESTIONS: ConditionType[] = ["rsi_gt", "ema_cross_down", "sma_cross_down", "bb_upper", "stoch_gt", "ai_short"];
 
 // ─── signal evaluation ────────────────────────────────────────────────────────
 function evalCondition(cond: Condition, c: EnrichedCandle, aiEnabled: boolean): boolean {
@@ -91,14 +91,14 @@ function evalCondition(cond: Condition, c: EnrichedCandle, aiEnabled: boolean): 
       return c.emaFast != null && c.emaSlow != null
           && c.prevEmaFast != null && c.prevEmaSlow != null
           && c.prevEmaFast >= c.prevEmaSlow && c.emaFast < c.emaSlow;
-    case "macd_cross_up":
-      return c.macdLine != null && c.macdSig != null
-          && c.prevMacdLine != null && c.prevMacdSig != null
-          && c.prevMacdLine <= c.prevMacdSig && c.macdLine > c.macdSig;
-    case "macd_cross_down":
-      return c.macdLine != null && c.macdSig != null
-          && c.prevMacdLine != null && c.prevMacdSig != null
-          && c.prevMacdLine >= c.prevMacdSig && c.macdLine < c.macdSig;
+    case "sma_cross_up":
+      return c.smaFast != null && c.smaSlow != null
+          && c.prevSmaFast != null && c.prevSmaSlow != null
+          && c.prevSmaFast <= c.prevSmaSlow && c.smaFast > c.smaSlow;
+    case "sma_cross_down":
+      return c.smaFast != null && c.smaSlow != null
+          && c.prevSmaFast != null && c.prevSmaSlow != null
+          && c.prevSmaFast >= c.prevSmaSlow && c.smaFast < c.smaSlow;
     case "bb_lower":
       return c.bbLower != null && c.close < c.bbLower;
     case "bb_upper":
@@ -546,15 +546,14 @@ function SignalColumn({
 // ─── indicator params panel ────────────────────────────────────────────────────
 function IndParamsPanel({ ip, onChange }: { ip: IndicatorParams; onChange: (patch: Partial<IndicatorParams>) => void }) {
   return (
-    <div className="grid grid-cols-3 md:grid-cols-9 gap-x-4 gap-y-2 px-4 py-2"
+    <div className="grid grid-cols-3 md:grid-cols-8 gap-x-4 gap-y-2 px-4 py-2"
       style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
       {([
         ["RSI Period", "rsiPeriod", 2,  50],
         ["EMA Fast",   "emaFast",   2,  100],
         ["EMA Slow",   "emaSlow",   2,  200],
-        ["MACD Fast",  "macdFast",  2,  50],
-        ["MACD Slow",  "macdSlow",  2,  200],
-        ["MACD Sig",   "macdSig",   1,  50],
+        ["SMA Fast",   "smaFast",   2,  100],
+        ["SMA Slow",   "smaSlow",   2,  500],
         ["BB Period",  "bbPeriod",  2,  100],
         ["Stoch K",    "stochK",    2,  50],
         ["Stoch D",    "stochD",    1,  20],
@@ -588,7 +587,7 @@ export default function StrategyBacktestPage() {
   // Indicator periods
   const [ip, setIp] = useState<IndicatorParams>({
     rsiPeriod: 14, emaFast: 9, emaSlow: 21,
-    macdFast: 12, macdSlow: 26, macdSig: 9,
+    smaFast: 20, smaSlow: 50,
     bbPeriod: 20, stochK: 14, stochD: 3,
   });
   const [indParamsOpen, setIndParamsOpen] = useState(false);
@@ -629,7 +628,7 @@ export default function StrategyBacktestPage() {
         aiEnabled: String(aiEnabled),
         rsiPeriod: String(ip.rsiPeriod), emaFast: String(ip.emaFast),
         emaSlow: String(ip.emaSlow),
-        macdFast: String(ip.macdFast), macdSlow: String(ip.macdSlow), macdSig: String(ip.macdSig),
+        smaFast: String(ip.smaFast), smaSlow: String(ip.smaSlow),
         bbPeriod: String(ip.bbPeriod), stochK: String(ip.stochK), stochD: String(ip.stochD),
       });
       const res  = await fetch(`/api/ai/strategy-backtest?${params}`);
