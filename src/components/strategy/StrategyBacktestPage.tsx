@@ -570,7 +570,7 @@ export default function StrategyBacktestPage() {
   const { activeTicker, setActiveTicker } = useTickerStore();
 
   const [mode,      setMode]      = useState<Mode>("investing");
-  const [ticker,    setTicker]    = useState(activeTicker || "AAPL");
+  const [ticker,    setTicker]    = useState(activeTicker || "QQQ");
   const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [nWindow,   setNWindow]   = useState(300);
   const [positionSize, setPosSize] = useState(100);
