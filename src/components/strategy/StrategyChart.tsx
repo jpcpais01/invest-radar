@@ -100,33 +100,23 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
       return { eq, y: y(eq), label: `${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(0)}%` };
     });
 
-    // ratio: strat % pnl / dca % pnl — only in investing mode
-    const ratioVals: (number | null)[] = equityCurve.map((p, i) => {
-      const dhPnl = buyHoldCurve[i].equity - 1;
-      if (Math.abs(dhPnl) < 0.005) return null;
-      const r = (p.equity - 1) / dhPnl;
-      return isFinite(r) && Math.abs(r) < 50 ? r : null;
-    });
-    const validRatios = ratioVals.filter((r): r is number => r !== null);
-    let rLo = Math.min(...(validRatios.length ? validRatios : [0]), 0);
-    let rHi = Math.max(...(validRatios.length ? validRatios : [2]), 2);
-    const rSpan = rHi - rLo || 0.5;
+    // alpha: strat % pnl minus dca % pnl (percentage-point outperformance)
+    const ratioVals: number[] = equityCurve.map((p, i) =>
+      (p.equity - buyHoldCurve[i].equity) * 100
+    );
+    let rLo = Math.min(...ratioVals);
+    let rHi = Math.max(...ratioVals);
+    const rSpan = rHi - rLo || 1;
     rLo -= rSpan * 0.12; rHi += rSpan * 0.12;
     const yRatio = (r: number) => PAD.t + (1 - (r - rLo) / (rHi - rLo)) * innerH;
-    const ratioPathParts: string[] = [];
-    let moveNext = true;
-    for (let i = 0; i < n; i++) {
-      const r = ratioVals[i];
-      if (r === null) { moveNext = true; continue; }
-      ratioPathParts.push(`${moveNext ? "M" : "L"}${x(i).toFixed(1)},${yRatio(r).toFixed(1)}`);
-      moveNext = false;
-    }
-    const ratioPath = ratioPathParts.join(" ");
+    const ratioPath = ratioVals
+      .map((r, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yRatio(r).toFixed(1)}`)
+      .join(" ");
     const ratioTicks = Array.from({ length: 4 }, (_, i) => {
       const r = rLo + (i / 3) * (rHi - rLo);
-      return { r, y: yRatio(r), label: `${r.toFixed(1)}x` };
+      return { r, y: yRatio(r), label: `${r >= 0 ? "+" : ""}${r.toFixed(0)}%` };
     });
-    const ratioOne = rLo < 1 && rHi > 1 ? yRatio(1) : null;
+    const ratioOne = rLo < 0 && rHi > 0 ? yRatio(0) : null;
 
     return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, ratioTicks, ratioOne, yRatio };
   }, [size, equityCurve, buyHoldCurve]);
@@ -295,13 +285,10 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                   stroke="#080808" strokeWidth="1.5" />
                 <circle cx={hx} cy={geom.y(bh)} r="2.8" fill="rgba(255,255,255,0.55)"
                   stroke="#080808" strokeWidth="1.25" />
-                {isInvesting && (() => {
-                  const rv = geom.ratioVals[hoverI];
-                  return rv != null ? (
-                    <circle cx={hx} cy={geom.yRatio(rv)} r="2.8" fill="#a78bfa"
-                      stroke="#080808" strokeWidth="1.25" opacity="0.9" />
-                  ) : null;
-                })()}
+                {isInvesting && (
+                  <circle cx={hx} cy={geom.yRatio(geom.ratioVals[hoverI])} r="2.8" fill="#a78bfa"
+                    stroke="#080808" strokeWidth="1.25" opacity="0.9" />
+                )}
               </g>
             );
           })()}
@@ -341,9 +328,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
             <Row label={buyHoldLabel} value={`${bh >= 1 ? "+" : ""}${((bh - 1) * 100).toFixed(1)}%`} />
             {isInvesting && (() => {
               const rv = geom.ratioVals[hoverI];
-              return rv != null ? (
-                <Row label="Strat/DCA ratio" value={`${rv.toFixed(2)}x`} accent />
-              ) : null;
+              return <Row label="Strat − DCA" value={`${rv >= 0 ? "+" : ""}${rv.toFixed(1)}pp`} accent />;
             })()}
             {isInvesting && sharePrice != null && (
               <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
