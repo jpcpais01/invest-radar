@@ -50,8 +50,11 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
   const isInvesting = buyEvents.length > 0 || sellEvents.length > 0;
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [size, setSize]     = useState<{ w: number; h: number } | null>(null);
-  const [hoverI, setHoverI] = useState<number | null>(null);
+  const [size, setSize]       = useState<{ w: number; h: number } | null>(null);
+  const [hoverI, setHoverI]   = useState<number | null>(null);
+  const [showStrat, setShowStrat] = useState(true);
+  const [showBH,    setShowBH]    = useState(true);
+  const [showAlpha, setShowAlpha] = useState(true);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -137,8 +140,10 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
     setHoverI(best);
   };
 
+  const bhLabel = isInvesting ? "UniformDCA" : "B&H";
+
   return (
-    <div ref={wrapRef} className="w-full h-full" style={{ background: "#080808" }}>
+    <div ref={wrapRef} className="relative w-full h-full" style={{ background: "#080808" }}>
       {geom && (
         <svg
           width={geom.w} height={geom.h}
@@ -182,12 +187,14 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
           })}
 
           {/* buy & hold */}
-          <path d={geom.bhPath} fill="none"
-            stroke="rgba(255,255,255,0.30)" strokeWidth="1.25" strokeDasharray="4,4"
-            strokeLinecap="round" strokeLinejoin="round" />
+          {showBH && (
+            <path d={geom.bhPath} fill="none"
+              stroke="rgba(255,255,255,0.30)" strokeWidth="1.25" strokeDasharray="4,4"
+              strokeLinecap="round" strokeLinejoin="round" />
+          )}
 
-          {/* ratio line + right axis (investing mode) */}
-          {isInvesting && (
+          {/* alpha line + right axis (investing mode) */}
+          {isInvesting && showAlpha && (
             <>
               {geom.ratioOne != null && (
                 <line x1={PAD.l} y1={geom.ratioOne} x2={geom.w - PAD.r} y2={geom.ratioOne}
@@ -205,10 +212,14 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
           )}
 
           {/* strategy area + line */}
-          <path d={geom.areaPath} fill={`url(#${uid}area)`} stroke="none" />
-          <path d={geom.stratPath} fill="none"
-            stroke={stratColor} strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round" />
+          {showStrat && (
+            <>
+              <path d={geom.areaPath} fill={`url(#${uid}area)`} stroke="none" />
+              <path d={geom.stratPath} fill="none"
+                stroke={stratColor} strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round" />
+            </>
+          )}
 
           {/* trade markers */}
           {trades.map((t, i) => {
@@ -281,11 +292,11 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
               <g>
                 <line x1={hx} y1={PAD.t} x2={hx} y2={geom.h - PAD.b}
                   stroke="rgba(255,255,255,0.16)" strokeWidth="1" />
-                <circle cx={hx} cy={geom.y(eq)} r="3.5" fill={stratColor}
-                  stroke="#080808" strokeWidth="1.5" />
-                <circle cx={hx} cy={geom.y(bh)} r="2.8" fill="rgba(255,255,255,0.55)"
-                  stroke="#080808" strokeWidth="1.25" />
-                {isInvesting && (
+                {showStrat && <circle cx={hx} cy={geom.y(eq)} r="3.5" fill={stratColor}
+                  stroke="#080808" strokeWidth="1.5" />}
+                {showBH && <circle cx={hx} cy={geom.y(bh)} r="2.8" fill="rgba(255,255,255,0.55)"
+                  stroke="#080808" strokeWidth="1.25" />}
+                {isInvesting && showAlpha && (
                   <circle cx={hx} cy={geom.yRatio(geom.ratioVals[hoverI])} r="2.8" fill="#a78bfa"
                     stroke="#080808" strokeWidth="1.25" opacity="0.9" />
                 )}
@@ -394,7 +405,34 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
           </div>
         );
       })()}
+
+      {/* line toggles */}
+      <div className="absolute flex items-center gap-1" style={{ top: 6, left: PAD.l }}>
+        <Toggle active={showStrat} color={stratColor}    label="Strat"      onClick={() => setShowStrat(v => !v)} />
+        <Toggle active={showBH}    color="rgba(255,255,255,0.55)" label={bhLabel} onClick={() => setShowBH(v => !v)} />
+        {isInvesting && (
+          <Toggle active={showAlpha} color="#a78bfa" label="Alpha" onClick={() => setShowAlpha(v => !v)} />
+        )}
+      </div>
     </div>
+  );
+}
+
+function Toggle({ active, color, label, onClick }: { active: boolean; color: string; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1 px-1.5 py-0.5 rounded transition-all"
+      style={{
+        background: active ? "rgba(255,255,255,0.06)" : "transparent",
+        border: "1px solid rgba(255,255,255,0.07)",
+        opacity: active ? 1 : 0.35,
+        cursor: "pointer",
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: 2, background: color, display: "inline-block", flexShrink: 0 }} />
+      <span style={{ fontSize: 9, fontFamily: "ui-monospace, monospace", color: "rgba(255,255,255,0.55)", letterSpacing: "0.04em" }}>{label}</span>
+    </button>
   );
 }
 
