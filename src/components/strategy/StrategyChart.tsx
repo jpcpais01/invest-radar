@@ -57,6 +57,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
   const [showAlpha,    setShowAlpha]    = useState(true);
   const [showStratVal, setShowStratVal] = useState(false);
   const [showDCAVal,   setShowDCAVal]   = useState(false);
+  const [showValDiff,  setShowValDiff]  = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -133,7 +134,14 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
     const stratValPath = stratValues.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yVal(v).toFixed(1)}`).join(" ");
     const dcaValPath   = dcaValues.map((v, i)   => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yVal(v).toFixed(1)}`).join(" ");
 
-    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, ratioTicks, ratioOne, yRatio, stratValues, dcaValues, stratValPath, dcaValPath, yVal };
+    const diffValues = stratValues.map((v, i) => v - dcaValues[i]);
+    const diffLo = Math.min(...diffValues); const diffHi = Math.max(...diffValues);
+    const diffSpan = diffHi - diffLo || 1;
+    const yDiff = (v: number) => PAD.t + (1 - (v - diffLo) / diffSpan) * innerH;
+    const diffValPath = diffValues.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yDiff(v).toFixed(1)}`).join(" ");
+    const diffZero = diffLo < 0 && diffHi > 0 ? yDiff(0) : null;
+
+    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, ratioTicks, ratioOne, yRatio, stratValues, dcaValues, stratValPath, dcaValPath, yVal, diffValues, diffValPath, yDiff, diffZero };
   }, [size, equityCurve, buyHoldCurve]);
 
   const finalEquity = equityCurve[equityCurve.length - 1]?.equity ?? 1;
@@ -220,6 +228,19 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                   fontSize="9" fontFamily="ui-monospace, monospace"
                   fill="rgba(167,139,250,0.45)">{t.label}</text>
               ))}
+            </>
+          )}
+
+          {/* strat $ minus DCA $ diff line */}
+          {isInvesting && showValDiff && (
+            <>
+              {geom.diffZero != null && (
+                <line x1={PAD.l} y1={geom.diffZero} x2={geom.w - PAD.r} y2={geom.diffZero}
+                  stroke="rgba(251,191,36,0.18)" strokeWidth="1" strokeDasharray="3,3" />
+              )}
+              <path d={geom.diffValPath} fill="none"
+                stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="5,3"
+                strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
             </>
           )}
 
@@ -328,6 +349,10 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                   <circle cx={hx} cy={geom.yVal(geom.dcaValues[hoverI])} r="2.5" fill="rgba(255,255,255,0.55)"
                     stroke="#080808" strokeWidth="1.25" opacity="0.7" />
                 )}
+                {isInvesting && showValDiff && (
+                  <circle cx={hx} cy={geom.yDiff(geom.diffValues[hoverI])} r="2.5" fill="#fbbf24"
+                    stroke="#080808" strokeWidth="1.25" opacity="0.9" />
+                )}
                 {isInvesting && showAlpha && (
                   <circle cx={hx} cy={geom.yRatio(geom.ratioVals[hoverI])} r="2.8" fill="#a78bfa"
                     stroke="#080808" strokeWidth="1.25" opacity="0.9" />
@@ -373,14 +398,16 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
               const rv = geom.ratioVals[hoverI];
               return <Row label="Strat − DCA" value={`${rv >= 0 ? "+" : ""}${rv.toFixed(1)}pp`} accent />;
             })()}
-            {isInvesting && (showStratVal || showDCAVal) && (() => {
+            {isInvesting && (showStratVal || showDCAVal || showValDiff) && (() => {
               const sv = geom.stratValues[hoverI];
               const dv = geom.dcaValues[hoverI];
+              const diff = geom.diffValues[hoverI];
               const fmt = (v: number) => v >= 1e6 ? `$${(v/1e6).toFixed(2)}M` : v >= 1e3 ? `$${(v/1e3).toFixed(1)}k` : `$${v.toFixed(2)}`;
               return (
                 <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
                   {showStratVal && <Row label="Strat value" value={fmt(sv)} bright />}
                   {showDCAVal   && <Row label="DCA value"   value={fmt(dv)} />}
+                  {showValDiff  && <Row label="Strat − DCA $" value={`${diff >= 0 ? "+" : ""}${fmt(diff)}`} accent2 />}
                 </div>
               );
             })()}
@@ -462,6 +489,9 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
         {isInvesting && (
           <Toggle active={showDCAVal}   color="rgba(255,255,255,0.55)"     label="DCA $"     onClick={() => setShowDCAVal(v => !v)} />
         )}
+        {isInvesting && (
+          <Toggle active={showValDiff}  color="#fbbf24"                    label="$ Diff"    onClick={() => setShowValDiff(v => !v)} />
+        )}
       </div>
     </div>
   );
@@ -485,12 +515,12 @@ function Toggle({ active, color, label, onClick }: { active: boolean; color: str
   );
 }
 
-function Row({ label, value, bright, accent }: { label: string; value: string; bright?: boolean; accent?: boolean }) {
+function Row({ label, value, bright, accent, accent2 }: { label: string; value: string; bright?: boolean; accent?: boolean; accent2?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 leading-tight">
       <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.32)" }}>{label}</span>
       <span className="text-[10px] font-mono"
-        style={{ color: accent ? "#a78bfa" : bright ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)" }}>{value}</span>
+        style={{ color: accent2 ? "#fbbf24" : accent ? "#a78bfa" : bright ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)" }}>{value}</span>
     </div>
   );
 }
