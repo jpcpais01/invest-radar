@@ -16,7 +16,8 @@ type PrebuiltStrategy =
   | "none" | "fridayyy"
   | "buythedip" | "buytheddip" | "buythedddip"
   | "firstofmonth" | "lastofmonth"
-  | "rsi50orless";
+  | "rsi50orless"
+  | "rsi40orless";
 
 interface ActivePrebuilt { strategy: PrebuiltStrategy; weight: number; }
 
@@ -61,6 +62,7 @@ const PREBUILT_META: Record<PrebuiltStrategy, { label: string; description: stri
   firstofmonth: { label: "FirstOfMonth",  description: "Buy on the first trading day of each month"          },
   lastofmonth:  { label: "LastOfMonth",   description: "Buy on the last trading day of each month"           },
   rsi50orless:  { label: "BuyOnRSI50−",  description: "Buy every candle where RSI ≤ 50"                     },
+  rsi40orless:  { label: "BuyOnRSI40−",  description: "Buy every candle where RSI ≤ 40"                     },
 };
 
 const COND_META: Record<ConditionType, {
@@ -118,6 +120,7 @@ function evalPrebuiltBuy(s: PrebuiltStrategy, c: EnrichedCandle, prev: EnrichedC
     case "buytheddip":   return prev != null && c.close < prev.close && prevprev != null && prev.close < prevprev.close;
     case "buythedddip":  return prev != null && c.close < prev.close && prevprev != null && prev.close < prevprev.close && prevprevprev != null && prevprev.close < prevprevprev.close;
     case "rsi50orless":  return c.rsi != null && c.rsi <= 50;
+    case "rsi40orless":  return c.rsi != null && c.rsi <= 40;
     case "firstofmonth": return !prev || new Date(prev.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
     case "lastofmonth":  return !next || new Date(next.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
   }
