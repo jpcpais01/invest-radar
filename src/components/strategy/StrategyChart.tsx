@@ -62,7 +62,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
     return () => ro.disconnect();
   }, []);
 
-  const PAD = { t: 26, r: 16, b: 30, l: 52 };
+  const PAD = { t: 26, r: isInvesting ? 48 : 16, b: 30, l: 52 };
 
   // map candle index → trade events that start / end there
   const events = useMemo(() => {
@@ -100,7 +100,35 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
       return { eq, y: y(eq), label: `${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(0)}%` };
     });
 
-    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n };
+    // ratio: strat % pnl / dca % pnl — only in investing mode
+    const ratioVals: (number | null)[] = equityCurve.map((p, i) => {
+      const dhPnl = buyHoldCurve[i].equity - 1;
+      if (Math.abs(dhPnl) < 0.005) return null;
+      const r = (p.equity - 1) / dhPnl;
+      return isFinite(r) && Math.abs(r) < 50 ? r : null;
+    });
+    const validRatios = ratioVals.filter((r): r is number => r !== null);
+    let rLo = Math.min(...(validRatios.length ? validRatios : [0]), 0);
+    let rHi = Math.max(...(validRatios.length ? validRatios : [2]), 2);
+    const rSpan = rHi - rLo || 0.5;
+    rLo -= rSpan * 0.12; rHi += rSpan * 0.12;
+    const yRatio = (r: number) => PAD.t + (1 - (r - rLo) / (rHi - rLo)) * innerH;
+    const ratioPathParts: string[] = [];
+    let moveNext = true;
+    for (let i = 0; i < n; i++) {
+      const r = ratioVals[i];
+      if (r === null) { moveNext = true; continue; }
+      ratioPathParts.push(`${moveNext ? "M" : "L"}${x(i).toFixed(1)},${yRatio(r).toFixed(1)}`);
+      moveNext = false;
+    }
+    const ratioPath = ratioPathParts.join(" ");
+    const ratioTicks = Array.from({ length: 4 }, (_, i) => {
+      const r = rLo + (i / 3) * (rHi - rLo);
+      return { r, y: yRatio(r), label: `${r.toFixed(1)}x` };
+    });
+    const ratioOne = rLo < 1 && rHi > 1 ? yRatio(1) : null;
+
+    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, ratioTicks, ratioOne, yRatio };
   }, [size, equityCurve, buyHoldCurve]);
 
   const finalEquity = equityCurve[equityCurve.length - 1]?.equity ?? 1;
@@ -167,6 +195,24 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
           <path d={geom.bhPath} fill="none"
             stroke="rgba(255,255,255,0.30)" strokeWidth="1.25" strokeDasharray="4,4"
             strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* ratio line + right axis (investing mode) */}
+          {isInvesting && (
+            <>
+              {geom.ratioOne != null && (
+                <line x1={PAD.l} y1={geom.ratioOne} x2={geom.w - PAD.r} y2={geom.ratioOne}
+                  stroke="rgba(167,139,250,0.18)" strokeWidth="1" strokeDasharray="3,3" />
+              )}
+              <path d={geom.ratioPath} fill="none"
+                stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="5,3"
+                strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+              {geom.ratioTicks.map((t, i) => (
+                <text key={`rt${i}`} x={geom.w - PAD.r + 6} y={t.y + 3} textAnchor="start"
+                  fontSize="9" fontFamily="ui-monospace, monospace"
+                  fill="rgba(167,139,250,0.45)">{t.label}</text>
+              ))}
+            </>
+          )}
 
           {/* strategy area + line */}
           <path d={geom.areaPath} fill={`url(#${uid}area)`} stroke="none" />
@@ -249,6 +295,13 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                   stroke="#080808" strokeWidth="1.5" />
                 <circle cx={hx} cy={geom.y(bh)} r="2.8" fill="rgba(255,255,255,0.55)"
                   stroke="#080808" strokeWidth="1.25" />
+                {isInvesting && (() => {
+                  const rv = geom.ratioVals[hoverI];
+                  return rv != null ? (
+                    <circle cx={hx} cy={geom.yRatio(rv)} r="2.8" fill="#a78bfa"
+                      stroke="#080808" strokeWidth="1.25" opacity="0.9" />
+                  ) : null;
+                })()}
               </g>
             );
           })()}
@@ -286,6 +339,12 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
             </div>
             <Row label={equityLabel} value={`${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(1)}%`} bright />
             <Row label={buyHoldLabel} value={`${bh >= 1 ? "+" : ""}${((bh - 1) * 100).toFixed(1)}%`} />
+            {isInvesting && (() => {
+              const rv = geom.ratioVals[hoverI];
+              return rv != null ? (
+                <Row label="Strat/DCA ratio" value={`${rv.toFixed(2)}x`} accent />
+              ) : null;
+            })()}
             {isInvesting && sharePrice != null && (
               <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
                 <Row label="Share price"   value={`$${sharePrice.toFixed(2)}`} />
@@ -354,12 +413,12 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
   );
 }
 
-function Row({ label, value, bright }: { label: string; value: string; bright?: boolean }) {
+function Row({ label, value, bright, accent }: { label: string; value: string; bright?: boolean; accent?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 leading-tight">
       <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.32)" }}>{label}</span>
       <span className="text-[10px] font-mono"
-        style={{ color: bright ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)" }}>{value}</span>
+        style={{ color: accent ? "#a78bfa" : bright ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)" }}>{value}</span>
     </div>
   );
 }
