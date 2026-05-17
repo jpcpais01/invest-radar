@@ -14,7 +14,7 @@ type Mode = "trading" | "investing";
 type Timeframe = "1m" | "5m" | "1h" | "1d";
 type PrebuiltStrategy =
   | "none" | "fridayyy"
-  | "buythedip" | "buytheddip"
+  | "buythedip" | "buytheddip" | "buythedddip"
   | "firstofmonth" | "lastofmonth";
 
 interface ActivePrebuilt { strategy: PrebuiltStrategy; weight: number; }
@@ -56,6 +56,7 @@ const PREBUILT_META: Record<PrebuiltStrategy, { label: string; description: stri
   fridayyy:     { label: "Fridayyy",      description: "Buy every Thursday close"                            },
   buythedip:    { label: "BuyTheDip",     description: "Buy every negative-day close"                        },
   buytheddip:   { label: "BuyTheDDip",    description: "Buy after 2 consecutive down-day closes"             },
+  buythedddip:  { label: "BuyTheDDDip",   description: "Buy after 3 consecutive down-day closes"             },
   firstofmonth: { label: "FirstOfMonth",  description: "Buy on the first trading day of each month"          },
   lastofmonth:  { label: "LastOfMonth",   description: "Buy on the last trading day of each month"           },
 };
@@ -105,13 +106,14 @@ function evalGroup(conditions: Condition[], logic: "AND" | "OR", c: EnrichedCand
   return logic === "AND" ? active.every(x => evalCondition(x, c)) : active.some(x => evalCondition(x, c));
 }
 
-function evalPrebuiltBuy(s: PrebuiltStrategy, c: EnrichedCandle, prev: EnrichedCandle | null, next: EnrichedCandle | null, prevprev: EnrichedCandle | null): boolean {
+function evalPrebuiltBuy(s: PrebuiltStrategy, c: EnrichedCandle, prev: EnrichedCandle | null, next: EnrichedCandle | null, prevprev: EnrichedCandle | null, prevprevprev: EnrichedCandle | null): boolean {
   if (s === "none") return false;
   const day = new Date(c.time * 1000).getUTCDay();
   switch (s) {
     case "fridayyy":     return day === 4;
     case "buythedip":    return prev != null && c.close < prev.close;
     case "buytheddip":   return prev != null && c.close < prev.close && prevprev != null && prev.close < prevprev.close;
+    case "buythedddip":  return prev != null && c.close < prev.close && prevprev != null && prev.close < prevprev.close && prevprevprev != null && prevprev.close < prevprevprev.close;
     case "firstofmonth": return !prev || new Date(prev.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
     case "lastofmonth":  return !next || new Date(next.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
   }
@@ -241,10 +243,10 @@ function deriveInvesting(
   prebuilts: ActivePrebuilt[],
   buyConds: Condition[], buyLogic: "AND" | "OR",
   positionSize: number,
+  techWeight: number,
 ): InvestingDerived | null {
   const cs = data.candles;
   if (cs.length < 2) return null;
-  const firstClose = cs[0].close;
   let totalInvested = 0;
   const portfolioCurve: CurvePoint[] = [], bhCurve: CurvePoint[] = [];
   const buyEvents: BuyEvent[] = [], sellEvents: SellEvent[] = [];
@@ -252,26 +254,28 @@ function deriveInvesting(
 
   for (let i = 0; i < cs.length; i++) {
     const c = cs[i];
-    const prev = i > 0 ? cs[i - 1] : null;
-    const next = i < cs.length - 1 ? cs[i + 1] : null;
-    const prevprev = i > 1 ? cs[i - 2] : null;
+    const prev       = i > 0 ? cs[i - 1] : null;
+    const next       = i < cs.length - 1 ? cs[i + 1] : null;
+    const prevprev   = i > 1 ? cs[i - 2] : null;
+    const prevprevprev = i > 2 ? cs[i - 3] : null;
 
     // fire each active prebuilt independently with its own weight
     for (const { strategy, weight } of prebuilts) {
       if (strategy === "none") continue;
-      if (evalPrebuiltBuy(strategy, c, prev, next, prevprev)) {
+      if (evalPrebuiltBuy(strategy, c, prev, next, prevprev, prevprevprev)) {
         const cost = positionSize * weight;
         accShares += cost / c.close;
         totalInvested += cost;
         buyEvents.push({ idx: i, price: c.close, weight, strategy });
       }
     }
-    // technical signals always buy at 1× position size
+    // technical signals buy at techWeight × position size
     const techSig = buyConds.some(x => x.enabled) ? evalGroup(buyConds, buyLogic, c) : false;
     if (techSig) {
-      accShares += positionSize / c.close;
-      totalInvested += positionSize;
-      buyEvents.push({ idx: i, price: c.close, weight: 1, strategy: "custom" });
+      const cost = positionSize * techWeight;
+      accShares += cost / c.close;
+      totalInvested += cost;
+      buyEvents.push({ idx: i, price: c.close, weight: techWeight, strategy: "custom" });
     }
 
     portfolioCurve.push({ time: c.time, equity: totalInvested > 0 ? (accShares * c.close) / totalInvested : 1 });
@@ -418,7 +422,7 @@ function AddSignalMenu({ suggestions, accent, alignRight, onAdd }: { suggestions
       </button>
       {open && (
         <div className="absolute top-full mt-1 z-50 rounded-xl overflow-hidden"
-          style={{ ...(alignRight ? { right: 0 } : { left: 0 }), background: "rgba(14,14,16,0.98)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 220 }}>
+          style={{ right: 0, background: "rgba(14,14,16,0.98)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 220 }}>
           <div className="px-3 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.22)" }}>Signals</div>
           {suggestions.map(t => {
             const m = COND_META[t];
@@ -465,17 +469,28 @@ function SignalColumn({ side, conditions, logic, ip, accent, onLogicChange, onAd
   );
 }
 
-function InvestConditionColumn({ conditions, logic, ip, onLogicChange, onAdd, onConditionChange, onConditionRemove }: {
-  conditions: Condition[]; logic: "AND"|"OR"; ip: IndicatorParams;
+function InvestConditionColumn({ conditions, logic, ip, weight, onLogicChange, onAdd, onConditionChange, onConditionRemove, onWeightChange }: {
+  conditions: Condition[]; logic: "AND"|"OR"; ip: IndicatorParams; weight: number;
   onLogicChange: (v: "AND"|"OR") => void; onAdd: (t: ConditionType) => void;
   onConditionChange: (id: string, p: Partial<Condition>) => void; onConditionRemove: (id: string) => void;
+  onWeightChange: (v: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5 min-w-0">
       <div className="flex items-center gap-2">
         <TrendingUp className="w-3 h-3 shrink-0" style={{ color: INVEST_ACCENT }} />
-        <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0" style={{ color: INVEST_ACCENT }}>Additional Buy Signal</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0" style={{ color: INVEST_ACCENT }}>Technical Signal</span>
         {conditions.length > 1 && <LogicToggle value={logic} onChange={onLogicChange} />}
+        {conditions.length > 0 && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[8px] uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.3)" }}>Weight</span>
+            <input type="number" min={0.1} max={10} step={0.1} value={weight}
+              onChange={e => onWeightChange(Math.max(0.1, Math.round((parseFloat(e.target.value) || 1) * 10) / 10))}
+              className="w-12 text-center text-[9px] font-mono rounded px-1 py-0.5"
+              style={{ background: "rgba(255,255,255,0.08)", border: `1px solid ${INVEST_ACCENT}44`, color: INVEST_ACCENT, outline: "none" }} />
+            <span className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>×</span>
+          </div>
+        )}
         <div className="ml-auto"><AddSignalMenu suggestions={INVEST_SUGGESTIONS} accent={INVEST_ACCENT} onAdd={onAdd} /></div>
       </div>
       {conditions.length === 0 ? (
@@ -571,6 +586,7 @@ export default function StrategyBacktestPage() {
   const [prebuilts,      setPrebuilts]      = useState<ActivePrebuilt[]>([]);
   const [investBuyConds, setInvestBuyConds] = useState<Condition[]>([]);
   const [investBuyLogic, setInvestBuyLogic] = useState<"AND"|"OR">("AND");
+  const [techWeight,     setTechWeight]     = useState(1);
 
   const [loading,     setLoading]     = useState(false);
   const [data,        setData]        = useState<BacktestData | null>(null);
@@ -616,8 +632,8 @@ export default function StrategyBacktestPage() {
 
   const tradingResult = useMemo(() => mode === "trading" && data ? deriveTrading(data, buyConds, buyLogic, shortConds, shortLogic, stopLossPct, stopAndRev) : null,
     [mode, data, buyConds, buyLogic, shortConds, shortLogic, stopLossPct, stopAndRev]);
-  const investResult  = useMemo(() => mode === "investing" && data ? deriveInvesting(data, prebuilts, investBuyConds, investBuyLogic, positionSize) : null,
-    [mode, data, prebuilts, investBuyConds, investBuyLogic, positionSize]);
+  const investResult  = useMemo(() => mode === "investing" && data ? deriveInvesting(data, prebuilts, investBuyConds, investBuyLogic, positionSize, techWeight) : null,
+    [mode, data, prebuilts, investBuyConds, investBuyLogic, positionSize, techWeight]);
 
   const sep  = <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.07)", flexShrink: 0 }} />;
   const vsep = <div className="shrink-0" style={{ width: 1, height: 30, background: "rgba(255,255,255,0.06)" }} />;
@@ -737,7 +753,8 @@ export default function StrategyBacktestPage() {
             ) : (
               <div className="flex flex-col gap-3">
                 <PrebuiltPicker value={prebuilts} onChange={setPrebuilts} />
-                <InvestConditionColumn conditions={investBuyConds} logic={investBuyLogic} ip={ip} onLogicChange={setInvestBuyLogic}
+                <InvestConditionColumn conditions={investBuyConds} logic={investBuyLogic} ip={ip} weight={techWeight}
+                  onLogicChange={setInvestBuyLogic} onWeightChange={setTechWeight}
                   onAdd={t => setInvestBuyConds(p => [...p, mkCond(t)])} onConditionChange={patchArr(setInvestBuyConds)} onConditionRemove={removeArr(setInvestBuyConds)} />
               </div>
             )}
