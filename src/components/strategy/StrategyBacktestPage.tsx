@@ -275,19 +275,30 @@ function deriveInvesting(
     }
 
     portfolioCurve.push({ time: c.time, equity: totalInvested > 0 ? (accShares * c.close) / totalInvested : 1 });
-    bhCurve.push({ time: c.time, equity: c.close / firstClose });
+  }
+
+  // Build uniform-DCA baseline: same total capital spread evenly across every candle.
+  // Both curves now have identical denominators, so the comparison answers purely
+  // "did signal timing beat buying the same amount every candle?"
+  const perCandle = totalInvested > 0 ? totalInvested / cs.length : 0;
+  let uShares = 0;
+  for (let i = 0; i < cs.length; i++) {
+    uShares += perCandle / cs[i].close;
+    const uInvestedSoFar = (i + 1) * perCandle;
+    bhCurve.push({ time: cs[i].time, equity: uInvestedSoFar > 0 ? (uShares * cs[i].close) / uInvestedSoFar : 1 });
   }
 
   const last = cs[cs.length - 1];
-  const finalValue = accShares * last.close;
+  const finalValue   = accShares * last.close;
+  const bhFinalValue = uShares   * last.close;
   const stRatios = calcRatios(portfolioCurve, data.timeframe);
-  const bhRatios = calcRatios(bhCurve, data.timeframe);
+  const bhRatios = calcRatios(bhCurve,        data.timeframe);
   return {
     portfolioCurve, bhCurve, buyEvents, sellEvents,
     summary: {
       totalInvested, finalValue,
-      returnPct:  totalInvested > 0 ? (finalValue / totalInvested - 1) * 100 : 0,
-      bhReturnPct: (last.close / firstClose - 1) * 100,
+      returnPct:   totalInvested > 0 ? (finalValue   / totalInvested - 1) * 100 : 0,
+      bhReturnPct: totalInvested > 0 ? (bhFinalValue / totalInvested - 1) * 100 : 0,
       nBuys: buyEvents.length,
       cagrPct: stRatios.cagrPct, sharpe: stRatios.sharpe, sortino: stRatios.sortino,
       bhCagrPct: bhRatios.cagrPct, bhSharpe: bhRatios.sharpe, bhSortino: bhRatios.sortino,
