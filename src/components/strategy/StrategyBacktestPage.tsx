@@ -163,13 +163,14 @@ function deriveTrading(
   for (let i = 0; i < cs.length; i++) {
     const c = cs[i];
     const sig = getSignal(c);
-    let reversed = false;
+    let justClosed = false;
     if (live && live.entryIdx < i) {
       const stopHit = stopEnabled && (live.direction === "long" ? c.low <= live.stopPrice : c.high >= live.stopPrice);
-      if (stopHit) { closeTrade(live.stopPrice, c.time, i, "stop"); }
-      else if (sig && sig !== live.direction) { closeTrade(c.close, c.time, i, "reversal"); reversed = true; }
+      if (stopHit) { closeTrade(live.stopPrice, c.time, i, "stop"); justClosed = true; }
+      else if (sig && sig !== live.direction) { closeTrade(c.close, c.time, i, "reversal"); justClosed = true; }
     }
-    if (!live && i < cs.length - 1 && sig && (!reversed || stopAndReverse)) {
+    // Re-enter on same candle only when Stop & Reverse is on; otherwise wait for next bar's signal
+    if (!live && i < cs.length - 1 && sig && (!justClosed || stopAndReverse)) {
       live = { direction: sig, entryPrice: c.close, entryTime: c.time, entryIdx: i, stopPrice: sig === "long" ? c.close * (1 - stopLossPct / 100) : c.close * (1 + stopLossPct / 100) };
     }
     let eq = realized;
@@ -224,10 +225,11 @@ function deriveInvesting(
 
     if (prebuilt === "nomondays") {
       const day = new Date(c.time * 1000).getUTCDay();
-      if (nomOpenShares > 0 && day === 5) {
+      if (nomOpenShares > 0 && (day === 5 || day === 1)) {
+        // Sell on Friday, or force-close an orphaned position before opening a new Monday one
         const pnlPct = (c.close - nomOpenPrice) / nomOpenPrice * 100;
         nomRealized += nomOpenShares * c.close;
-        sellEvents.push({ idx: i, price: c.close, entryPrice: nomOpenPrice, pnlPct, won: pnlPct > 0 });
+        if (day === 5) sellEvents.push({ idx: i, price: c.close, entryPrice: nomOpenPrice, pnlPct, won: pnlPct > 0 });
         nomOpenShares = 0; nomOpenPrice = 0;
       }
       if (day === 1) {
