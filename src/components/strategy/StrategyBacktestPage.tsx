@@ -83,8 +83,9 @@ const COND_META: Record<ConditionType, {
 const BUY_SUGGESTIONS:    ConditionType[] = ["rsi_lt", "ema_cross_up", "sma_cross_up", "bb_lower", "stoch_lt"];
 const SHORT_SUGGESTIONS:  ConditionType[] = ["rsi_gt", "ema_cross_down", "sma_cross_down", "bb_upper", "stoch_gt"];
 const INVEST_SUGGESTIONS: ConditionType[] = ["rsi_lt", "ema_cross_up", "sma_cross_up", "bb_lower", "stoch_lt"];
-const TIMEFRAME_OPTS: Timeframe[] = ["1m", "5m", "1h", "1d"];
-const WINDOW_OPTS    = [20, 60, 150, 300, 500, 750, 1000];
+const TIMEFRAME_OPTS:      Timeframe[] = ["1m", "5m", "1h", "1d"];
+const TRADING_WINDOW_OPTS              = [20, 60, 150, 300, 500, 750, 1000];
+const INVEST_WINDOW_OPTS               = [20, 60, 150, 300, 500, 750, 1000, 2000, 5000];
 
 // ── signal evaluation ─────────────────────────────────────────────────────────
 function evalCondition(cond: Condition, c: EnrichedCandle): boolean {
@@ -326,13 +327,13 @@ const fmtDollar = (v: number) => v >= 10000 ? `$${(v / 1000).toFixed(1)}k` : `$$
 const fmtPct    = (p: number) => `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`;
 const fmtPF     = (pf: number) => pf === Infinity ? "∞" : pf.toFixed(2);
 
-function SegPill({ options, active, onChange }: { options: number[]; active: number; onChange: (v: number) => void }) {
+function SegPill({ options, active, onChange, suffix = "" }: { options: number[]; active: number; onChange: (v: number) => void; suffix?: string }) {
   return (
     <div className="flex rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
       {options.map(v => (
         <button key={v} onClick={() => onChange(v)} className="px-2.5 py-1.5 text-[10px] font-medium tracking-wide transition-all border-r last:border-r-0"
           style={{ borderColor: "rgba(255,255,255,0.06)", background: active === v ? "rgba(167,139,250,0.16)" : "transparent", color: active === v ? "#c4b5fd" : "rgba(255,255,255,0.28)" }}>
-          {v}
+          {v}{suffix}
         </button>
       ))}
     </div>
@@ -630,6 +631,12 @@ export default function StrategyBacktestPage() {
   }, [ticker, nWindow, timeframe, ip]);
 
   useEffect(() => {
+    if (mode === "investing") setTimeframe("1d");
+    if (mode === "trading" && nWindow > 1000) setNWindow(1000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  useEffect(() => {
     const cached = loadCache(ticker);
     setData(cached ?? null); setError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -679,18 +686,27 @@ export default function StrategyBacktestPage() {
               <ChevronDown className="w-3 h-3 shrink-0 ml-auto" style={{ color: "rgba(255,255,255,0.3)" }} />
             </button>
             {sep}
-            <div className="flex rounded-lg overflow-hidden shrink-0" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-              {TIMEFRAME_OPTS.map(tf => (
-                <button key={tf} onClick={() => setTimeframe(tf)} className="px-2.5 py-1.5 text-[10px] font-mono font-medium border-r last:border-r-0 transition-all"
-                  style={{ borderColor: "rgba(255,255,255,0.06)", background: timeframe === tf ? `${accent}28` : "transparent", color: timeframe === tf ? accentLight : "rgba(255,255,255,0.28)", transition: "all 0.2s" }}>
-                  {tf}
-                </button>
-              ))}
-            </div>
-            {sep}
+            {mode === "trading" && (
+              <>
+                <div className="flex rounded-lg overflow-hidden shrink-0" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  {TIMEFRAME_OPTS.map(tf => (
+                    <button key={tf} onClick={() => setTimeframe(tf)} className="px-2.5 py-1.5 text-[10px] font-mono font-medium border-r last:border-r-0 transition-all"
+                      style={{ borderColor: "rgba(255,255,255,0.06)", background: timeframe === tf ? `${accent}28` : "transparent", color: timeframe === tf ? accentLight : "rgba(255,255,255,0.28)", transition: "all 0.2s" }}>
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+                {sep}
+              </>
+            )}
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>Hist</span>
-              <SegPill options={WINDOW_OPTS} active={nWindow} onChange={setNWindow} />
+              <SegPill
+                options={mode === "investing" ? INVEST_WINDOW_OPTS : TRADING_WINDOW_OPTS}
+                active={nWindow}
+                onChange={setNWindow}
+                suffix={mode === "investing" ? "d" : ""}
+              />
             </div>
             <div className="flex-1" />
             <button onClick={runBacktest} disabled={loading} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"

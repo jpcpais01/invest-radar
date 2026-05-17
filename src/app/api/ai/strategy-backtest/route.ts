@@ -14,7 +14,7 @@ function getInd<T>(arr: T[], offset: number, i: number): T | undefined {
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const ticker  = (sp.get("ticker") ?? "AAPL").toUpperCase();
-  const nWindow = Math.min(1000, Math.max(10, parseInt(sp.get("window") ?? "60")));
+  const nWindow = Math.min(5000, Math.max(10, parseInt(sp.get("window") ?? "60")));
 
   const rsiPeriod = Math.min(50,  Math.max(2, parseInt(sp.get("rsiPeriod") ?? "14")));
   const emaFastP  = Math.min(100, Math.max(2, parseInt(sp.get("emaFast")   ?? "9")));
