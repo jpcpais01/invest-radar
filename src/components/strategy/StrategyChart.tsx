@@ -68,7 +68,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
     return () => ro.disconnect();
   }, []);
 
-  const PAD = { t: 26, r: 16, b: 30, l: 52 };
+  const PAD = { t: 26, r: isInvesting ? 48 : 16, b: 30, l: 52 };
 
   // map candle index → trade events that start / end there
   const events = useMemo(() => {
@@ -87,27 +87,8 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
 
     const n = equityCurve.length;
 
-    // alpha in equity-space: 1 + (stratPnl% - dcaPnl%) / 100
-    const alphaEquity: number[] = equityCurve.map((p, i) =>
-      1 + (p.equity - buyHoldCurve[i].equity)
-    );
-    // outperformance: (stratVal - dcaVal) / dcaVal → equity-space 1 + ratio
-    const stratValues = equityCurve.map(p => p.value ?? 0);
-    const dcaValues   = buyHoldCurve.map(p => p.value ?? 0);
-    const outperfVals: (number | null)[] = stratValues.map((sv, i) => {
-      const dv = dcaValues[i];
-      return sv > 0 && dv > 1e-10 ? (sv - dv) / dv : null;
-    });
-    const outperfEquity: (number | null)[] = outperfVals.map(v => v != null ? 1 + v : null);
-
-    // unified y-scale: equity curves + all comparison lines
-    const all = [
-      ...equityCurve.map(p => p.equity),
-      ...buyHoldCurve.map(p => p.equity),
-      ...alphaEquity,
-      ...(outperfEquity.filter((v): v is number => v != null)),
-      1,
-    ];
+    // primary y-scale: equity curves only
+    const all = [...equityCurve.map(p => p.equity), ...buyHoldCurve.map(p => p.equity), 1];
     let lo = Math.min(...all), hi = Math.max(...all);
     const span = hi - lo || 0.02;
     lo -= span * 0.12; hi += span * 0.12;
@@ -127,24 +108,53 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
       return { eq, y: y(eq), label: `${eq >= 1 ? "+" : ""}${((eq - 1) * 100).toFixed(0)}%` };
     });
 
-    // alpha path (on shared y-axis)
-    const ratioVals: number[] = equityCurve.map((p, i) =>
-      (p.equity - buyHoldCurve[i].equity) * 100
+    // shared zero pixel — all secondary lines anchor their 0 here
+    const yZero    = y(1);
+    const pixAbove = Math.max(yZero - PAD.t, 1);
+    const pixBelow = Math.max((PAD.t + innerH) - yZero, 1);
+    const anchored = (vals: number[], pxPerUnit: number) =>
+      vals.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${(yZero - v * pxPerUnit).toFixed(1)}`).join(" ");
+    const anchoredNullable = (vals: (number | null)[], pxPerUnit: number) => {
+      const parts: string[] = []; let mn = true;
+      for (let i = 0; i < n; i++) {
+        const v = vals[i];
+        if (v == null) { mn = true; continue; }
+        parts.push(`${mn ? "M" : "L"}${x(i).toFixed(1)},${(yZero - v * pxPerUnit).toFixed(1)}`);
+        mn = false;
+      }
+      return parts.join(" ");
+    };
+    const scalePx = (lo: number, hi: number) => Math.min(
+      hi > 0 ? pixAbove / hi * 0.85 : Infinity,
+      lo < 0 ? pixBelow / Math.abs(lo) * 0.85 : Infinity,
+      hi === 0 && lo === 0 ? 1 : Infinity,
     );
-    const ratioPath = alphaEquity
-      .map((eq, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(eq).toFixed(1)}`)
-      .join(" ");
 
-    // outperformance path (on shared y-axis, skip nulls)
-    const outperfParts: string[] = [];
-    let moveNext = true;
-    for (let i = 0; i < n; i++) {
-      const eq = outperfEquity[i];
-      if (eq == null) { moveNext = true; continue; }
-      outperfParts.push(`${moveNext ? "M" : "L"}${x(i).toFixed(1)},${y(eq).toFixed(1)}`);
-      moveNext = false;
-    }
-    const outperfPath = outperfParts.join(" ");
+    // alpha: stratPnl% - dcaPnl% (percentage points)
+    const ratioVals: number[] = equityCurve.map((p, i) => (p.equity - buyHoldCurve[i].equity) * 100);
+    const aLo = Math.min(...ratioVals, -1e-10), aHi = Math.max(...ratioVals, 1e-10);
+    const alphaPxPerPp = scalePx(aLo, aHi);
+    const ratioPath = anchored(ratioVals, alphaPxPerPp);
+    const alphaTicks = Array.from({ length: 5 }, (_, i) => {
+      const v = aLo + (i / 4) * (aHi - aLo);
+      return { y: yZero - v * alphaPxPerPp, label: `${v >= 0 ? "+" : ""}${v.toFixed(0)}pp` };
+    });
+
+    // outperf: (stratVal - dcaVal) / dcaVal
+    const stratValues = equityCurve.map(p => p.value ?? 0);
+    const dcaValues   = buyHoldCurve.map(p => p.value ?? 0);
+    const outperfVals: (number | null)[] = stratValues.map((sv, i) => {
+      const dv = dcaValues[i];
+      return sv > 0 && dv > 1e-10 ? (sv - dv) / dv : null;
+    });
+    const validOP = outperfVals.filter((v): v is number => v != null);
+    const opLo = Math.min(...validOP, -1e-10), opHi = Math.max(...validOP, 1e-10);
+    const outperfPxPerUnit = scalePx(opLo, opHi);
+    const outperfPath = anchoredNullable(outperfVals, outperfPxPerUnit);
+    const outperfTicks = Array.from({ length: 5 }, (_, i) => {
+      const v = opLo + (i / 4) * (opHi - opLo);
+      return { y: yZero - v * outperfPxPerUnit, label: `${v >= 0 ? "+" : ""}${(v * 100).toFixed(0)}%` };
+    });
 
     // absolute value paths (own y-scale)
     const valLo = Math.min(...stratValues, ...dcaValues);
@@ -154,7 +164,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
     const stratValPath = stratValues.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yVal(v).toFixed(1)}`).join(" ");
     const dcaValPath   = dcaValues.map((v, i)   => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yVal(v).toFixed(1)}`).join(" ");
 
-    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, alphaEquity, outperfVals, outperfEquity, outperfPath, stratValues, dcaValues, stratValPath, dcaValPath, yVal };
+    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, alphaTicks, outperfVals, outperfPath, outperfTicks, stratValues, dcaValues, stratValPath, dcaValPath, yVal, yZero, alphaPxPerPp, outperfPxPerUnit };
   }, [size, equityCurve, buyHoldCurve]);
 
   const finalEquity = equityCurve[equityCurve.length - 1]?.equity ?? 1;
@@ -226,18 +236,38 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
               strokeLinecap="round" strokeLinejoin="round" />
           )}
 
-          {/* alpha line (on shared y-axis) */}
+          {/* alpha line + right axis */}
           {isInvesting && showAlpha && (
-            <path d={geom.ratioPath} fill="none"
-              stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="5,3"
-              strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+            <>
+              <line x1={PAD.l} y1={geom.yZero} x2={geom.w - PAD.r} y2={geom.yZero}
+                stroke="rgba(167,139,250,0.15)" strokeWidth="1" strokeDasharray="3,3" />
+              <path d={geom.ratioPath} fill="none"
+                stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="5,3"
+                strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+              {geom.alphaTicks.map((t, i) => (
+                <text key={`at${i}`} x={geom.w - PAD.r + 6} y={t.y + 3} textAnchor="start"
+                  fontSize="9" fontFamily="ui-monospace, monospace"
+                  fill="rgba(167,139,250,0.45)">{t.label}</text>
+              ))}
+            </>
           )}
 
-          {/* outperformance line: (stratVal - dcaVal) / dcaVal (on shared y-axis) */}
+          {/* outperf line + right axis */}
           {isInvesting && showValDiff && (
-            <path d={geom.outperfPath} fill="none"
-              stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="5,3"
-              strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+            <>
+              {!showAlpha && (
+                <line x1={PAD.l} y1={geom.yZero} x2={geom.w - PAD.r} y2={geom.yZero}
+                  stroke="rgba(251,191,36,0.15)" strokeWidth="1" strokeDasharray="3,3" />
+              )}
+              <path d={geom.outperfPath} fill="none"
+                stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="5,3"
+                strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+              {!showAlpha && geom.outperfTicks.map((t, i) => (
+                <text key={`opt${i}`} x={geom.w - PAD.r + 6} y={t.y + 3} textAnchor="start"
+                  fontSize="9" fontFamily="ui-monospace, monospace"
+                  fill="rgba(251,191,36,0.45)">{t.label}</text>
+              ))}
+            </>
           )}
 
           {/* absolute value lines (investing mode) */}
@@ -346,15 +376,15 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                     stroke="#080808" strokeWidth="1.25" opacity="0.7" />
                 )}
                 {isInvesting && showValDiff && (() => {
-                  const oe = geom.outperfEquity[hoverI];
-                  return oe != null ? (
-                    <circle cx={hx} cy={geom.y(oe)} r="2.5" fill="#fbbf24"
-                      stroke="#080808" strokeWidth="1.25" opacity="0.9" />
+                  const ov = geom.outperfVals[hoverI];
+                  return ov != null ? (
+                    <circle cx={hx} cy={geom.yZero - ov * geom.outperfPxPerUnit} r="2.5"
+                      fill="#fbbf24" stroke="#080808" strokeWidth="1.25" opacity="0.9" />
                   ) : null;
                 })()}
                 {isInvesting && showAlpha && (
-                  <circle cx={hx} cy={geom.y(geom.alphaEquity[hoverI])} r="2.8" fill="#a78bfa"
-                    stroke="#080808" strokeWidth="1.25" opacity="0.9" />
+                  <circle cx={hx} cy={geom.yZero - geom.ratioVals[hoverI] * geom.alphaPxPerPp} r="2.8"
+                    fill="#a78bfa" stroke="#080808" strokeWidth="1.25" opacity="0.9" />
                 )}
               </g>
             );
@@ -406,7 +436,13 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                 <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
                   {showStratVal && <Row label="Strat value" value={fmt(sv)} bright />}
                   {showDCAVal   && <Row label="DCA value"   value={fmt(dv)} />}
-                  {showValDiff && ov != null && <Row label="Outperf" value={`${ov >= 0 ? "+" : ""}${(ov * 100).toFixed(1)}%`} accent2 />}
+                  {showValDiff && (
+                    <>
+                      <Row label="Strat value" value={fmt(sv)} bright />
+                      <Row label="DCA value"   value={fmt(dv)} />
+                      {ov != null && <Row label="Outperf" value={`${ov >= 0 ? "+" : ""}${(ov * 100).toFixed(1)}%`} accent2 />}
+                    </>
+                  )}
                 </div>
               );
             })()}
