@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect, useMemo, useId } from "react";
 
 // ── shared shapes ────────────────────────────────────────────────────────────
-export interface CurvePoint { time: number; equity: number; price?: number; avgCost?: number; }
+export interface CurvePoint { time: number; equity: number; price?: number; avgCost?: number; value?: number; }
 
 /** A closed trade from the client-side simulation. */
 export interface ChartTrade {
@@ -52,9 +52,11 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize]       = useState<{ w: number; h: number } | null>(null);
   const [hoverI, setHoverI]   = useState<number | null>(null);
-  const [showStrat, setShowStrat] = useState(true);
-  const [showBH,    setShowBH]    = useState(true);
-  const [showAlpha, setShowAlpha] = useState(true);
+  const [showStrat,    setShowStrat]    = useState(true);
+  const [showBH,       setShowBH]       = useState(true);
+  const [showAlpha,    setShowAlpha]    = useState(true);
+  const [showStratVal, setShowStratVal] = useState(false);
+  const [showDCAVal,   setShowDCAVal]   = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -121,7 +123,17 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
     });
     const ratioOne = rLo < 0 && rHi > 0 ? yRatio(0) : null;
 
-    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, ratioTicks, ratioOne, yRatio };
+    // absolute portfolio value paths (own y-scale, no axis labels)
+    const stratValues = equityCurve.map(p => p.value ?? 0);
+    const dcaValues   = buyHoldCurve.map(p => p.value ?? 0);
+    const valLo = Math.min(...stratValues, ...dcaValues);
+    const valHi = Math.max(...stratValues, ...dcaValues);
+    const valSpan = valHi - valLo || 1;
+    const yVal = (v: number) => PAD.t + (1 - (v - valLo) / valSpan) * innerH;
+    const stratValPath = stratValues.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yVal(v).toFixed(1)}`).join(" ");
+    const dcaValPath   = dcaValues.map((v, i)   => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yVal(v).toFixed(1)}`).join(" ");
+
+    return { w, h, innerW, innerH, lo, hi, x, y, stratPath, bhPath, areaPath, ticks, n, ratioVals, ratioPath, ratioTicks, ratioOne, yRatio, stratValues, dcaValues, stratValPath, dcaValPath, yVal };
   }, [size, equityCurve, buyHoldCurve]);
 
   const finalEquity = equityCurve[equityCurve.length - 1]?.equity ?? 1;
@@ -211,6 +223,18 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
             </>
           )}
 
+          {/* absolute value lines (investing mode) */}
+          {isInvesting && showDCAVal && (
+            <path d={geom.dcaValPath} fill="none"
+              stroke="rgba(255,255,255,0.45)" strokeWidth="1.25"
+              strokeLinecap="round" strokeLinejoin="round" />
+          )}
+          {isInvesting && showStratVal && (
+            <path d={geom.stratValPath} fill="none"
+              stroke={stratColor} strokeWidth="1.25" opacity="0.6"
+              strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
           {/* strategy area + line */}
           {showStrat && (
             <>
@@ -296,6 +320,14 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                   stroke="#080808" strokeWidth="1.5" />}
                 {showBH && <circle cx={hx} cy={geom.y(bh)} r="2.8" fill="rgba(255,255,255,0.55)"
                   stroke="#080808" strokeWidth="1.25" />}
+                {isInvesting && showStratVal && (
+                  <circle cx={hx} cy={geom.yVal(geom.stratValues[hoverI])} r="2.5" fill={stratColor}
+                    stroke="#080808" strokeWidth="1.25" opacity="0.7" />
+                )}
+                {isInvesting && showDCAVal && (
+                  <circle cx={hx} cy={geom.yVal(geom.dcaValues[hoverI])} r="2.5" fill="rgba(255,255,255,0.55)"
+                    stroke="#080808" strokeWidth="1.25" opacity="0.7" />
+                )}
                 {isInvesting && showAlpha && (
                   <circle cx={hx} cy={geom.yRatio(geom.ratioVals[hoverI])} r="2.8" fill="#a78bfa"
                     stroke="#080808" strokeWidth="1.25" opacity="0.9" />
@@ -340,6 +372,17 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
             {isInvesting && (() => {
               const rv = geom.ratioVals[hoverI];
               return <Row label="Strat − DCA" value={`${rv >= 0 ? "+" : ""}${rv.toFixed(1)}pp`} accent />;
+            })()}
+            {isInvesting && (showStratVal || showDCAVal) && (() => {
+              const sv = geom.stratValues[hoverI];
+              const dv = geom.dcaValues[hoverI];
+              const fmt = (v: number) => v >= 1e6 ? `$${(v/1e6).toFixed(2)}M` : v >= 1e3 ? `$${(v/1e3).toFixed(1)}k` : `$${v.toFixed(2)}`;
+              return (
+                <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                  {showStratVal && <Row label="Strat value" value={fmt(sv)} bright />}
+                  {showDCAVal   && <Row label="DCA value"   value={fmt(dv)} />}
+                </div>
+              );
             })()}
             {isInvesting && sharePrice != null && (
               <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
@@ -408,10 +451,16 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
 
       {/* line toggles */}
       <div className="absolute flex items-center gap-1" style={{ top: 6, left: PAD.l }}>
-        <Toggle active={showStrat} color={stratColor}    label="Strat"      onClick={() => setShowStrat(v => !v)} />
-        <Toggle active={showBH}    color="rgba(255,255,255,0.55)" label={bhLabel} onClick={() => setShowBH(v => !v)} />
+        <Toggle active={showStrat} color={stratColor}             label="Strat"      onClick={() => setShowStrat(v => !v)} />
+        <Toggle active={showBH}    color="rgba(255,255,255,0.55)" label={bhLabel}    onClick={() => setShowBH(v => !v)} />
         {isInvesting && (
-          <Toggle active={showAlpha} color="#a78bfa" label="Alpha" onClick={() => setShowAlpha(v => !v)} />
+          <Toggle active={showAlpha}    color="#a78bfa"                    label="Alpha"     onClick={() => setShowAlpha(v => !v)} />
+        )}
+        {isInvesting && (
+          <Toggle active={showStratVal} color={stratColor}                 label="Strat $"   onClick={() => setShowStratVal(v => !v)} />
+        )}
+        {isInvesting && (
+          <Toggle active={showDCAVal}   color="rgba(255,255,255,0.55)"     label="DCA $"     onClick={() => setShowDCAVal(v => !v)} />
         )}
       </div>
     </div>

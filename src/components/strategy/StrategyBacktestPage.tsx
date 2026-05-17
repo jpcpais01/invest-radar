@@ -287,6 +287,7 @@ function deriveInvesting(
       equity:  totalInvested > 0 ? (accShares * c.close) / totalInvested : 1,
       price:   c.close,
       avgCost: accShares > 0 ? totalInvested / accShares : undefined,
+      value:   accShares * c.close,
     });
   }
 
@@ -301,6 +302,7 @@ function deriveInvesting(
       equity:  uInvestedSoFar > 0 ? (uShares * cs[i].close) / uInvestedSoFar : 1,
       price:   cs[i].close,
       avgCost: uShares > 0 ? uInvestedSoFar / uShares : undefined,
+      value:   uShares * cs[i].close,
     });
   }
 
