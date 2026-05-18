@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
+import { useTickerStore } from "@/store/tickerStore";
 
 interface Props { onSelectTicker: (t: string) => void }
 
@@ -10,28 +11,48 @@ const PRESET_TICKERS = [
   "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","AVGO","ORCL","CRM",
   "ADBE","NOW","INTU","PANW","CSCO","IBM","TXN","AMAT","LRCX","KLAC",
   "MU","INTC","QCOM","AMD","NFLX","ACN","FTNT","SNOW","PLTR","NET",
+  // More tech
+  "DELL","HPQ","CRWD","ZS","DDOG","MNDY","GTLB","MDB","TTD","APP",
+  "MCHP","ON","SWKS","CRUS","MRVL","ARM","SMCI","KEYS","ANSS","CDNS",
+  "SNPS","EPAM","OKTA","TWLO","ZM","DOCN","CFLT","HUBS","SMAR","BOX",
   // Consumer internet / fintech
   "UBER","SHOP","PYPL","COIN","SQ","ABNB","DASH","RBLX","SNAP","PINS",
+  "LYFT","BKNG","EXPE","ETSY","EBAY","CHWY","W","DKNG","HOOD","SOFI",
+  "AFRM","UPST","CPNG","MELI","NU","GRAB","SE","BILL","SSNC","FIS",
   // Large-cap finance
   "JPM","V","MA","GS","MS","BAC","WFC","C","AXP","BLK",
   "SCHW","COF","USB","PNC","TFC","SPGI","MCO","ICE","CME","CB",
+  "AIG","PRU","MET","AFL","ALL","PGR","TRV","DFS","SYF","ALLY",
+  "FITB","HBAN","KEY","RF","ZION","LNC","EQH","FNF","RJF","WRB",
   // Healthcare / biotech
   "UNH","LLY","JNJ","MRK","ABBV","TMO","ABT","BMY","AMGN","ISRG",
   "ELV","BIIB","REGN","VRTX","ZTS","DXCM","ILMN","MRNA","GILD","CVS",
+  "CI","HUM","MCK","CAH","CNC","MOH","WBA","RMD","HOLX","ALGN",
+  "STE","WAT","A","IQV","IDXX","EXAS","VEEV","EW","PODD","BSX",
   // Consumer staples & discretionary
   "WMT","COST","HD","PG","KO","PEP","MCD","SBUX","NKE","TGT",
   "LOW","TJX","YUM","CMG","DG","PM","MO","EL","CL","MNST",
+  "LULU","ROST","BURL","ULTA","BBY","GM","F","RIVN","ANF","GPS",
+  "SIG","DRI","EAT","TXRH","DINO","VFC","HBI","RL","PVH","TPR",
   // Industrials & defense
   "HON","GE","CAT","DE","MMM","RTX","LMT","NOC","GD","UPS",
   "FDX","WM","RSG","EMR","ETN","PH","ITW","ROK","CARR","OTIS",
+  "BA","AXON","LDOS","BAH","CACI","KTOS","TXT","HII","ODFL","SAIA",
+  "JBHT","XPO","CHRW","IR","AME","VRSK","FAST","GWW","WAB","TDG",
   // Energy
   "XOM","CVX","OXY","SLB","EOG","COP","PSX","VLO","MPC","HES",
+  "HAL","BKR","DVN","FANG","MTDR","CTRA","MRO","KMI","WMB","OKE",
+  // Utilities
+  "NEE","DUK","SO","D","AEP","EXC","PEG","ED","AWK","WEC",
   // Real estate
   "AMT","PLD","EQIX","SPG","O","PSA","WELL","DLR","CCI","VICI",
+  "EQR","AVB","UDR","CPT","ESS","INVH","SUI","ELS","NNN","GLPI",
   // International ADRs
   "TSM","ASML","SAP","NVO","AZN","BABA","JD","PDD","NIO","BIDU",
+  "INFY","HDB","TTE","BP","RIO","BHP","VALE","FCX","ITUB","BBD",
   // ETFs
   "SPY","QQQ","IWM","GLD","TLT","VTI","ARKK","XLF","XLK","XLE",
+  "DIA","MDY","SCHD","JEPI","VEA","EEM","GDX","SLV","BND","HYG",
 ];
 
 // ── Technical scanner types ───────────────────────────────────────────────────
@@ -163,6 +184,12 @@ function SortIcon<K extends string>({ col, sortKey, sortDir }: { col: K; sortKey
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function HomeDiscover({ onSelectTicker }: Props) {
+  const { watchlist } = useTickerStore();
+  const allTickers = useMemo(
+    () => [...new Set([...watchlist, ...PRESET_TICKERS])],
+    [watchlist]
+  );
+
   const [mode, setMode] = useState<"technical" | "fairprice">("technical");
 
   // ── Technical state ──────────────────────────────────────────────────────
@@ -229,7 +256,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
     if (!hydrated) return;
     const cached = readCache<ScanResult>(`discover-tech-${tf}`);
     if (cached) { setTechResults(cached.results); setTechScannedAt(cached.scannedAt); }
-    else scanTech(PRESET_TICKERS, tf);
+    else scanTech(allTickers, tf);
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleModeSwitch = (next: "technical" | "fairprice") => {
@@ -237,7 +264,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
     if (next === "fairprice" && fpResults.length === 0 && !fpLoading) {
       const cached = readCache<FPResult>("discover-fp");
       if (cached) { setFpResults(cached.results); setFpScannedAt(cached.scannedAt); }
-      else scanFairPrice(PRESET_TICKERS);
+      else scanFairPrice(allTickers);
     }
   };
 
@@ -245,7 +272,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
     setTf(newTf);
     const cached = readCache<ScanResult>(`discover-tech-${newTf}`);
     if (cached) { setTechResults(cached.results); setTechScannedAt(cached.scannedAt); }
-    else scanTech(PRESET_TICKERS, newTf);
+    else scanTech(allTickers, newTf);
   };
 
   const handleTechSort = (key: TechSortKey) => {
@@ -357,7 +384,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
 
           {/* Rescan */}
           <button
-            onClick={() => mode === "technical" ? scanTech(PRESET_TICKERS, tf) : scanFairPrice(PRESET_TICKERS)}
+            onClick={() => mode === "technical" ? scanTech(allTickers, tf) : scanFairPrice(allTickers)}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold tracking-wide rounded-md border border-[#1e1e1e] text-[#767676] hover:text-[#f0f0f0] hover:border-[#2c2c2c] disabled:opacity-40 transition-colors"
           >
