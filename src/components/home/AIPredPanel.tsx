@@ -1,7 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useCallback } from "react";
-import { createChart, IChartApi, LineSeries, ColorType } from "lightweight-charts";
-import type { Time } from "lightweight-charts";
+import { useRef, useState, useEffect, useCallback, useMemo, useId } from "react";
 import { Sparkles, RefreshCw, Minus, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,13 +17,330 @@ interface PredictionResponse {
 
 interface Props { ticker: string }
 
-const BG = "#101010";
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+function fmtPrice(p: number) {
+  if (p >= 10000) return `$${(p / 1000).toFixed(1)}k`;
+  if (p >= 1000)  return `$${p.toFixed(0)}`;
+  return `$${p.toFixed(2)}`;
+}
+function fmtDate(ts: number) {
+  return new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function smooth(pts: [number, number][]): string {
+  if (pts.length < 2) return "";
+  let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1];
+    const [x1, y1] = pts[i];
+    const cx = ((x0 + x1) / 2).toFixed(2);
+    d += ` C${cx},${y0.toFixed(2)} ${cx},${y1.toFixed(2)} ${x1.toFixed(2)},${y1.toFixed(2)}`;
+  }
+  return d;
+}
+function evenIdxs(total: number, n: number): number[] {
+  if (total <= n) return Array.from({ length: total }, (_, i) => i);
+  const out = new Set([0, total - 1]);
+  const step = (total - 1) / (n - 1);
+  for (let i = 1; i < n - 1; i++) out.add(Math.round(i * step));
+  return [...out].sort((a, b) => a - b);
+}
+
+// ── chart ─────────────────────────────────────────────────────────────────────
+
+const M = { top: 20, right: 60, bottom: 30, left: 12 };
+
+function PredChart({ data, height = 264 }: { data: PredictionResponse; height?: number }) {
+  const uid     = useId().replace(/:/g, "");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const [mouseX, setMouseX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const ro = new ResizeObserver(([e]) =>
+      setSize({ w: e.contentRect.width, h: e.contentRect.height })
+    );
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const { w, h } = size ?? { w: 0, h: 0 };
+  const cW = w - M.left - M.right;
+  const cH = h - M.top  - M.bottom;
+
+  const allTimes = useMemo(
+    () => [...data.historical.map(b => b.time), ...data.futureDates],
+    [data]
+  );
+  const n = allTimes.length;
+  const timeToIdx = useMemo(
+    () => new Map(allTimes.map((t, i) => [t, i])),
+    [allTimes]
+  );
+  const xS = (t: number) => M.left + ((timeToIdx.get(t) ?? 0) / Math.max(n - 1, 1)) * cW;
+
+  const allPrices = useMemo(() => [
+    ...data.historical.map(b => b.close),
+    ...data.median, ...data.p25, ...data.p75,
+    ...data.runs.flat(),
+  ], [data]);
+  const rawMin = Math.min(...allPrices);
+  const rawMax = Math.max(...allPrices);
+  const vPad   = (rawMax - rawMin) * 0.10 || rawMax * 0.04;
+  const minP   = rawMin - vPad;
+  const maxP   = rawMax + vPad * 1.5;
+  const yS = (p: number) => M.top + cH - ((p - minP) / (maxP - minP)) * cH;
+
+  const lastH     = data.historical[data.historical.length - 1];
+  const anchorPt: [number, number] = [xS(lastH.time), yS(lastH.close)];
+  const sepX      = anchorPt[0];
+
+  const histPts   = data.historical.map(b => [xS(b.time), yS(b.close)] as [number, number]);
+  const histLine  = smooth(histPts);
+  const histLast  = histPts[histPts.length - 1];
+  const histAreaD = `${histLine} L${histLast[0].toFixed(2)},${(M.top + cH).toFixed(2)} L${M.left},${(M.top + cH).toFixed(2)} Z`;
+
+  const medPts  = [anchorPt, ...data.median.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number])];
+  const medPath = smooth(medPts);
+
+  // P25–P75 band as a closed polygon (no need for smooth here)
+  const bandPath = useMemo(() => {
+    if (!data.p25.length || !data.p75.length || cW <= 0) return "";
+    const topPts = [anchorPt, ...data.p75.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number])];
+    const botPts = [...data.p25.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number])].reverse();
+    return `M${topPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")} L${botPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")} Z`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, cW, minP, maxP]);
+
+  const yTicks = useMemo(() =>
+    Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)),
+    [minP, maxP]
+  );
+  const xTicks = useMemo(
+    () => evenIdxs(allTimes.length, 5).map(i => allTimes[i]),
+    [allTimes]
+  );
+
+  const crosshair = useMemo(() => {
+    if (mouseX === null || cW <= 0) return null;
+    const ratio = (mouseX - M.left) / cW;
+    const nearestIdx = Math.round(Math.max(0, Math.min(1, ratio)) * (n - 1));
+    const ts  = allTimes[nearestIdx];
+    const cx  = xS(ts);
+    const hi  = data.historical.find(b => b.time === ts);
+    const fi  = data.futureDates.indexOf(ts);
+    return {
+      x: cx, time: ts,
+      histPrice: hi?.close ?? null,
+      median: fi >= 0 ? data.median[fi] : null,
+      p25: fi >= 0 ? data.p25[fi] : null,
+      p75: fi >= 0 ? data.p75[fi] : null,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mouseX, allTimes, cW, n]);
+
+  // tooltip position
+  const tipW = 88;
+  const tipX = crosshair
+    ? (crosshair.x + tipW + 14 > w - M.right ? crosshair.x - tipW - 8 : crosshair.x + 10)
+    : 0;
+
+  if (!size || cW <= 0 || cH <= 0) return <div ref={wrapRef} style={{ height, background: "#101010" }} />;
+
+  return (
+    <div ref={wrapRef} style={{ height, background: "#101010" }}>
+      <svg
+        width={w} height={h}
+        style={{ display: "block", userSelect: "none" }}
+        onMouseMove={e => {
+          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          setMouseX(x >= M.left && x <= w - M.right ? x : null);
+        }}
+        onMouseLeave={() => setMouseX(null)}
+      >
+        <defs>
+          <linearGradient id={`${uid}hg`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#c0c0cc" stopOpacity="0.10" />
+            <stop offset="80%"  stopColor="#c0c0cc" stopOpacity="0.02" />
+            <stop offset="100%" stopColor="#c0c0cc" stopOpacity="0" />
+          </linearGradient>
+          <filter id={`${uid}gw`} x="-30%" y="-120%" width="160%" height="340%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+          </filter>
+          <clipPath id={`${uid}cl`}>
+            <rect x={M.left} y={M.top} width={cW} height={cH} />
+          </clipPath>
+        </defs>
+
+        {/* horizontal grid */}
+        {yTicks.map((p, i) => (
+          <line key={i}
+            x1={M.left} y1={yS(p).toFixed(1)}
+            x2={w - M.right} y2={yS(p).toFixed(1)}
+            stroke="rgba(255,255,255,0.03)" strokeWidth="1"
+          />
+        ))}
+
+        {/* y labels */}
+        {yTicks.map((p, i) => (
+          <text key={i}
+            x={w - M.right + 7} y={yS(p)}
+            fill="rgba(255,255,255,0.14)" fontSize="9"
+            fontFamily="ui-monospace,monospace"
+            dominantBaseline="middle"
+          >{fmtPrice(p)}</text>
+        ))}
+
+        {/* x labels */}
+        {xTicks.map((ts, i) => (
+          <text key={i}
+            x={xS(ts).toFixed(1)} y={h - 8}
+            fill="rgba(255,255,255,0.14)" fontSize="9"
+            fontFamily="ui-sans-serif,sans-serif"
+            textAnchor="middle"
+          >{fmtDate(ts)}</text>
+        ))}
+
+        {/* history area */}
+        <path d={histAreaD} fill={`url(#${uid}hg)`} clipPath={`url(#${uid}cl)`} />
+
+        {/* history line */}
+        <path d={histLine} fill="none"
+          stroke="rgba(192,192,204,0.40)" strokeWidth="1.5"
+          strokeLinecap="round" clipPath={`url(#${uid}cl)`}
+        />
+
+        {/* spaghetti runs */}
+        {data.runs.map((run, ri) => {
+          const pts: [number, number][] = [
+            anchorPt,
+            ...run.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number]),
+          ];
+          return (
+            <path key={ri} d={smooth(pts)} fill="none"
+              stroke="rgba(192,192,204,0.10)" strokeWidth="1"
+              strokeLinecap="round" clipPath={`url(#${uid}cl)`}
+            />
+          );
+        })}
+
+        {/* P25–P75 band */}
+        {bandPath && (
+          <path d={bandPath} fill="rgba(192,192,204,0.06)"
+            clipPath={`url(#${uid}cl)`}
+          />
+        )}
+
+        {/* separator */}
+        <line
+          x1={sepX.toFixed(1)} y1={M.top}
+          x2={sepX.toFixed(1)} y2={M.top + cH}
+          stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+          strokeDasharray="4,5"
+        />
+
+        {/* forecast zone tint */}
+        <rect
+          x={sepX} y={M.top}
+          width={Math.max(0, w - M.right - sepX)} height={cH}
+          fill="rgba(255,255,255,0.010)"
+          clipPath={`url(#${uid}cl)`}
+        />
+
+        {/* forecast label */}
+        <text
+          x={(sepX + 7).toFixed(1)} y={(M.top + 13).toFixed(1)}
+          fill="rgba(255,255,255,0.12)" fontSize="7.5"
+          fontFamily="ui-sans-serif,sans-serif"
+          fontWeight="600" letterSpacing="0.08em"
+        >FORECAST</text>
+
+        {/* median glow */}
+        <path d={medPath} fill="none"
+          stroke="rgba(192,192,204,0.18)" strokeWidth="10"
+          filter={`url(#${uid}gw)`}
+          clipPath={`url(#${uid}cl)`}
+        />
+
+        {/* median line */}
+        <path d={medPath} fill="none"
+          stroke="#c0c0cc" strokeWidth="2"
+          strokeDasharray="6,4" strokeLinecap="round"
+          clipPath={`url(#${uid}cl)`}
+        />
+
+        {/* anchor dot */}
+        <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
+        <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="3.5" fill="#c0c0cc" />
+
+        {/* endpoint marker */}
+        {data.median.length > 0 && (() => {
+          const ex = xS(data.futureDates[data.futureDates.length - 1]);
+          const ey = yS(data.median[data.median.length - 1]);
+          return (
+            <g>
+              <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
+              <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="3" fill="#c0c0cc" />
+            </g>
+          );
+        })()}
+
+        {/* crosshair */}
+        {crosshair && (() => {
+          const activePrice = crosshair.histPrice ?? crosshair.median;
+          const cy = activePrice !== null ? yS(activePrice) : null;
+          const isForecast = crosshair.median !== null;
+          const tipH = isForecast ? 74 : 44;
+
+          return (
+            <>
+              <line
+                x1={crosshair.x.toFixed(1)} y1={M.top}
+                x2={crosshair.x.toFixed(1)} y2={M.top + cH}
+                stroke="rgba(255,255,255,0.09)" strokeWidth="1"
+              />
+              {cy !== null && (
+                <g>
+                  <circle cx={crosshair.x.toFixed(1)} cy={cy.toFixed(1)} r="5" fill="rgba(192,192,204,0.12)" />
+                  <circle cx={crosshair.x.toFixed(1)} cy={cy.toFixed(1)} r="2.5" fill="rgba(192,192,204,0.9)" />
+                </g>
+              )}
+              <g transform={`translate(${tipX.toFixed(1)},${M.top + 10})`}>
+                <rect x="0" y="0" rx="7" ry="7" width={tipW} height={tipH}
+                  fill="rgba(8,8,8,0.88)" stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+                />
+                <text x="9" y="15" fill="rgba(255,255,255,0.30)" fontSize="8.5"
+                  fontFamily="ui-sans-serif,sans-serif">
+                  {fmtDate(crosshair.time)}
+                </text>
+                <line x1="9" y1="20" x2={tipW - 9} y2="20" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                {crosshair.histPrice !== null && (
+                  <text x="9" y="34" fill="rgba(192,192,204,0.85)" fontSize="10.5"
+                    fontWeight="500" fontFamily="ui-monospace,monospace">
+                    {fmtPrice(crosshair.histPrice)}
+                  </text>
+                )}
+                {isForecast && (
+                  <>
+                    <text x="9" y="34" fill="rgba(255,255,255,0.25)" fontSize="8" fontFamily="ui-sans-serif,sans-serif">↑ {fmtPrice(crosshair.p75!)}</text>
+                    <text x="9" y="50" fill="rgba(192,192,204,0.85)" fontSize="10.5" fontWeight="500" fontFamily="ui-monospace,monospace">{fmtPrice(crosshair.median!)}</text>
+                    <text x="9" y="66" fill="rgba(255,255,255,0.25)" fontSize="8" fontFamily="ui-sans-serif,sans-serif">↓ {fmtPrice(crosshair.p25!)}</text>
+                  </>
+                )}
+              </g>
+            </>
+          );
+        })()}
+      </svg>
+    </div>
+  );
+}
+
+// ── panel ─────────────────────────────────────────────────────────────────────
 
 export default function AIPredPanel({ ticker }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef     = useRef<IChartApi | null>(null);
-  const [ready, setReady] = useState(false);
-
   const [nDays,    setNDays]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-days")    ?? "10");  } catch { return 10;  } });
   const [nRuns,    setNRuns]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-runs")    ?? "10");  } catch { return 10;  } });
   const [nHistory, setNHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-history") ?? "252"); } catch { return 252; } });
@@ -59,144 +374,66 @@ export default function AIPredPanel({ ticker }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
-  // Chart readiness
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver(entries => { if (entries[0].contentRect.height > 10) setReady(true); });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  // Rebuild chart whenever data changes
-  useEffect(() => {
-    if (!ready || !containerRef.current || !data) return;
-    const el = containerRef.current;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
-    if (w <= 0 || h <= 0) return;
-
-    // Tear down previous chart
-    chartRef.current?.remove();
-    chartRef.current = null;
-
-    const chart = createChart(el, {
-      layout: {
-        background: { type: ColorType.Solid, color: BG },
-        textColor: "#767676",
-        fontSize: 10,
-      },
-      grid: { vertLines: { color: "#1a1a1a" }, horzLines: { color: "#1a1a1a" } },
-      crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: "#1e1e1e" },
-      timeScale: { borderColor: "#1e1e1e", timeVisible: true, secondsVisible: false },
-      width: w,
-      height: h,
-    });
-
-    // ── Historical line ────────────────────────────────────────────────────
-    const histSeries = chart.addSeries(LineSeries, {
-      color: "#505058",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    });
-    histSeries.setData(
-      data.historical.map(p => ({ time: p.time as unknown as Time, value: p.close }))
-    );
-
-    // ── Anchor values (bridge historical → prediction) ─────────────────────
-    const lastH      = data.historical[data.historical.length - 1];
-    const times      = [lastH.time, ...data.futureDates] as unknown as Time[];
-    const medianVals = [lastH.close, ...data.median];
-
-    // ── Spaghetti runs ─────────────────────────────────────────────────────
-    for (const run of data.runs) {
-      const s = chart.addSeries(LineSeries, {
-        color: "rgba(192,192,204,0.2)",
-        lineWidth: 1,
-        priceLineVisible:       false,
-        lastValueVisible:       false,
-        crosshairMarkerVisible: false,
-      });
-      s.setData([
-        { time: lastH.time as unknown as Time, value: lastH.close },
-        ...run.map((v, i) => ({ time: data.futureDates[i] as unknown as Time, value: v })),
-      ]);
-    }
-
-    // ── Median line (dashed, on top) ───────────────────────────────────────
-    const medianLine = chart.addSeries(LineSeries, {
-      color: "#c0c0cc",
-      lineWidth: 2,
-      lineStyle: 2,
-      priceLineVisible:       false,
-      lastValueVisible:       true,
-      crosshairMarkerVisible: true,
-      crosshairMarkerRadius:  4,
-    });
-    medianLine.setData(times.map((t, i) => ({ time: t, value: medianVals[i] })));
-
-    chart.timeScale().fitContent();
-    chartRef.current = chart;
-
-    const ro = new ResizeObserver(() => {
-      if (!chartRef.current) return;
-      const nw = el.clientWidth, nh = el.clientHeight;
-      if (nw > 0 && nh > 0) chartRef.current.applyOptions({ width: nw, height: nh });
-    });
-    ro.observe(el);
-
-    return () => {
-      ro.disconnect();
-      chart.remove();
-      chartRef.current = null;
-    };
-  }, [ready, data]);
-
   const lastClose  = data?.historical.at(-1)?.close ?? null;
   const predFinal  = data?.median.at(-1) ?? null;
   const predChange = lastClose && predFinal ? ((predFinal - lastClose) / lastClose) * 100 : null;
   const isUp       = (predChange ?? 0) >= 0;
 
   return (
-    <div className="rounded-lg border border-[#1e1e1e] bg-[#101010] overflow-hidden">
+    <div className="rounded-xl border border-[#1e1e1e] overflow-hidden" style={{ background: "#101010" }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-3 border-b border-[#1e1e1e]">
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-3 border-b border-[#1e1e1e]">
         <div className="flex items-center gap-2.5">
           <span className="text-[#c0c0cc] text-[8px]">◆</span>
           <div>
             <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">AI Price Forecast</span>
-            <p className="text-[9px] text-[#3a3a3a] mt-0.5">LLM Ensemble · Monte Carlo</p>
+            <p className="text-[9px] text-[#3a3a3a] mt-0.5">Monte Carlo · LLM Ensemble</p>
           </div>
         </div>
-        {data && lastClose && predFinal && (
-          <div className="text-right">
-            <div className={cn("text-xl font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
-              ${predFinal.toFixed(2)}
-            </div>
-            <div className={cn("text-[10px] font-medium flex items-center gap-1 justify-end", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
+
+        {data && lastClose && predFinal && predChange !== null && (
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-semibold tabular-nums",
+              isUp
+                ? "text-[#c0c0cc] bg-[#c0c0cc0a] border-[#c0c0cc28]"
+                : "text-[#ef4444] bg-[#ef44440a] border-[#ef444428]"
+            )}>
               {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              {isUp ? "+" : ""}{predChange?.toFixed(2)}% · {data.n}D
+              <span className="font-mono">{isUp ? "+" : ""}{predChange.toFixed(2)}%</span>
+              <span className="opacity-50">· {data.n}D</span>
             </div>
+            <span className={cn("text-lg font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
+              {fmtPrice(predFinal)}
+            </span>
           </div>
         )}
       </div>
 
       {/* Chart */}
-      <div ref={containerRef} className="relative w-full overflow-hidden" style={{ height: 260 }}>
-        {loading && !data && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: BG }}>
+      <div className="relative">
+        {loading && !data ? (
+          <div className="flex flex-col items-center justify-center gap-3" style={{ height: 264, background: "#101010" }}>
             <div className="relative">
               <div className="w-10 h-10 rounded-full border-2 border-[#c0c0cc22] border-t-[#c0c0cc] animate-spin" />
               <Sparkles className="w-4 h-4 text-[#c0c0cc] absolute inset-0 m-auto" />
             </div>
             <p className="text-[10px] text-[#3a3a3a]">Running {nRuns} scenarios…</p>
           </div>
-        )}
-        {error && !data && (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: BG }}>
-            <p className="text-[10px] text-[#ef4444]">{error}</p>
+        ) : error && !data ? (
+          <div className="flex items-center justify-center" style={{ height: 264, background: "#101010" }}>
+            <p className="text-[10px] text-[#ef4444] px-4 text-center">{error}</p>
+          </div>
+        ) : data ? (
+          <PredChart data={data} height={264} />
+        ) : null}
+
+        {/* Loading overlay when refreshing with existing data */}
+        {loading && data && (
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#101010] border border-[#1e1e1e]">
+            <div className="w-3 h-3 rounded-full border border-[#c0c0cc33] border-t-[#c0c0cc] animate-spin" />
+            <span className="text-[9px] text-[#3a3a3a]">Updating…</span>
           </div>
         )}
       </div>
@@ -209,47 +446,43 @@ export default function AIPredPanel({ ticker }: Props) {
             <span>{data.successfulRuns}/{data.totalRuns} runs</span>
           </div>
         )}
-
         <div className="flex-1" />
-
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">Days</span>
-            <div className="flex items-center gap-0.5">
-              <button onClick={() => setNDays((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs text-[#f0f0f0] w-5 text-center tabular-nums font-mono">{nDays}</span>
-              <button onClick={() => setNDays((v: number) => Math.min(30, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Plus className="w-3 h-3" /></button>
+          {([
+            { label: "Days", val: nDays, set: setNDays, min: 1,  max: 30,  step: 1  },
+            { label: "Runs", val: nRuns, set: setNRuns, min: 1,  max: 20,  step: 1  },
+            { label: "Hist", val: nHistory, set: setNHistory, min: 20, max: 252, step: 10 },
+          ] as const).map(({ label, val, set, min, max, step }, i) => (
+            <div key={label} className="flex items-center gap-1">
+              {i > 0 && <div className="w-px h-3 bg-[#1e1e1e]" />}
+              <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">{label}</span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => set((v: number) => Math.max(min, v - step))}
+                  className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
+                ><Minus className="w-3 h-3" /></button>
+                <span className="text-xs text-[#f0f0f0] w-7 text-center tabular-nums font-mono">{val}</span>
+                <button
+                  onClick={() => set((v: number) => Math.min(max, v + step))}
+                  className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
+                ><Plus className="w-3 h-3" /></button>
+              </div>
             </div>
-          </div>
-          <div className="w-px h-3 bg-[#1e1e1e]" />
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">Runs</span>
-            <div className="flex items-center gap-0.5">
-              <button onClick={() => setNRuns((v: number) => Math.max(1, v - 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs text-[#f0f0f0] w-5 text-center tabular-nums font-mono">{nRuns}</span>
-              <button onClick={() => setNRuns((v: number) => Math.min(20, v + 1))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Plus className="w-3 h-3" /></button>
-            </div>
-          </div>
-          <div className="w-px h-3 bg-[#1e1e1e]" />
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">Hist</span>
-            <div className="flex items-center gap-0.5">
-              <button onClick={() => setNHistory((v: number) => Math.max(20, v - 10))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs text-[#f0f0f0] w-7 text-center tabular-nums font-mono">{nHistory}</span>
-              <button onClick={() => setNHistory((v: number) => Math.min(252, v + 10))} className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616]"><Plus className="w-3 h-3" /></button>
-            </div>
-          </div>
+          ))}
           <button
             onClick={() => predict(nDays, nRuns, nHistory)}
             disabled={loading}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
               loading
                 ? "text-[#3a3a3a] border-[#1e1e1e] cursor-not-allowed"
                 : "text-[#c0c0cc] bg-[#c0c0cc0a] border-[#c0c0cc33] hover:bg-[#c0c0cc18] hover:border-[#c0c0cc55]"
             )}
           >
-            {loading ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</> : <><Sparkles className="w-3 h-3" />Predict</>}
+            {loading
+              ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</>
+              : <><Sparkles className="w-3 h-3" />Predict</>
+            }
           </button>
         </div>
       </div>
