@@ -62,7 +62,7 @@ export async function GET(
       return NextResponse.json({ error: "Insufficient data" }, { status: 200 });
     }
 
-    const cappedGrowth = Math.min(Math.max(growthRate, 0), 100);
+    const cappedGrowth = Math.min(Math.max(growthRate, 0), 50);
 
     // Peter Lynch Fair Value: Price = EPS × Growth Rate (%)
     // Fair P/E = growth rate → Fair Price = EPS × growth rate

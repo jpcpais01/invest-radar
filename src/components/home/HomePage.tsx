@@ -150,11 +150,10 @@ export default function HomePage() {
               <NewsPanel ticker={activeTicker} />
             </div>
             <div className="flex flex-col gap-4">
-              <TechnicalsStrip ticker={activeTicker} />
-              <QualityCard ticker={activeTicker} />
-              <NarrativeCard ticker={activeTicker} />
-              <ValuationCard ticker={activeTicker} />
               <FairPriceCard ticker={activeTicker} />
+              <QualityCard ticker={activeTicker} />
+              <TechnicalsStrip ticker={activeTicker} />
+              <ValuationCard ticker={activeTicker} />
               <FairValueCard ticker={activeTicker} />
               <PEValuationCard ticker={activeTicker} />
               <DCFCard ticker={activeTicker} />
