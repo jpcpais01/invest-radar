@@ -31,7 +31,8 @@ export type WidgetType =
   | "price-prediction"
   | "fair-value"
   | "pe-valuation"
-  | "dcf";
+  | "dcf"
+  | "fair-price";
 
 export interface WidgetConfig {
   id: string;
@@ -77,4 +78,5 @@ export const WIDGET_CATALOG: { type: WidgetType; title: string; defaultW: number
   { type: "fair-value",       title: "Lynch Fair Value",      defaultW: 4, defaultH: 5 },
   { type: "pe-valuation",    title: "P/E Relative Valuation", defaultW: 4, defaultH: 6 },
   { type: "dcf",             title: "DCF Valuation",          defaultW: 4, defaultH: 7 },
+  { type: "fair-price",      title: "Fair Price",             defaultW: 4, defaultH: 6 },
 ];

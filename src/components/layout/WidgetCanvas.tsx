@@ -30,6 +30,7 @@ import PricePredictionWidget from "@/components/widgets/investment/PricePredicti
 import FairValueWidget from "@/components/widgets/investment/FairValueWidget";
 import PEValuationWidget from "@/components/widgets/investment/PEValuationWidget";
 import DCFWidget from "@/components/widgets/investment/DCFWidget";
+import FairPriceWidget from "@/components/widgets/investment/FairPriceWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
 // ─── Widget catalogue ─────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ const CATALOG: CatalogEntry[] = [
   { type: "fair-value",        label: "Lynch Fair Value",       desc: "Peter Lynch PEG fair value estimate",  defaultW: 8, defaultH: 8 },
   { type: "pe-valuation",     label: "P/E Relative Valuation", desc: "Sector median P/E comparable analysis", defaultW: 8, defaultH: 10 },
   { type: "dcf",              label: "DCF Valuation",          desc: "10-year discounted free cash flow model", defaultW: 8, defaultH: 12 },
+  { type: "fair-price",       label: "Fair Price",             desc: "Equal-weight avg of Lynch, P/E, and DCF", defaultW: 8, defaultH: 10 },
 ];
 
 // ─── Widget renderer ──────────────────────────────────────────────────────────
@@ -97,6 +99,7 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
     case "fair-value":         return <FairValueWidget          ticker={ticker} id={id} />;
     case "pe-valuation":       return <PEValuationWidget         ticker={ticker} id={id} />;
     case "dcf":                return <DCFWidget                  ticker={ticker} id={id} />;
+    case "fair-price":         return <FairPriceWidget            ticker={ticker} id={id} />;
     default:
       return (
         <WidgetShell title={type} id={id} onRemove={onRemove}>

@@ -400,6 +400,125 @@ export function FairValueCard({ ticker }: Props) {
   );
 }
 
+// ── Fair Price Card (avg of all 3 models) ─────────────────────────────────────
+
+function fpFmt(n: number) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fpUpsideColor(pct: number) {
+  if (pct >= 15) return "#c0c0cc";
+  if (pct >= 0)  return "#767676";
+  return "#ef4444";
+}
+
+const FP_MODELS = [
+  { key: "lynch", label: "Lynch PEG", color: "#767676" },
+  { key: "pe",    label: "P/E Comps", color: "#767676" },
+  { key: "dcf",   label: "DCF",       color: "#767676" },
+] as const;
+
+export function FairPriceCard({ ticker }: Props) {
+  const lynch = useQuery({
+    queryKey: ["fair-value", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/fair-value/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+  const pe = useQuery({
+    queryKey: ["pe-valuation", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/pe-valuation/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+  const dcf = useQuery({
+    queryKey: ["dcf", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/dcf/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const isLoading = lynch.isLoading || pe.isLoading || dcf.isLoading;
+
+  const lynchVal: number | null = lynch.data?.fairValue > 0 && !lynch.data?.error ? lynch.data.fairValue : null;
+  const peVal:    number | null = pe.data?.fairValueTrailing > 0 && !pe.data?.error ? pe.data.fairValueTrailing : null;
+  const dcfVal:   number | null = dcf.data?.intrinsicValue > 0 && !dcf.data?.error ? dcf.data.intrinsicValue : null;
+
+  const valid = [lynchVal, peVal, dcfVal].filter((v): v is number => v != null);
+  const avg   = valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
+
+  const currentPrice: number | null =
+    lynch.data?.currentPrice ?? pe.data?.currentPrice ?? dcf.data?.currentPrice ?? null;
+
+  const upside = avg != null && currentPrice != null
+    ? ((avg - currentPrice) / currentPrice) * 100 : null;
+
+  const modelVals = [lynchVal, peVal, dcfVal];
+
+  return (
+    <CardShell title="Fair Price">
+      {isLoading ? <Skeleton lines={4} /> : avg != null ? (
+        <div className="flex flex-col gap-3">
+          {/* Avg vs current */}
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[9px] text-[#3a3a3a] mb-0.5">Avg Fair Price</p>
+              <span className="text-lg font-mono font-bold text-[#f0f0f0]">${fpFmt(avg)}</span>
+            </div>
+            {currentPrice != null && (
+              <div className="text-right">
+                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                <span className="text-sm font-mono text-[#767676]">${fpFmt(currentPrice)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Upside */}
+          {upside != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[#3a3a3a]">
+                {upside >= 0 ? "Upside" : "Downside"}
+              </span>
+              <span className="text-[11px] font-semibold font-mono" style={{ color: fpUpsideColor(upside) }}>
+                {upside >= 0 ? "+" : ""}{upside.toFixed(1)}%
+              </span>
+            </div>
+          )}
+
+          {/* Model breakdown */}
+          <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
+            {FP_MODELS.map(({ key, label }, i) => {
+              const val = modelVals[i];
+              const mu = val != null && currentPrice != null
+                ? ((val - currentPrice) / currentPrice) * 100 : null;
+              return (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="text-[10px] text-[#3a3a3a] flex-1">{label}</span>
+                  {val != null ? (
+                    <>
+                      <span className="text-[10px] font-mono text-[#f0f0f0]">${fpFmt(val)}</span>
+                      {mu != null && (
+                        <span className="text-[9px] font-mono w-12 text-right" style={{ color: fpUpsideColor(mu) }}>
+                          {mu >= 0 ? "+" : ""}{mu.toFixed(1)}%
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-[9px] text-[#3a3a3a]">N/A</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">
+            Equal-weight avg · {valid.length}/3 models
+          </p>
+        </div>
+      ) : !isLoading ? (
+        <p className="text-[11px] text-[#3a3a3a]">No valuation data available</p>
+      ) : null}
+    </CardShell>
+  );
+}
+
 // ── DCF Valuation Card ────────────────────────────────────────────────────────
 
 interface DCFData {
