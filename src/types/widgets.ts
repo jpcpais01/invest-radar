@@ -28,7 +28,8 @@ export type WidgetType =
   | "timeframe-heatmap"
   | "conviction-tracker"
   | "narrative-index"
-  | "price-prediction";
+  | "price-prediction"
+  | "fair-value";
 
 export interface WidgetConfig {
   id: string;
@@ -71,4 +72,5 @@ export const WIDGET_CATALOG: { type: WidgetType; title: string; defaultW: number
   { type: "conviction-tracker", title: "Management Conviction", defaultW: 4, defaultH: 5 },
   { type: "narrative-index",   title: "Narrative Index",     defaultW: 4, defaultH: 4 },
   { type: "price-prediction", title: "AI Price Prediction",  defaultW: 6, defaultH: 5 },
+  { type: "fair-value",       title: "Lynch Fair Value",      defaultW: 4, defaultH: 5 },
 ];

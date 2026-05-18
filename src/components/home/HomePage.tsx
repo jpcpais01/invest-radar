@@ -7,7 +7,7 @@ import { AskAIBtn, ForecastBtn, TerminalBtn, StrategyBtn } from "./NavButtons";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
-import { SignalCard, QualityCard, NarrativeCard, ValuationCard, InsiderCard } from "./InsightCards";
+import { SignalCard, QualityCard, NarrativeCard, ValuationCard, InsiderCard, FairValueCard } from "./InsightCards";
 import NewsPanel from "./NewsPanel";
 import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
@@ -154,6 +154,7 @@ export default function HomePage() {
               <QualityCard ticker={activeTicker} />
               <NarrativeCard ticker={activeTicker} />
               <ValuationCard ticker={activeTicker} />
+              <FairValueCard ticker={activeTicker} />
               <InsiderCard ticker={activeTicker} />
             </div>
           </div>

@@ -27,6 +27,7 @@ import HeatmapWidget from "@/components/widgets/investment/HeatmapWidget";
 import ConvictionTrackerWidget from "@/components/widgets/investment/ConvictionTrackerWidget";
 import NarrativeIndexWidget from "@/components/widgets/investment/NarrativeIndexWidget";
 import PricePredictionWidget from "@/components/widgets/investment/PricePredictionWidget";
+import FairValueWidget from "@/components/widgets/investment/FairValueWidget";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 
 // ─── Widget catalogue ─────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const CATALOG: CatalogEntry[] = [
   { type: "conviction-tracker", label: "Management Conviction", desc: "Insider buy / sell trend",            defaultW: 8, defaultH: 8 },
   { type: "narrative-index",    label: "Narrative Index",       desc: "News narrative lifecycle stage",      defaultW: 8, defaultH: 8 },
   { type: "price-prediction",  label: "AI Price Prediction",   desc: "LLM ensemble price forecast",          defaultW: 10, defaultH: 9 },
+  { type: "fair-value",        label: "Lynch Fair Value",       desc: "Peter Lynch PEG fair value estimate",  defaultW: 8, defaultH: 8 },
 ];
 
 // ─── Widget renderer ──────────────────────────────────────────────────────────
@@ -88,6 +90,7 @@ function renderWidget(type: WidgetType, ticker: string, id: string, onRemove: (i
     case "conviction-tracker":  return <ConvictionTrackerWidget  ticker={ticker} id={id} />;
     case "narrative-index":     return <NarrativeIndexWidget     ticker={ticker} id={id} />;
     case "price-prediction":   return <PricePredictionWidget    ticker={ticker} id={id} />;
+    case "fair-value":         return <FairValueWidget          ticker={ticker} id={id} />;
     default:
       return (
         <WidgetShell title={type} id={id} onRemove={onRemove}>

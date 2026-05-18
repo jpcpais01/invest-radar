@@ -5,6 +5,8 @@ import { OHLCVBar, TechnicalIndicators } from "@/types/market";
 import { computeSignalSummary, SignalValue } from "@/lib/market/indicators";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
+// ── Fair Value Card ────────────────────────────────────────────────────────────
+
 interface Props { ticker: string }
 
 function CardShell({ title, children }: { title: string; children: React.ReactNode }) {
@@ -277,6 +279,123 @@ export function ValuationCard({ ticker }: Props) {
           <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">Position within 5-year historical range</p>
         </div>
       ) : <p className="text-[11px] text-[#3a3a3a]">No valuation data</p>}
+    </CardShell>
+  );
+}
+
+// ── Fair Value Card ────────────────────────────────────────────────────────────
+
+interface FairValueData {
+  fairValue: number;
+  currentPrice: number | null;
+  trailingEps: number;
+  growthRate: number;
+  growthSource: string;
+  upside: number | null;
+  peg: number | null;
+  error?: string;
+}
+
+function fvFmt(n: number) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fvUpsideColor(pct: number) {
+  if (pct >= 15) return "#c0c0cc";
+  if (pct >= 0)  return "#767676";
+  return "#ef4444";
+}
+
+function fvPegLabel(peg: number): { text: string; color: string } {
+  if (peg < 0.5)  return { text: "Deep Value",  color: "#c0c0cc" };
+  if (peg < 1.0)  return { text: "Undervalued", color: "#c0c0cc" };
+  if (peg < 1.5)  return { text: "Fair Value",  color: "#767676" };
+  if (peg < 2.0)  return { text: "Overvalued",  color: "#ef4444" };
+  return             { text: "Expensive",    color: "#ef4444" };
+}
+
+export function FairValueCard({ ticker }: Props) {
+  const { data, isLoading } = useQuery<FairValueData>({
+    queryKey: ["fair-value", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/fair-value/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const hasData = data && !data.error && data.fairValue != null;
+  const peg = hasData && data.peg != null ? data.peg : null;
+  const pegCfg = peg != null ? fvPegLabel(peg) : null;
+  const upsideColor = hasData && data.upside != null ? fvUpsideColor(data.upside) : "#3a3a3a";
+  // PEG bar: 0–3x range, fair value at 1x = 33.3%
+  const pegBarPct = peg != null ? Math.min(Math.max(peg / 3, 0), 1) * 100 : null;
+
+  return (
+    <CardShell title="Lynch Fair Value">
+      {isLoading ? <Skeleton lines={3} /> : hasData ? (
+        <div className="flex flex-col gap-3">
+          {/* Prices row */}
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[9px] text-[#3a3a3a] mb-0.5">Fair Value</p>
+              <span className="text-lg font-mono font-bold text-[#f0f0f0]">${fvFmt(data.fairValue)}</span>
+            </div>
+            {data.currentPrice != null && (
+              <div className="text-right">
+                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                <span className="text-sm font-mono text-[#767676]">${fvFmt(data.currentPrice)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Upside badge */}
+          {data.upside != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[#3a3a3a]">
+                {data.upside >= 0 ? "Upside" : "Downside"}
+              </span>
+              <span className="text-[11px] font-semibold font-mono" style={{ color: upsideColor }}>
+                {data.upside >= 0 ? "+" : ""}{data.upside.toFixed(1)}%
+              </span>
+            </div>
+          )}
+
+          {/* PEG bar */}
+          {peg != null && pegCfg != null && pegBarPct != null && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[#767676]">PEG</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ color: pegCfg.color, background: `${pegCfg.color}0a` }}>{pegCfg.text}</span>
+                  <span className="text-[10px] font-mono text-[#f0f0f0]">{peg.toFixed(2)}x</span>
+                </div>
+              </div>
+              <div className="relative flex-1 h-1 rounded-full bg-[#161616]">
+                <div className="absolute inset-y-0 left-0 rounded-full opacity-20"
+                     style={{ width: `${pegBarPct}%`, background: "linear-gradient(to right, #c0c0cc, #ef4444)" }} />
+                <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-[#080808]"
+                     style={{ left: `calc(${pegBarPct}% - 4px)`, backgroundColor: pegCfg.color }} />
+                {/* Fair value marker at PEG=1 */}
+                <div className="absolute top-0 bottom-0 w-px bg-[#3a3a3a]" style={{ left: "33.3%" }} />
+              </div>
+              <div className="flex justify-between text-[9px] text-[#3a3a3a]">
+                <span>0</span><span>PEG 0–3x</span><span>3x</span>
+              </div>
+            </div>
+          )}
+
+          {/* Inputs */}
+          <div className="flex flex-col gap-1 pt-1 border-t border-[#1e1e1e]">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-[#3a3a3a]">EPS (TTM)</span>
+              <span className="font-mono text-[#f0f0f0]">${fvFmt(data.trailingEps)}</span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-[#3a3a3a]">Growth ({data.growthSource})</span>
+              <span className="font-mono text-[#f0f0f0]">{data.growthRate.toFixed(1)}%</span>
+            </div>
+            <p className="text-[9px] text-[#1e1e1e] pt-0.5">EPS × Growth Rate · Lynch PEG Model</p>
+          </div>
+        </div>
+      ) : <p className="text-[11px] text-[#3a3a3a]">Insufficient data</p>}
     </CardShell>
   );
 }
