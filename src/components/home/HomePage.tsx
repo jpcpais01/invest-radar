@@ -12,6 +12,7 @@ import NewsPanel from "./NewsPanel";
 import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
 import CommandPalette from "@/components/search/CommandPalette";
+import HomeWatchlistBar from "./HomeWatchlistBar";
 
 type Tab = "overview" | "discover";
 
@@ -138,6 +139,9 @@ export default function HomePage() {
           <TerminalBtn ticker={activeTicker} />
         </div>
       </header>
+
+      {/* ── Watchlist Bar ───────────────────────────────────────────────── */}
+      <HomeWatchlistBar onSelectTicker={selectTicker} />
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
       {activeTab === "overview" ? (
