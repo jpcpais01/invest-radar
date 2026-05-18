@@ -126,7 +126,16 @@ interface FPResult {
   peVal: number | null;
   dcfVal: number | null;
   modelsUsed: number;
+  marketCap?: number;
 }
+
+type McapFilter = "none" | "20b" | "50b" | "100b";
+const MCAP_FILTERS: { id: McapFilter; label: string; min: number }[] = [
+  { id: "none",  label: "Any",   min: 0 },
+  { id: "20b",   label: "≥ 20B", min: 20e9 },
+  { id: "50b",   label: "≥ 50B", min: 50e9 },
+  { id: "100b",  label: "≥ 100B", min: 100e9 },
+];
 
 function fpCategory(upside: number): FPFilter {
   if (upside >= 15) return "undervalued";
@@ -208,6 +217,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
   const [fpFilter, setFpFilter]     = useState<FPFilter>("all");
   const [fpSortKey, setFpSortKey]   = useState<FPSortKey>("upside");
   const [fpSortDir, setFpSortDir]   = useState<SortDir>("desc");
+  const [mcapFilter, setMcapFilter] = useState<McapFilter>("50b");
 
   const [hydrated, setHydrated] = useState(false);
 
@@ -310,9 +320,10 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
     { all: 0, undervalued: 0, fair: 0, overvalued: 0 }
   );
 
-  const fpFiltered = fpFilter === "all"
-    ? fpResults
-    : fpResults.filter(r => fpCategory(r.upside) === fpFilter);
+  const mcapMin = MCAP_FILTERS.find(f => f.id === mcapFilter)?.min ?? 0;
+  const fpFiltered = fpResults
+    .filter(r => fpFilter === "all" || fpCategory(r.upside) === fpFilter)
+    .filter(r => mcapMin === 0 || (r.marketCap != null && r.marketCap >= mcapMin));
 
   const fpSorted = [...fpFiltered].sort((a, b) => {
     let v = 0;
@@ -496,22 +507,44 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       {/* ── FAIR PRICE MODE ─────────────────────────────────────────────────── */}
       {mode === "fairprice" && (
         <>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {FP_FILTERS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setFpFilter(tab.id)}
-                className={cn(
-                  "px-2.5 py-1 rounded-full border text-[9px] font-semibold tracking-wide transition-colors",
-                  fpFilter === tab.id
-                    ? FP_FILTER_ACTIVE[tab.id]
-                    : "text-[#3a3a3a] border-[#1e1e1e] hover:border-[#2c2c2c] hover:text-[#767676] bg-transparent"
-                )}
-              >
-                {tab.label}
-                {!fpLoading && <span className="ml-1.5 opacity-50">{fpCounts[tab.id]}</span>}
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {/* Valuation filter chips */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {FP_FILTERS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFpFilter(tab.id)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full border text-[9px] font-semibold tracking-wide transition-colors",
+                    fpFilter === tab.id
+                      ? FP_FILTER_ACTIVE[tab.id]
+                      : "text-[#3a3a3a] border-[#1e1e1e] hover:border-[#2c2c2c] hover:text-[#767676] bg-transparent"
+                  )}
+                >
+                  {tab.label}
+                  {!fpLoading && <span className="ml-1.5 opacity-50">{fpCounts[tab.id]}</span>}
+                </button>
+              ))}
+            </div>
+
+            {/* Market cap toggle */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest shrink-0">Mkt cap</span>
+              <div className="flex items-center border border-[#1e1e1e] rounded-md overflow-hidden">
+                {MCAP_FILTERS.map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setMcapFilter(f.id)}
+                    className={cn(
+                      "px-2.5 py-1 text-[9px] font-semibold tracking-wide transition-colors",
+                      mcapFilter === f.id
+                        ? "bg-[#c0c0cc0a] text-[#c0c0cc]"
+                        : "text-[#767676] hover:text-[#f0f0f0]"
+                    )}
+                  >{f.label}</button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="rounded-lg border border-[#1e1e1e] bg-[#101010] overflow-hidden">

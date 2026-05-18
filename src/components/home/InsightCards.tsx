@@ -437,16 +437,22 @@ export function FairPriceCard({ ticker }: Props) {
 
   const isLoading = lynch.isLoading || pe.isLoading || dcf.isLoading;
 
-  const lynchVal: number | null = lynch.data?.fairValue > 0 && !lynch.data?.error ? lynch.data.fairValue : null;
-  const peVal:    number | null = pe.data?.fairValueTrailing > 0 && !pe.data?.error ? pe.data.fairValueTrailing : null;
-  const dcfVal:   number | null = dcf.data?.intrinsicValue > 0 && !dcf.data?.error ? dcf.data.intrinsicValue : null;
+  const currentPrice: number | null =
+    lynch.data?.currentPrice ?? pe.data?.currentPrice ?? dcf.data?.currentPrice ?? null;
+
+  // Exclude any model value whose implied upside exceeds 500 % (data artifact)
+  const clampModel = (v: number | null): number | null => {
+    if (v == null || v <= 0 || currentPrice == null || currentPrice <= 0) return v;
+    return ((v - currentPrice) / currentPrice) * 100 > 500 ? null : v;
+  };
+
+  const lynchVal: number | null = clampModel(lynch.data?.fairValue > 0 && !lynch.data?.error ? lynch.data.fairValue : null);
+  const peVal:    number | null = clampModel(pe.data?.fairValueTrailing > 0 && !pe.data?.error ? pe.data.fairValueTrailing : null);
+  const dcfVal:   number | null = clampModel(dcf.data?.intrinsicValue > 0 && !dcf.data?.error ? dcf.data.intrinsicValue : null);
 
   const modelVals = [lynchVal, peVal, dcfVal];
   const valid = modelVals.filter((v): v is number => v != null);
   const avg   = valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
-
-  const currentPrice: number | null =
-    lynch.data?.currentPrice ?? pe.data?.currentPrice ?? dcf.data?.currentPrice ?? null;
 
   const upside = avg != null && currentPrice != null
     ? ((avg - currentPrice) / currentPrice) * 100 : null;

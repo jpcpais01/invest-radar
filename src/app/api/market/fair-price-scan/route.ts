@@ -116,6 +116,7 @@ export async function POST(req: NextRequest) {
       const beta              = safeNum(sd?.beta) ?? 1.0;
       const debtToEquityPct   = safeNum(fd?.debtToEquity);
       const sector            = profile?.sector as string | undefined;
+      const marketCap         = safeNum(sd?.marketCap);
 
       // Growth rate (shared between Lynch + DCF)
       let growthDecimal: number | undefined;
@@ -157,7 +158,16 @@ export async function POST(req: NextRequest) {
         dcfVal = computeDCF(fcfPerShare, growthDecimal, wacc);
       }
 
-      const validVals = [lynchVal, peVal, dcfVal].filter((v): v is number => v != null && v > 0);
+      // Exclude any model value whose implied upside exceeds 500 % (data artifact)
+      const clamp = (v: number | null) => {
+        if (v == null || v <= 0 || currentPrice == null || currentPrice <= 0) return v;
+        return ((v - currentPrice) / currentPrice) * 100 > 500 ? null : v;
+      };
+      const lynchC = clamp(lynchVal);
+      const peC    = clamp(peVal);
+      const dcfC   = clamp(dcfVal);
+
+      const validVals = [lynchC, peC, dcfC].filter((v): v is number => v != null && v > 0);
       if (validVals.length === 0 || currentPrice == null) return { ticker, error: true };
 
       const fairPrice = validVals.reduce((s, v) => s + v, 0) / validVals.length;
@@ -170,10 +180,11 @@ export async function POST(req: NextRequest) {
         changePercent: safeNum(quote?.regularMarketChangePercent),
         fairPrice,
         upside,
-        lynchVal,
-        peVal,
-        dcfVal,
-        modelsUsed:  validVals.length,
+        lynchVal:   lynchC,
+        peVal:      peC,
+        dcfVal:     dcfC,
+        modelsUsed: validVals.length,
+        marketCap,
       };
     } catch {
       return { ticker, error: true };
