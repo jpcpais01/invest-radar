@@ -62,23 +62,25 @@ export async function GET(
       return NextResponse.json({ error: "Insufficient data" }, { status: 200 });
     }
 
+    const cappedGrowth = Math.min(Math.max(growthRate, 0), 100);
+
     // Peter Lynch Fair Value: Price = EPS × Growth Rate (%)
     // Fair P/E = growth rate → Fair Price = EPS × growth rate
-    const fairValue = trailingEps * growthRate;
+    const fairValue = trailingEps * cappedGrowth;
 
     const upside =
       currentPrice != null ? ((fairValue - currentPrice) / currentPrice) * 100 : null;
 
     const peg =
       currentPrice != null && trailingEps > 0
-        ? currentPrice / trailingEps / growthRate
+        ? currentPrice / trailingEps / cappedGrowth
         : null;
 
     return NextResponse.json({
       fairValue,
       currentPrice: currentPrice ?? null,
       trailingEps,
-      growthRate,
+      growthRate: cappedGrowth,
       growthSource,
       upside,
       peg,
