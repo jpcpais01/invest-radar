@@ -132,13 +132,10 @@ export async function GET(
       return NextResponse.json({ error: "Insufficient data" }, { status: 200 });
     }
 
-    // Cap growth: cannot exceed WACC − TERMINAL_GROWTH (otherwise PV diverges)
-    const cappedGrowth = Math.min(growthRate, wacc - TERMINAL_GROWTH - 0.01, 0.50);
-
     // Run three scenarios ──────────────────────────────────────────────────────
-    const base = runDCF(fcfPerShare, cappedGrowth, wacc);
-    const bear = runDCF(fcfPerShare, cappedGrowth * 0.6, wacc + 0.01);  // slower growth + higher discount
-    const bull = runDCF(fcfPerShare, Math.min(cappedGrowth * 1.4, 0.50), wacc - 0.01);  // faster growth + lower discount
+    const base = runDCF(fcfPerShare, growthRate, wacc);
+    const bear = runDCF(fcfPerShare, growthRate * 0.6, wacc + 0.01);
+    const bull = runDCF(fcfPerShare, growthRate * 1.4, wacc - 0.01);
 
     const upside = currentPrice != null
       ? ((base.intrinsicValue - currentPrice) / currentPrice) * 100
@@ -150,7 +147,7 @@ export async function GET(
       bullValue:      bull.intrinsicValue,
       currentPrice:   currentPrice ?? null,
       fcfPerShare,
-      growthRate:     cappedGrowth * 100,   // percentage for display
+      growthRate:     growthRate * 100,      // percentage for display
       growthSource,
       wacc:           wacc * 100,           // percentage for display
       rfRate:         rfRate * 100,
