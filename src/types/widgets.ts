@@ -29,7 +29,9 @@ export type WidgetType =
   | "conviction-tracker"
   | "narrative-index"
   | "price-prediction"
-  | "fair-value";
+  | "fair-value"
+  | "pe-valuation"
+  | "dcf";
 
 export interface WidgetConfig {
   id: string;
@@ -73,4 +75,6 @@ export const WIDGET_CATALOG: { type: WidgetType; title: string; defaultW: number
   { type: "narrative-index",   title: "Narrative Index",     defaultW: 4, defaultH: 4 },
   { type: "price-prediction", title: "AI Price Prediction",  defaultW: 6, defaultH: 5 },
   { type: "fair-value",       title: "Lynch Fair Value",      defaultW: 4, defaultH: 5 },
+  { type: "pe-valuation",    title: "P/E Relative Valuation", defaultW: 4, defaultH: 6 },
+  { type: "dcf",             title: "DCF Valuation",          defaultW: 4, defaultH: 7 },
 ];

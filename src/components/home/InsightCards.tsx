@@ -400,6 +400,298 @@ export function FairValueCard({ ticker }: Props) {
   );
 }
 
+// ── DCF Valuation Card ────────────────────────────────────────────────────────
+
+interface DCFData {
+  intrinsicValue: number;
+  bearValue: number;
+  bullValue: number;
+  currentPrice: number | null;
+  fcfPerShare: number;
+  growthRate: number;
+  growthSource: string;
+  wacc: number;
+  terminalGrowth: number;
+  pvHighGrowth: number;
+  pvFade: number;
+  pvTerminal: number;
+  upside: number | null;
+  error?: string;
+}
+
+function dcfFmt(n: number, d = 2) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+function dcfUpsideColor(pct: number) {
+  if (pct >= 20) return "#c0c0cc";
+  if (pct >= 0)  return "#767676";
+  return "#ef4444";
+}
+
+export function DCFCard({ ticker }: Props) {
+  const { data, isLoading } = useQuery<DCFData>({
+    queryKey: ["dcf", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/dcf/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const hasData = data && !data.error && data.intrinsicValue != null;
+  const total = hasData ? data.pvHighGrowth + data.pvFade + data.pvTerminal : 1;
+  const highPct     = hasData ? (data.pvHighGrowth / total) * 100 : 0;
+  const fadePct     = hasData ? (data.pvFade      / total) * 100 : 0;
+  const terminalPct = hasData ? (data.pvTerminal  / total) * 100 : 0;
+
+  const scenarioRange = hasData ? data.bullValue - data.bearValue : 1;
+  const curPct = hasData && data.currentPrice != null && scenarioRange > 0
+    ? Math.max(0, Math.min(1, (data.currentPrice - data.bearValue) / scenarioRange)) * 100
+    : null;
+  const basePct = hasData && scenarioRange > 0
+    ? Math.max(0, Math.min(1, (data.intrinsicValue - data.bearValue) / scenarioRange)) * 100
+    : 50;
+
+  return (
+    <CardShell title="DCF Valuation">
+      {isLoading ? <Skeleton lines={4} /> : hasData ? (
+        <div className="flex flex-col gap-3">
+          {/* Intrinsic value vs current */}
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[9px] text-[#3a3a3a] mb-0.5">Intrinsic Value</p>
+              <span className="text-lg font-mono font-bold text-[#f0f0f0]">${dcfFmt(data.intrinsicValue)}</span>
+            </div>
+            {data.currentPrice != null && (
+              <div className="text-right">
+                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                <span className="text-sm font-mono text-[#767676]">${dcfFmt(data.currentPrice)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Upside */}
+          {data.upside != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[#3a3a3a]">
+                {data.upside >= 0 ? "Margin of safety" : "Downside"}
+              </span>
+              <span className="text-[11px] font-semibold font-mono" style={{ color: dcfUpsideColor(data.upside) }}>
+                {data.upside >= 0 ? "+" : ""}{dcfFmt(data.upside, 1)}%
+              </span>
+            </div>
+          )}
+
+          {/* Scenario bar */}
+          <div className="flex flex-col gap-1 pt-1 border-t border-[#1e1e1e]">
+            <div className="relative h-1 rounded-full bg-[#161616]">
+              <div className="absolute inset-y-0 left-0 right-0 rounded-full opacity-15"
+                style={{ background: "linear-gradient(to right, #ef4444, #767676, #c0c0cc)" }} />
+              <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#767676]"
+                style={{ left: `calc(${basePct}% - 3px)` }} />
+              {curPct != null && (
+                <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-[#080808] bg-[#f0f0f0]"
+                  style={{ left: `calc(${curPct}% - 4px)` }} />
+              )}
+            </div>
+            <div className="flex justify-between text-[9px] text-[#3a3a3a] font-mono">
+              <span>${dcfFmt(data.bearValue, 0)}</span>
+              <span className="text-[#1e1e1e]">bear · base · bull</span>
+              <span>${dcfFmt(data.bullValue, 0)}</span>
+            </div>
+          </div>
+
+          {/* Value composition bar */}
+          <div className="flex flex-col gap-1">
+            <div className="flex h-1 rounded-full overflow-hidden gap-px">
+              <div className="rounded-l-full" style={{ width: `${highPct}%`, background: "#767676" }} />
+              <div style={{ width: `${fadePct}%`, background: "#3a3a3a" }} />
+              <div className="rounded-r-full" style={{ width: `${terminalPct}%`, background: "#252525" }} />
+            </div>
+            <div className="flex justify-between text-[9px] text-[#3a3a3a]">
+              <span>Yrs 1–5 ({highPct.toFixed(0)}%)</span>
+              <span>Terminal ({terminalPct.toFixed(0)}%)</span>
+            </div>
+          </div>
+
+          {/* Key inputs */}
+          <div className="flex flex-col gap-1 pt-2 border-t border-[#1e1e1e]">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-[#3a3a3a]">FCF / Share</span>
+              <span className="font-mono text-[#f0f0f0]">${dcfFmt(data.fcfPerShare)}</span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-[#3a3a3a]">Growth ({data.growthSource})</span>
+              <span className="font-mono text-[#f0f0f0]">{dcfFmt(data.growthRate, 1)}%</span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-[#3a3a3a]">WACC</span>
+              <span className="font-mono text-[#f0f0f0]">{dcfFmt(data.wacc, 1)}%</span>
+            </div>
+            <p className="text-[9px] text-[#1e1e1e] pt-0.5">10Y DCF · CAPM · Gordon Growth terminal</p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[11px] text-[#3a3a3a]">
+          {data?.error === "Insufficient data" ? "Requires positive FCF" : "No data available"}
+        </p>
+      )}
+    </CardShell>
+  );
+}
+
+// ── P/E Relative Valuation Card ───────────────────────────────────────────────
+
+interface PEValuationData {
+  trailingEps: number;
+  forwardEps: number | null;
+  trailingPE: number | null;
+  forwardPE: number | null;
+  sectorPE: number | null;
+  sectorLabel: string;
+  etfTicker: string;
+  fairValueTrailing: number | null;
+  fairValueForward: number | null;
+  premiumDiscount: number | null;
+  upsideTrailing: number | null;
+  currentPrice: number | null;
+  analystTarget: number | null;
+  analystHigh: number | null;
+  analystLow: number | null;
+  analystCount: number | null;
+  recommendation: string | null;
+  sector: string | null;
+  error?: string;
+}
+
+function peFmt(n: number) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function peUpsideColor(pct: number) {
+  if (pct >= 15) return "#c0c0cc";
+  if (pct >= 0)  return "#767676";
+  return "#ef4444";
+}
+
+function pePremColor(pct: number) {
+  if (pct <= -15) return "#c0c0cc";
+  if (pct <= 0)   return "#767676";
+  return "#ef4444";
+}
+
+const PE_REC_CFG: Record<string, { label: string; color: string }> = {
+  "strongBuy":    { label: "Strong Buy",   color: "#c0c0cc" },
+  "buy":          { label: "Buy",          color: "#c0c0cc" },
+  "hold":         { label: "Hold",         color: "#767676" },
+  "underperform": { label: "Underperform", color: "#ef4444" },
+  "sell":         { label: "Sell",         color: "#ef4444" },
+};
+
+export function PEValuationCard({ ticker }: Props) {
+  const { data, isLoading } = useQuery<PEValuationData>({
+    queryKey: ["pe-valuation", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/pe-valuation/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const hasData = data && !data.error && data.trailingEps != null;
+  const recCfg = data?.recommendation ? PE_REC_CFG[data.recommendation] : null;
+
+  return (
+    <CardShell title="P/E Relative Valuation">
+      {isLoading ? <Skeleton lines={4} /> : hasData ? (
+        <div className="flex flex-col gap-3">
+          {/* Fair value vs current */}
+          {data.fairValueTrailing != null && (
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Fair Value</p>
+                <span className="text-lg font-mono font-bold text-[#f0f0f0]">${peFmt(data.fairValueTrailing)}</span>
+              </div>
+              {data.currentPrice != null && (
+                <div className="text-right">
+                  <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                  <span className="text-sm font-mono text-[#767676]">${peFmt(data.currentPrice)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Upside */}
+          {data.upsideTrailing != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[#3a3a3a]">
+                {data.upsideTrailing >= 0 ? "Upside" : "Downside"}
+              </span>
+              <span className="text-[11px] font-semibold font-mono" style={{ color: peUpsideColor(data.upsideTrailing) }}>
+                {data.upsideTrailing >= 0 ? "+" : ""}{data.upsideTrailing.toFixed(1)}%
+              </span>
+            </div>
+          )}
+
+          {/* P/E rows */}
+          <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-[#3a3a3a]">{ticker} P/E (TTM)</span>
+              <span className="font-mono text-[#f0f0f0]">{data.trailingPE != null ? `${data.trailingPE.toFixed(1)}x` : "—"}</span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-[#3a3a3a]">{data.sectorLabel} P/E ({data.etfTicker})</span>
+              <span className="font-mono text-[#f0f0f0]">{data.sectorPE != null ? `${data.sectorPE.toFixed(1)}x` : "—"}</span>
+            </div>
+            {data.premiumDiscount != null && (
+              <div className="flex justify-between text-[10px]">
+                <span className="text-[#3a3a3a]">{data.premiumDiscount >= 0 ? "Premium" : "Discount"}</span>
+                <span className="font-mono font-semibold" style={{ color: pePremColor(data.premiumDiscount) }}>
+                  {data.premiumDiscount >= 0 ? "+" : ""}{data.premiumDiscount.toFixed(1)}%
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Analyst target */}
+          {data.analystTarget != null && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[#3a3a3a]">Analyst Target</span>
+                <div className="flex items-center gap-1.5">
+                  {recCfg && (
+                    <span className="text-[9px] px-1 py-0.5 rounded" style={{ color: recCfg.color, background: `${recCfg.color}0a` }}>
+                      {recCfg.label}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-mono text-[#f0f0f0]">${peFmt(data.analystTarget)}</span>
+                </div>
+              </div>
+              {data.analystHigh != null && data.analystLow != null && data.currentPrice != null && (() => {
+                const lo = data.analystLow!;
+                const hi = data.analystHigh!;
+                const range = hi - lo;
+                const curPct  = range > 0 ? Math.max(0, Math.min(1, (data.currentPrice! - lo) / range)) * 100 : 50;
+                const meanPct = range > 0 ? Math.max(0, Math.min(1, (data.analystTarget! - lo) / range)) * 100 : 50;
+                return (
+                  <div className="relative h-1 rounded-full bg-[#161616]">
+                    <div className="absolute inset-y-0 left-0 right-0 rounded-full opacity-15"
+                      style={{ background: "linear-gradient(to right, #ef4444, #767676, #c0c0cc)" }} />
+                    <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#767676]"
+                      style={{ left: `calc(${meanPct}% - 3px)` }} />
+                    <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-[#080808] bg-[#f0f0f0]"
+                      style={{ left: `calc(${curPct}% - 4px)` }} />
+                  </div>
+                );
+              })()}
+              {data.analystCount != null && (
+                <p className="text-[9px] text-[#3a3a3a]">{data.analystCount} analysts</p>
+              )}
+            </div>
+          )}
+
+          <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">EPS × Sector Median P/E · Comparable Method</p>
+        </div>
+      ) : <p className="text-[11px] text-[#3a3a3a]">Insufficient data</p>}
+    </CardShell>
+  );
+}
+
 // ── Insider Card ──────────────────────────────────────────────────────────────
 
 interface Transaction { name: string; relation: string; date: string; shares: number; value: number; isBuy: boolean }
