@@ -413,9 +413,9 @@ function fpUpsideColor(pct: number) {
 }
 
 const FP_MODELS = [
-  { key: "lynch", label: "Lynch PEG", color: "#767676" },
-  { key: "pe",    label: "P/E Comps", color: "#767676" },
-  { key: "dcf",   label: "DCF",       color: "#767676" },
+  { key: "lynch", label: "Lynch PEG" },
+  { key: "pe",    label: "P/E Comps" },
+  { key: "dcf",   label: "DCF" },
 ] as const;
 
 export function FairPriceCard({ ticker }: Props) {
@@ -441,7 +441,8 @@ export function FairPriceCard({ ticker }: Props) {
   const peVal:    number | null = pe.data?.fairValueTrailing > 0 && !pe.data?.error ? pe.data.fairValueTrailing : null;
   const dcfVal:   number | null = dcf.data?.intrinsicValue > 0 && !dcf.data?.error ? dcf.data.intrinsicValue : null;
 
-  const valid = [lynchVal, peVal, dcfVal].filter((v): v is number => v != null);
+  const modelVals = [lynchVal, peVal, dcfVal];
+  const valid = modelVals.filter((v): v is number => v != null);
   const avg   = valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
 
   const currentPrice: number | null =
@@ -450,56 +451,60 @@ export function FairPriceCard({ ticker }: Props) {
   const upside = avg != null && currentPrice != null
     ? ((avg - currentPrice) / currentPrice) * 100 : null;
 
-  const modelVals = [lynchVal, peVal, dcfVal];
+  const upColor = upside != null ? fpUpsideColor(upside) : "#767676";
 
   return (
     <CardShell title="Fair Price">
-      {isLoading ? <Skeleton lines={4} /> : avg != null ? (
-        <div className="flex flex-col gap-3">
-          {/* Avg vs current */}
-          <div className="flex items-end justify-between">
+      {isLoading ? <Skeleton lines={3} /> : avg != null ? (
+        <div className="flex flex-col gap-4">
+
+          {/* Hero row — fair price big, current price small */}
+          <div className="flex items-end justify-between gap-2">
             <div>
-              <p className="text-[9px] text-[#3a3a3a] mb-0.5">Avg Fair Price</p>
-              <span className="text-lg font-mono font-bold text-[#f0f0f0]">${fpFmt(avg)}</span>
+              <p className="text-[9px] uppercase tracking-widest text-[#3a3a3a] mb-1">Fair Price</p>
+              <span className="text-3xl font-mono font-bold text-[#f0f0f0] leading-none">${fpFmt(avg)}</span>
             </div>
             {currentPrice != null && (
-              <div className="text-right">
+              <div className="text-right pb-0.5">
                 <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
-                <span className="text-sm font-mono text-[#767676]">${fpFmt(currentPrice)}</span>
+                <span className="text-base font-mono text-[#767676]">${fpFmt(currentPrice)}</span>
               </div>
             )}
           </div>
 
-          {/* Upside */}
+          {/* Upside / downside pill */}
           {upside != null && (
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#3a3a3a]">
-                {upside >= 0 ? "Upside" : "Downside"}
+            <div
+              className="flex items-center justify-between px-3 py-2 rounded-lg"
+              style={{ background: `${upColor}12`, border: `1px solid ${upColor}30` }}
+            >
+              <span className="text-[10px] text-[#767676]">
+                {upside >= 0 ? "Upside to fair price" : "Downside to fair price"}
               </span>
-              <span className="text-[11px] font-semibold font-mono" style={{ color: fpUpsideColor(upside) }}>
+              <span className="text-base font-bold font-mono" style={{ color: upColor }}>
                 {upside >= 0 ? "+" : ""}{upside.toFixed(1)}%
               </span>
             </div>
           )}
 
-          {/* Model breakdown */}
-          <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
+          {/* Compact model rows */}
+          <div className="flex flex-col gap-1.5 pt-1 border-t border-[#1e1e1e]">
             {FP_MODELS.map(({ key, label }, i) => {
               const val = modelVals[i];
               const mu = val != null && currentPrice != null
                 ? ((val - currentPrice) / currentPrice) * 100 : null;
               return (
-                <div key={key} className="flex items-center gap-2">
-                  <span className="text-[10px] text-[#3a3a3a] flex-1">{label}</span>
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-[10px] text-[#3a3a3a]">{label}</span>
                   {val != null ? (
-                    <>
+                    <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono text-[#f0f0f0]">${fpFmt(val)}</span>
                       {mu != null && (
-                        <span className="text-[9px] font-mono w-12 text-right" style={{ color: fpUpsideColor(mu) }}>
+                        <span className="text-[9px] font-mono w-11 text-right" style={{ color: fpUpsideColor(mu) }}>
                           {mu >= 0 ? "+" : ""}{mu.toFixed(1)}%
                         </span>
                       )}
-                    </>
+                    </div>
                   ) : (
                     <span className="text-[9px] text-[#3a3a3a]">N/A</span>
                   )}
@@ -508,9 +513,6 @@ export function FairPriceCard({ ticker }: Props) {
             })}
           </div>
 
-          <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">
-            Equal-weight avg · {valid.length}/3 models
-          </p>
         </div>
       ) : !isLoading ? (
         <p className="text-[11px] text-[#3a3a3a]">No valuation data available</p>
