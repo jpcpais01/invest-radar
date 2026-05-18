@@ -301,8 +301,8 @@ function fvFmt(n: number) {
 }
 
 function fvUpsideColor(pct: number) {
-  if (pct >= 15) return "#c0c0cc";
-  if (pct >= 0)  return "#767676";
+  if (pct >= 15) return "#4ade80";
+  if (pct >= 0)  return "#86efac";
   return "#ef4444";
 }
 
@@ -407,8 +407,8 @@ function fpFmt(n: number) {
 }
 
 function fpUpsideColor(pct: number) {
-  if (pct >= 15) return "#c0c0cc";
-  if (pct >= 0)  return "#767676";
+  if (pct >= 15) return "#4ade80";
+  if (pct >= 0)  return "#86efac";
   return "#ef4444";
 }
 
@@ -545,8 +545,8 @@ function dcfFmt(n: number, d = 2) {
 }
 
 function dcfUpsideColor(pct: number) {
-  if (pct >= 20) return "#c0c0cc";
-  if (pct >= 0)  return "#767676";
+  if (pct >= 20) return "#4ade80";
+  if (pct >= 0)  return "#86efac";
   return "#ef4444";
 }
 
@@ -688,8 +688,8 @@ function peFmt(n: number) {
 }
 
 function peUpsideColor(pct: number) {
-  if (pct >= 15) return "#c0c0cc";
-  if (pct >= 0)  return "#767676";
+  if (pct >= 15) return "#4ade80";
+  if (pct >= 0)  return "#86efac";
   return "#ef4444";
 }
 
