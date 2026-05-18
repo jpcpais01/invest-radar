@@ -7,7 +7,7 @@ import { AskAIBtn, ForecastBtn, TerminalBtn, StrategyBtn } from "./NavButtons";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
-import { SignalCard, QualityCard, ValuationCard, InsiderCard, FairPriceCard, KeyMetricsCard } from "./InsightCards";
+import { SignalCard, QualityCard, ValuationCard, FairPriceCard, KeyMetricsCard } from "./InsightCards";
 import NewsPanel from "./NewsPanel";
 import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
@@ -147,7 +147,21 @@ export default function HomePage() {
       {activeTab === "overview" ? (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-16">
           <PriceHero ticker={activeTicker} />
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+
+          {/* ── Mobile layout (single column, custom order) ── */}
+          <div className="mt-6 flex flex-col gap-5 lg:hidden">
+            <AIPredPanel ticker={activeTicker} />
+            <FairPriceCard ticker={activeTicker} />
+            <QualityCard ticker={activeTicker} />
+            <ValuationCard ticker={activeTicker} />
+            <KeyMetricsCard ticker={activeTicker} />
+            <SignalCard ticker={activeTicker} />
+            <TechnicalsStrip ticker={activeTicker} />
+            <NewsPanel ticker={activeTicker} />
+          </div>
+
+          {/* ── Desktop layout (two-column) ── */}
+          <div className="mt-6 hidden lg:grid lg:grid-cols-[1fr_380px] gap-6">
             <div className="flex flex-col gap-5">
               <AIPredPanel ticker={activeTicker} />
               <KeyMetricsCard ticker={activeTicker} />
@@ -159,7 +173,6 @@ export default function HomePage() {
               <QualityCard ticker={activeTicker} />
               <ValuationCard ticker={activeTicker} />
               <TechnicalsStrip ticker={activeTicker} />
-              <InsiderCard ticker={activeTicker} />
             </div>
           </div>
         </main>
