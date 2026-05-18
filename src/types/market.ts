@@ -108,7 +108,9 @@ export const TIMEFRAMES: Timeframe[] = [
   { label: "3M", value: "3M", days: 90, interval: "1d" },
   { label: "6M", value: "6M", days: 180, interval: "1d" },
   { label: "1Y", value: "1Y", days: 365, interval: "1d" },
-  { label: "2Y", value: "2Y", days: 730, interval: "1wk" },
+  { label: "2Y",  value: "2Y",  days: 730,  interval: "1wk" },
+  { label: "5Y",  value: "5Y",  days: 1825, interval: "1wk" },
+  { label: "10Y", value: "10Y", days: 3650, interval: "1mo" },
 ];
 
 export interface EarningsEvent {

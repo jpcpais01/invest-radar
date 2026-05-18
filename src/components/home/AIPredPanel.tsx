@@ -1,7 +1,9 @@
 "use client";
 import { useRef, useState, useEffect, useCallback, useMemo, useId } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Sparkles, RefreshCw, Minus, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OHLCVBar } from "@/types/market";
 
 interface PredictionResponse {
   historical: { time: number; close: number }[];
@@ -16,6 +18,10 @@ interface PredictionResponse {
 }
 
 interface Props { ticker: string }
+
+const TF_OPTIONS = ["1M", "6M", "1Y", "2Y", "5Y", "10Y"] as const;
+type TFOption = typeof TF_OPTIONS[number];
+const PREDICT_ENABLED = new Set<TFOption>(["1M", "6M"]);
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -38,6 +44,11 @@ function smooth(pts: [number, number][]): string {
   }
   return d;
 }
+function straightPath(pts: [number, number][]): string {
+  if (pts.length < 2) return "";
+  return `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} ` +
+    pts.slice(1).map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+}
 function evenIdxs(total: number, n: number): number[] {
   if (total <= n) return Array.from({ length: total }, (_, i) => i);
   const out = new Set([0, total - 1]);
@@ -50,7 +61,15 @@ function evenIdxs(total: number, n: number): number[] {
 
 const M = { top: 20, right: 60, bottom: 30, left: 12 };
 
-function PredChart({ data, height = 264 }: { data: PredictionResponse; height?: number }) {
+function PredChart({
+  bars,
+  prediction,
+  height = 264,
+}: {
+  bars: { time: number; close: number }[];
+  prediction?: PredictionResponse;
+  height?: number;
+}) {
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -69,52 +88,78 @@ function PredChart({ data, height = 264 }: { data: PredictionResponse; height?: 
   const cW = w - M.left - M.right;
   const cH = h - M.top  - M.bottom;
 
+  const futureDates = prediction?.futureDates ?? [];
+
   const allTimes = useMemo(
-    () => [...data.historical.map(b => b.time), ...data.futureDates],
-    [data]
+    () => [...bars.map(b => b.time), ...futureDates],
+    [bars, futureDates]
   );
   const n = allTimes.length;
   const timeToIdx = useMemo(
     () => new Map(allTimes.map((t, i) => [t, i])),
     [allTimes]
   );
-  const xS = (t: number) => M.left + ((timeToIdx.get(t) ?? 0) / Math.max(n - 1, 1)) * cW;
+  const xS = useCallback(
+    (t: number) => M.left + ((timeToIdx.get(t) ?? 0) / Math.max(n - 1, 1)) * cW,
+    [timeToIdx, n, cW]
+  );
 
-  const allPrices = useMemo(() => [
-    ...data.historical.map(b => b.close),
-    ...data.median, ...data.p25, ...data.p75,
-    ...data.runs.flat(),
-  ], [data]);
+  const allPrices = useMemo(() => {
+    const prices = bars.map(b => b.close);
+    if (prediction) {
+      prices.push(...prediction.median, ...prediction.p25, ...prediction.p75);
+    }
+    return prices;
+  }, [bars, prediction]);
+
   const rawMin = Math.min(...allPrices);
   const rawMax = Math.max(...allPrices);
   const vPad   = (rawMax - rawMin) * 0.10 || rawMax * 0.04;
   const minP   = rawMin - vPad;
   const maxP   = rawMax + vPad * 1.5;
-  const yS = (p: number) => M.top + cH - ((p - minP) / (maxP - minP)) * cH;
+  const yS = useCallback(
+    (p: number) => M.top + cH - ((p - minP) / (maxP - minP)) * cH,
+    [cH, minP, maxP]
+  );
 
-  const lastH     = data.historical[data.historical.length - 1];
-  const anchorPt: [number, number] = [xS(lastH.time), yS(lastH.close)];
+  const lastBar   = bars[bars.length - 1];
+  const anchorPt  = useMemo<[number, number]>(
+    () => lastBar ? [xS(lastBar.time), yS(lastBar.close)] : [M.left, M.top],
+    [lastBar, xS, yS]
+  );
   const sepX      = anchorPt[0];
 
-  const histPts   = data.historical.map(b => [xS(b.time), yS(b.close)] as [number, number]);
-  const histLine  = smooth(histPts);
-  const histLast  = histPts[histPts.length - 1];
+  // For large bar counts, use straight lines for perf
+  const useStraight = bars.length > 300;
+
+  const histPts = useMemo(
+    () => bars.map(b => [xS(b.time), yS(b.close)] as [number, number]),
+    [bars, xS, yS]
+  );
+  const histLine = useMemo(
+    () => useStraight ? straightPath(histPts) : smooth(histPts),
+    [histPts, useStraight]
+  );
+  const histLast = histPts[histPts.length - 1] ?? [M.left, M.top + cH];
   const histAreaD = `${histLine} L${histLast[0].toFixed(2)},${(M.top + cH).toFixed(2)} L${M.left},${(M.top + cH).toFixed(2)} Z`;
 
-  const medPts  = [anchorPt, ...data.median.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number])];
-  const medPath = smooth(medPts);
+  const medPts = useMemo(
+    () => prediction
+      ? [anchorPt, ...prediction.median.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number])]
+      : [],
+    [prediction, anchorPt, futureDates, xS, yS]
+  );
+  const medPath = useMemo(() => smooth(medPts), [medPts]);
 
-  // P25–P75 band as a closed polygon (no need for smooth here)
   const bandPath = useMemo(() => {
-    if (!data.p25.length || !data.p75.length || cW <= 0) return "";
-    const topPts = [anchorPt, ...data.p75.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number])];
-    const botPts = [...data.p25.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number])].reverse();
+    if (!prediction?.p25.length || !prediction?.p75.length || cW <= 0) return "";
+    const topPts = [anchorPt, ...prediction.p75.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number])];
+    const botPts = [...prediction.p25.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number])].reverse();
     return `M${topPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")} L${botPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")} Z`;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, cW, minP, maxP]);
+  }, [prediction, anchorPt, futureDates, xS, yS, cW]);
 
-  const yTicks = useMemo(() =>
-    Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)),
+  const yTicks = useMemo(
+    () => Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)),
     [minP, maxP]
   );
   const xTicks = useMemo(
@@ -126,22 +171,20 @@ function PredChart({ data, height = 264 }: { data: PredictionResponse; height?: 
     if (mouseX === null || cW <= 0) return null;
     const ratio = (mouseX - M.left) / cW;
     const nearestIdx = Math.round(Math.max(0, Math.min(1, ratio)) * (n - 1));
-    const ts  = allTimes[nearestIdx];
-    const cx  = xS(ts);
-    const hi  = data.historical.find(b => b.time === ts);
-    const fi  = data.futureDates.indexOf(ts);
+    const ts = allTimes[nearestIdx];
+    const cx = xS(ts);
+    const hi = bars.find(b => b.time === ts);
+    const fi = futureDates.indexOf(ts);
     return {
       x: cx, time: ts,
       histPrice: hi?.close ?? null,
-      median: fi >= 0 ? data.median[fi] : null,
-      p25: fi >= 0 ? data.p25[fi] : null,
-      p75: fi >= 0 ? data.p75[fi] : null,
+      median: fi >= 0 && prediction ? prediction.median[fi] : null,
+      p25:    fi >= 0 && prediction ? prediction.p25[fi]    : null,
+      p75:    fi >= 0 && prediction ? prediction.p75[fi]    : null,
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mouseX, allTimes, cW, n]);
+  }, [mouseX, allTimes, cW, n, bars, futureDates, prediction, xS]);
 
-  // tooltip position
-  const tipW = 88;
+  const tipW = 96;
   const tipX = crosshair
     ? (crosshair.x + tipW + 14 > w - M.right ? crosshair.x - tipW - 8 : crosshair.x + 10)
     : 0;
@@ -212,80 +255,85 @@ function PredChart({ data, height = 264 }: { data: PredictionResponse; height?: 
           strokeLinecap="round" clipPath={`url(#${uid}cl)`}
         />
 
-        {/* spaghetti runs */}
-        {data.runs.map((run, ri) => {
-          const pts: [number, number][] = [
-            anchorPt,
-            ...run.map((p, i) => [xS(data.futureDates[i]), yS(p)] as [number, number]),
-          ];
-          return (
-            <path key={ri} d={smooth(pts)} fill="none"
-              stroke="rgba(192,192,204,0.10)" strokeWidth="1"
-              strokeLinecap="round" clipPath={`url(#${uid}cl)`}
+        {/* prediction overlay */}
+        {prediction && (
+          <>
+            {/* spaghetti runs */}
+            {prediction.runs.map((run, ri) => {
+              const pts: [number, number][] = [
+                anchorPt,
+                ...run.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number]),
+              ];
+              return (
+                <path key={ri} d={smooth(pts)} fill="none"
+                  stroke="rgba(192,192,204,0.10)" strokeWidth="1"
+                  strokeLinecap="round" clipPath={`url(#${uid}cl)`}
+                />
+              );
+            })}
+
+            {/* P25–P75 band */}
+            {bandPath && (
+              <path d={bandPath} fill="rgba(192,192,204,0.06)"
+                clipPath={`url(#${uid}cl)`}
+              />
+            )}
+
+            {/* separator */}
+            <line
+              x1={sepX.toFixed(1)} y1={M.top}
+              x2={sepX.toFixed(1)} y2={M.top + cH}
+              stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+              strokeDasharray="4,5"
             />
-          );
-        })}
 
-        {/* P25–P75 band */}
-        {bandPath && (
-          <path d={bandPath} fill="rgba(192,192,204,0.06)"
-            clipPath={`url(#${uid}cl)`}
-          />
+            {/* forecast zone tint */}
+            <rect
+              x={sepX} y={M.top}
+              width={Math.max(0, w - M.right - sepX)} height={cH}
+              fill="rgba(255,255,255,0.010)"
+              clipPath={`url(#${uid}cl)`}
+            />
+
+            {/* FORECAST label */}
+            <text
+              x={(sepX + 7).toFixed(1)} y={(M.top + 13).toFixed(1)}
+              fill="rgba(255,255,255,0.12)" fontSize="7.5"
+              fontFamily="ui-sans-serif,sans-serif"
+              fontWeight="600" letterSpacing="0.08em"
+            >FORECAST</text>
+
+            {/* median glow */}
+            <path d={medPath} fill="none"
+              stroke="rgba(192,192,204,0.18)" strokeWidth="10"
+              filter={`url(#${uid}gw)`}
+              clipPath={`url(#${uid}cl)`}
+            />
+
+            {/* median line */}
+            <path d={medPath} fill="none"
+              stroke="#c0c0cc" strokeWidth="2"
+              strokeDasharray="6,4" strokeLinecap="round"
+              clipPath={`url(#${uid}cl)`}
+            />
+
+            {/* anchor dot */}
+            <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
+            <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="3.5" fill="#c0c0cc" />
+
+            {/* endpoint marker */}
+            {prediction.median.length > 0 && (() => {
+              const ex = xS(futureDates[futureDates.length - 1]);
+              const ey = yS(prediction.median[prediction.median.length - 1]);
+              return (
+                <g>
+                  <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
+                  <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="3" fill="#c0c0cc" />
+                </g>
+              );
+            })()}
+          </>
         )}
-
-        {/* separator */}
-        <line
-          x1={sepX.toFixed(1)} y1={M.top}
-          x2={sepX.toFixed(1)} y2={M.top + cH}
-          stroke="rgba(255,255,255,0.07)" strokeWidth="1"
-          strokeDasharray="4,5"
-        />
-
-        {/* forecast zone tint */}
-        <rect
-          x={sepX} y={M.top}
-          width={Math.max(0, w - M.right - sepX)} height={cH}
-          fill="rgba(255,255,255,0.010)"
-          clipPath={`url(#${uid}cl)`}
-        />
-
-        {/* forecast label */}
-        <text
-          x={(sepX + 7).toFixed(1)} y={(M.top + 13).toFixed(1)}
-          fill="rgba(255,255,255,0.12)" fontSize="7.5"
-          fontFamily="ui-sans-serif,sans-serif"
-          fontWeight="600" letterSpacing="0.08em"
-        >FORECAST</text>
-
-        {/* median glow */}
-        <path d={medPath} fill="none"
-          stroke="rgba(192,192,204,0.18)" strokeWidth="10"
-          filter={`url(#${uid}gw)`}
-          clipPath={`url(#${uid}cl)`}
-        />
-
-        {/* median line */}
-        <path d={medPath} fill="none"
-          stroke="#c0c0cc" strokeWidth="2"
-          strokeDasharray="6,4" strokeLinecap="round"
-          clipPath={`url(#${uid}cl)`}
-        />
-
-        {/* anchor dot */}
-        <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
-        <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="3.5" fill="#c0c0cc" />
-
-        {/* endpoint marker */}
-        {data.median.length > 0 && (() => {
-          const ex = xS(data.futureDates[data.futureDates.length - 1]);
-          const ey = yS(data.median[data.median.length - 1]);
-          return (
-            <g>
-              <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
-              <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="3" fill="#c0c0cc" />
-            </g>
-          );
-        })()}
 
         {/* crosshair */}
         {crosshair && (() => {
@@ -341,41 +389,64 @@ function PredChart({ data, height = 264 }: { data: PredictionResponse; height?: 
 // ── panel ─────────────────────────────────────────────────────────────────────
 
 export default function AIPredPanel({ ticker }: Props) {
-  const [nDays,    setNDays]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-days")    ?? "10");  } catch { return 10;  } });
-  const [nRuns,    setNRuns]    = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-runs")    ?? "10");  } catch { return 10;  } });
-  const [nHistory, setNHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-history") ?? "252"); } catch { return 252; } });
-  const [data,    setData]    = useState<PredictionResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [tf, setTf]     = useState<TFOption>("6M");
+  const [nDays, setNDays] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-days") ?? "10"); } catch { return 10; } });
+  const [nRuns, setNRuns] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-runs") ?? "10"); } catch { return 10; } });
+  const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
+  const [predLoading, setPredLoading] = useState(false);
+  const [predError,   setPredError]   = useState<string | null>(null);
 
-  const cacheKey = `home-pred-${ticker}`;
+  const canPredict = PREDICT_ENABLED.has(tf);
+  const cacheKey   = `home-pred-${ticker}`;
 
-  useEffect(() => { localStorage.setItem("home-pred-days",    String(nDays));    }, [nDays]);
-  useEffect(() => { localStorage.setItem("home-pred-runs",    String(nRuns));    }, [nRuns]);
-  useEffect(() => { localStorage.setItem("home-pred-history", String(nHistory)); }, [nHistory]);
+  useEffect(() => { localStorage.setItem("home-pred-days", String(nDays)); }, [nDays]);
+  useEffect(() => { localStorage.setItem("home-pred-runs", String(nRuns)); }, [nRuns]);
 
-  const predict = useCallback(async (days: number, runs: number, history: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res  = await fetch(`/api/market/predict/${ticker}?n=${days}&runs=${runs}&history=${history}`);
-      const json = await res.json();
-      if (json.error) throw new Error(json.details?.[0] ?? json.error);
-      setData(json);
-      try { localStorage.setItem(cacheKey, JSON.stringify(json)); } catch { /* quota */ }
-    } catch (e) { setError(String(e)); }
-    finally { setLoading(false); }
-  }, [ticker, cacheKey]);
+  // Clear prediction when ticker or TF changes
+  useEffect(() => { setPrediction(null); setPredError(null); }, [ticker, tf]);
 
+  // Restore cached prediction (6M only, on ticker change)
   useEffect(() => {
-    setData(null); setError(null);
-    try { const c = localStorage.getItem(cacheKey); if (c) { setData(JSON.parse(c)); return; } } catch { /* ignore */ }
-    predict(nDays, nRuns, nHistory);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (tf !== "6M") return;
+    try {
+      const c = localStorage.getItem(cacheKey);
+      if (c) setPrediction(JSON.parse(c));
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
-  const lastClose  = data?.historical.at(-1)?.close ?? null;
-  const predFinal  = data?.median.at(-1) ?? null;
+  // Fetch price history for selected TF
+  const { data: histData, isLoading: histLoading } = useQuery<{ bars: { time: number; close: number }[] }>({
+    queryKey: ["price-chart", ticker, tf],
+    queryFn: async () => {
+      const res = await fetch(`/api/market/history/${encodeURIComponent(ticker)}?tf=${tf}`);
+      if (!res.ok) throw new Error("Failed to load history");
+      const json = await res.json();
+      return { bars: (json.bars as OHLCVBar[]).map(b => ({ time: b.time, close: b.close })) };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const bars = histData?.bars ?? [];
+
+  const runPredict = useCallback(async () => {
+    if (!canPredict || predLoading) return;
+    setPredLoading(true);
+    setPredError(null);
+    try {
+      const res  = await fetch(`/api/market/predict/${encodeURIComponent(ticker)}?n=${nDays}&runs=${nRuns}&history=252`);
+      const json = await res.json();
+      if (json.error) throw new Error(json.details?.[0] ?? json.error);
+      setPrediction(json);
+      if (tf === "6M") {
+        try { localStorage.setItem(cacheKey, JSON.stringify(json)); } catch { /* quota */ }
+      }
+    } catch (e) { setPredError(String(e)); }
+    finally { setPredLoading(false); }
+  }, [ticker, nDays, nRuns, canPredict, predLoading, tf, cacheKey]);
+
+  const lastClose  = bars.at(-1)?.close ?? null;
+  const predFinal  = prediction?.median.at(-1) ?? null;
   const predChange = lastClose && predFinal ? ((predFinal - lastClose) / lastClose) * 100 : null;
   const isUp       = (predChange ?? 0) >= 0;
 
@@ -387,12 +458,12 @@ export default function AIPredPanel({ ticker }: Props) {
         <div className="flex items-center gap-2.5">
           <span className="text-[#c0c0cc] text-[8px]">◆</span>
           <div>
-            <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">AI Price Forecast</span>
+            <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Price & Forecast</span>
             <p className="text-[9px] text-[#3a3a3a] mt-0.5">Monte Carlo · LLM Ensemble</p>
           </div>
         </div>
 
-        {data && lastClose && predFinal && predChange !== null && (
+        {prediction && lastClose && predFinal && predChange !== null && (
           <div className="flex items-center gap-2">
             <div className={cn(
               "flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-semibold tabular-nums",
@@ -402,7 +473,7 @@ export default function AIPredPanel({ ticker }: Props) {
             )}>
               {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               <span className="font-mono">{isUp ? "+" : ""}{predChange.toFixed(2)}%</span>
-              <span className="opacity-50">· {data.n}D</span>
+              <span className="opacity-50">· {prediction.n}D</span>
             </div>
             <span className={cn("text-lg font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
               {fmtPrice(predFinal)}
@@ -411,48 +482,64 @@ export default function AIPredPanel({ ticker }: Props) {
         )}
       </div>
 
+      {/* TF selector */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-[#1e1e1e]">
+        {TF_OPTIONS.map(t => (
+          <button
+            key={t}
+            onClick={() => setTf(t)}
+            className={cn(
+              "px-2.5 py-1 rounded text-[10px] font-medium transition-colors tracking-wide",
+              tf === t
+                ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]"
+                : "text-[#3a3a3a] hover:text-[#767676]"
+            )}
+          >{t}</button>
+        ))}
+      </div>
+
       {/* Chart */}
       <div className="relative">
-        {loading && !data ? (
+        {histLoading ? (
           <div className="flex flex-col items-center justify-center gap-3" style={{ height: 264, background: "#101010" }}>
-            <div className="relative">
-              <div className="w-10 h-10 rounded-full border-2 border-[#c0c0cc22] border-t-[#c0c0cc] animate-spin" />
-              <Sparkles className="w-4 h-4 text-[#c0c0cc] absolute inset-0 m-auto" />
-            </div>
-            <p className="text-[10px] text-[#3a3a3a]">Running {nRuns} scenarios…</p>
+            <div className="w-8 h-8 rounded-full border-2 border-[#c0c0cc22] border-t-[#c0c0cc] animate-spin" />
+            <p className="text-[10px] text-[#3a3a3a]">Loading…</p>
           </div>
-        ) : error && !data ? (
-          <div className="flex items-center justify-center" style={{ height: 264, background: "#101010" }}>
-            <p className="text-[10px] text-[#ef4444] px-4 text-center">{error}</p>
+        ) : bars.length > 0 ? (
+          <PredChart bars={bars} prediction={prediction ?? undefined} height={264} />
+        ) : (
+          <div className="flex items-center justify-center" style={{ height: 264 }}>
+            <p className="text-[10px] text-[#3a3a3a]">No data</p>
           </div>
-        ) : data ? (
-          <PredChart data={data} height={264} />
-        ) : null}
+        )}
 
-        {/* Loading overlay when refreshing with existing data */}
-        {loading && data && (
+        {predLoading && (
           <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#101010] border border-[#1e1e1e]">
             <div className="w-3 h-3 rounded-full border border-[#c0c0cc33] border-t-[#c0c0cc] animate-spin" />
-            <span className="text-[9px] text-[#3a3a3a]">Updating…</span>
+            <span className="text-[9px] text-[#3a3a3a]">Running scenarios…</span>
+          </div>
+        )}
+        {predError && !prediction && (
+          <div className="absolute bottom-3 left-4 right-4">
+            <p className="text-[9px] text-[#ef4444] text-center">{predError}</p>
           </div>
         )}
       </div>
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-t border-[#1e1e1e]">
-        {data && (
+        {prediction && (
           <div className="flex items-center gap-1.5 text-[9px] text-[#3a3a3a]">
             <Sparkles className="w-3 h-3 text-[#c0c0cc]" />
-            <span>{data.successfulRuns}/{data.totalRuns} runs</span>
+            <span>{prediction.successfulRuns}/{prediction.totalRuns} runs</span>
           </div>
         )}
         <div className="flex-1" />
         <div className="flex items-center gap-2 flex-wrap">
-          {([
-            { label: "Days", val: nDays, set: setNDays, min: 1,  max: 30,  step: 1  },
-            { label: "Runs", val: nRuns, set: setNRuns, min: 1,  max: 20,  step: 1  },
-            { label: "Hist", val: nHistory, set: setNHistory, min: 20, max: 252, step: 10 },
-          ] as const).map(({ label, val, set, min, max, step }, i) => (
+          {[
+            { label: "Days", val: nDays, set: setNDays, min: 1,  max: 30, step: 1 },
+            { label: "Runs", val: nRuns, set: setNRuns, min: 1,  max: 20, step: 1 },
+          ].map(({ label, val, set, min, max, step }, i) => (
             <div key={label} className="flex items-center gap-1">
               {i > 0 && <div className="w-px h-3 bg-[#1e1e1e]" />}
               <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">{label}</span>
@@ -470,16 +557,19 @@ export default function AIPredPanel({ ticker }: Props) {
             </div>
           ))}
           <button
-            onClick={() => predict(nDays, nRuns, nHistory)}
-            disabled={loading}
+            onClick={runPredict}
+            disabled={predLoading || !canPredict}
+            title={canPredict ? undefined : "Select 1M or 6M to enable prediction"}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
-              loading
+              predLoading
                 ? "text-[#3a3a3a] border-[#1e1e1e] cursor-not-allowed"
-                : "text-[#c0c0cc] bg-[#c0c0cc0a] border-[#c0c0cc33] hover:bg-[#c0c0cc18] hover:border-[#c0c0cc55]"
+                : canPredict
+                  ? "text-[#c0c0cc] bg-[#c0c0cc0a] border-[#c0c0cc33] hover:bg-[#c0c0cc18] hover:border-[#c0c0cc55]"
+                  : "text-[#252525] border-[#161616] cursor-not-allowed opacity-40"
             )}
           >
-            {loading
+            {predLoading
               ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</>
               : <><Sparkles className="w-3 h-3" />Predict</>
             }
