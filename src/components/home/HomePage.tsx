@@ -7,7 +7,7 @@ import { AskAIBtn, ForecastBtn, TerminalBtn, StrategyBtn } from "./NavButtons";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
-import { SignalCard, QualityCard, ValuationCard, InsiderCard, FairPriceCard } from "./InsightCards";
+import { SignalCard, QualityCard, ValuationCard, InsiderCard, FairPriceCard, KeyMetricsCard } from "./InsightCards";
 import NewsPanel from "./NewsPanel";
 import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
@@ -150,6 +150,7 @@ export default function HomePage() {
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
             <div className="flex flex-col gap-5">
               <AIPredPanel ticker={activeTicker} />
+              <KeyMetricsCard ticker={activeTicker} />
               <SignalCard ticker={activeTicker} />
               <NewsPanel ticker={activeTicker} />
             </div>

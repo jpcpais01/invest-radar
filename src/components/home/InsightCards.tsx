@@ -830,6 +830,120 @@ function fmtNum(n: number) {
   return String(n);
 }
 
+// ── Key Metrics Card ──────────────────────────────────────────────────────────
+
+interface FundamentalsData {
+  marketCap?: number;
+  pe?: number;
+  forwardPE?: number;
+  ps?: number;
+  pb?: number;
+  evEbitda?: number;
+  revenue?: number;
+  revenueGrowth?: number;
+  eps?: number;
+  epsGrowth?: number;
+  dividendYield?: number;
+  beta?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+}
+
+interface QualityData {
+  profitMargins?: number;
+  grossMargins?: number;
+  returnOnEquity?: number;
+  returnOnAssets?: number;
+  freeCashflow?: number;
+  debtToEquity?: number;
+  currentRatio?: number;
+}
+
+function fmtCap(v?: number): string {
+  if (v == null) return "—";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9)  return `${sign}$${(abs / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6)  return `${sign}$${(abs / 1e6).toFixed(0)}M`;
+  return `${sign}$${abs.toFixed(0)}`;
+}
+function fmtPct(v?: number): string { return v == null ? "—" : `${(v * 100).toFixed(1)}%`; }
+function fmtX(v?: number): string   { return v == null ? "—" : `${v.toFixed(1)}x`; }
+function fmtD(v?: number, d = 2): string { return v == null ? "—" : v.toFixed(d); }
+
+function MetricRow({
+  label, value, colored,
+}: { label: string; value: string; colored?: "up" | "down" | null }) {
+  const color = colored === "up" ? "#4ade80" : colored === "down" ? "#ef4444" : "#f0f0f0";
+  return (
+    <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#101010] last:border-0">
+      <span className="text-[10px] text-[#3a3a3a] shrink-0">{label}</span>
+      <span className="text-[10px] font-mono font-medium tabular-nums" style={{ color }}>{value}</span>
+    </div>
+  );
+}
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-1 pb-0.5">
+      <span className="text-[8px] font-semibold uppercase tracking-widest text-[#2c2c2c]">{label}</span>
+      <div className="flex-1 h-px bg-[#1a1a1a]" />
+    </div>
+  );
+}
+
+export function KeyMetricsCard({ ticker }: Props) {
+  const { data: fund, isLoading: fLoading } = useQuery<FundamentalsData>({
+    queryKey: ["fundamentals", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/fundamentals/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+  const { data: qual, isLoading: qLoading } = useQuery<QualityData>({
+    queryKey: ["quality", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/quality/${ticker}`); return r.json(); },
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const isLoading = fLoading || qLoading;
+
+  const pct = (v?: number) => v == null ? null : v >= 0 ? "up" as const : "down" as const;
+
+  return (
+    <CardShell title="Key Metrics">
+      {isLoading ? (
+        <Skeleton lines={14} />
+      ) : (
+        <div>
+          <SectionDivider label="Valuation" />
+          <MetricRow label="Market Cap"  value={fmtCap(fund?.marketCap)} />
+          <MetricRow label="P/E (TTM)"   value={fmtX(fund?.pe)} />
+          <MetricRow label="Fwd P/E"     value={fmtX(fund?.forwardPE)} />
+          <MetricRow label="P/S"         value={fmtX(fund?.ps)} />
+          <MetricRow label="EV/EBITDA"   value={fmtX(fund?.evEbitda)} />
+
+          <SectionDivider label="Financials" />
+          <MetricRow label="Revenue (TTM)"    value={fmtCap(fund?.revenue)} />
+          <MetricRow label="Revenue Growth"   value={fmtPct(fund?.revenueGrowth)}   colored={pct(fund?.revenueGrowth)} />
+          <MetricRow label="EPS (TTM)"        value={fund?.eps != null ? `$${fmtD(fund.eps)}` : "—"} />
+          <MetricRow label="EPS Growth"       value={fmtPct(fund?.epsGrowth)}        colored={pct(fund?.epsGrowth)} />
+          <MetricRow label="Gross Margin"     value={fmtPct(qual?.grossMargins)}     colored={pct(qual?.grossMargins)} />
+          <MetricRow label="Net Margin"       value={fmtPct(qual?.profitMargins)}    colored={pct(qual?.profitMargins)} />
+          <MetricRow label="ROE"              value={fmtPct(qual?.returnOnEquity)}   colored={pct(qual?.returnOnEquity)} />
+          <MetricRow label="Free Cash Flow"   value={fmtCap(qual?.freeCashflow)}     colored={qual?.freeCashflow != null ? pct(qual.freeCashflow) : null} />
+
+          <SectionDivider label="Risk" />
+          <MetricRow label="Beta"         value={fmtD(fund?.beta)} />
+          <MetricRow label="Debt / Equity" value={qual?.debtToEquity != null ? `${qual.debtToEquity.toFixed(0)}%` : "—"} />
+          <MetricRow label="Div Yield"    value={fund?.dividendYield != null ? `${(fund.dividendYield * 100).toFixed(2)}%` : "—"} />
+          <MetricRow label="52W High"     value={fund?.fiftyTwoWeekHigh != null ? `$${fmtD(fund.fiftyTwoWeekHigh)}` : "—"} />
+          <MetricRow label="52W Low"      value={fund?.fiftyTwoWeekLow  != null ? `$${fmtD(fund.fiftyTwoWeekLow)}`  : "—"} />
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
 export function InsiderCard({ ticker }: Props) {
   const { data, isLoading } = useQuery<InsiderData>({
     queryKey: ["insiders", ticker],
