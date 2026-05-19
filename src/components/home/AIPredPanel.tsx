@@ -368,7 +368,7 @@ function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
 export default function AIPredPanel({ ticker }: Props) {
-  const [tf, setTf]     = useState<TFOption>("1M");
+  const [tf, setTf]     = useState<TFOption>("1Y");
   const [ema, setEma]   = useState({ ema21: false, ema50: true, ema200: false });
   const isIntraday      = INTRADAY_TFS.has(tf);
 
