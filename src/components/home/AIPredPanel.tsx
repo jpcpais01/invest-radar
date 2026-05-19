@@ -56,18 +56,21 @@ function evenIdxs(total: number, n: number): number[] {
 // ── chart ─────────────────────────────────────────────────────────────────────
 
 const MG = { top: 12, right: 60, bottom: 22, left: 0 };
-const VOL_H  = 48; // height of volume panel in px
-const VOL_GAP = 5; // gap between price and volume panels
+const VOL_H   = 44; // height of volume panel in px
+const VOL_GAP =  5; // gap between sections
+const RSI_H   = 50; // height of RSI panel in px
+const RSI_GAP =  5;
 
 interface ChartProps {
   bars: OHLCVBar[];
   indicators?: TechnicalIndicators;
   emaVisible: { ema21: boolean; ema50: boolean; ema200: boolean };
+  showRsi: boolean;
   tf: TFOption;
   chartH: number;
 }
 
-function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
+function PriceChart({ bars, indicators, emaVisible, showRsi, tf, chartH }: ChartProps) {
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -85,12 +88,14 @@ function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
   const { w, h } = size ?? { w: 0, h: 0 };
   const cW = w - MG.left - MG.right;
 
-  // Section boundaries
-  const priceTopY = MG.top;
-  const priceBotY = h - MG.bottom - VOL_H - VOL_GAP;
-  const priceH    = Math.max(1, priceBotY - priceTopY);
-  const volTopY   = h - MG.bottom - VOL_H;
+  // Section boundaries (RSI panel sits between price and volume when enabled)
   const volBotY   = h - MG.bottom;
+  const volTopY   = volBotY - VOL_H;
+  const rsiBot    = showRsi ? volTopY - VOL_GAP : volTopY;
+  const rsiTop    = showRsi ? rsiBot - RSI_H    : rsiBot;
+  const priceTopY = MG.top;
+  const priceBotY = showRsi ? rsiTop - RSI_GAP  : volTopY - VOL_GAP;
+  const priceH    = Math.max(1, priceBotY - priceTopY);
 
   const n = bars.length;
 
@@ -149,18 +154,42 @@ function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
   const maxVol  = useMemo(() => Math.max(...bars.map(b => b.volume), 1), [bars]);
   const barPixW = cW > 0 && n > 1 ? Math.max(1, (cW / n) * 0.72) : 4;
 
+  // RSI
+  const rsiY = useCallback(
+    (v: number) => rsiBot - (v / 100) * RSI_H,
+    [rsiBot]
+  );
+  const rsiPath = useMemo(() => {
+    const rsi = indicators?.rsi;
+    if (!showRsi || !rsi || rsi.length < 2) return "";
+    const pts = rsi
+      .map((v, i) => ({ v, i }))
+      .filter(({ v }) => v != null && !isNaN(v))
+      .map(({ v, i }) => [xS(i), rsiY(v)] as [number, number]);
+    if (pts.length < 2) return "";
+    return "M" + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L");
+  }, [indicators?.rsi, showRsi, xS, rsiY]);
+
   // Ticks
-  const yTicks     = useMemo(() => Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)), [minP, maxP]);
-  const xTickIdxs  = useMemo(() => evenIdxs(n, 5), [n]);
+  const yTicks    = useMemo(() => Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)), [minP, maxP]);
+  const xTickIdxs = useMemo(() => evenIdxs(n, 5), [n]);
 
   // Crosshair
   const crosshair = useMemo(() => {
     if (mouseX === null || cW <= 0 || !bars.length) return null;
-    const ratio = Math.max(0, Math.min(1, (mouseX - MG.left) / cW));
-    const idx   = Math.round(ratio * (n - 1));
-    const bar   = bars[idx];
-    return { idx, bar, cx: xS(idx), cy: yS(bar.close) };
-  }, [mouseX, bars, n, cW, xS, yS]);
+    const ratio    = Math.max(0, Math.min(1, (mouseX - MG.left) / cW));
+    const idx      = Math.round(ratio * (n - 1));
+    const bar      = bars[idx];
+    const rsiVal   = indicators?.rsi?.[idx];
+    const rsiValid = rsiVal != null && !isNaN(rsiVal);
+    return {
+      idx, bar,
+      cx: xS(idx),
+      cy: yS(bar.close),
+      rsiVal:  rsiValid ? rsiVal  : null,
+      rsiCy:   rsiValid ? rsiY(rsiVal!) : null,
+    };
+  }, [mouseX, bars, n, cW, xS, yS, indicators?.rsi, rsiY]);
 
   if (!size || cW <= 0 || priceH <= 0) {
     return <div ref={wrapRef} style={{ height: chartH, background: "#0c0c10" }} />;
@@ -281,6 +310,92 @@ function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
           );
         })}
 
+        {/* ── RSI panel ── */}
+        {showRsi && (
+          <>
+            <defs>
+              <clipPath id={`${uid}rc`}>
+                <rect x={MG.left} y={rsiTop} width={cW} height={RSI_H} />
+              </clipPath>
+            </defs>
+
+            {/* separator above RSI */}
+            <line x1={MG.left} y1={(rsiTop - 2).toFixed(1)}
+              x2={w - MG.right} y2={(rsiTop - 2).toFixed(1)}
+              stroke="rgba(255,255,255,0.04)" strokeWidth="1"
+            />
+
+            {/* overbought zone (70–100) */}
+            <rect x={MG.left} y={rsiTop} width={cW} height={(RSI_H * 0.30).toFixed(1)}
+              fill="rgba(248,113,113,0.04)" clipPath={`url(#${uid}rc)`}
+            />
+            {/* oversold zone (0–30) */}
+            <rect x={MG.left} y={rsiY(30).toFixed(1)} width={cW}
+              height={(RSI_H * 0.30).toFixed(1)}
+              fill="rgba(74,222,128,0.04)" clipPath={`url(#${uid}rc)`}
+            />
+
+            {/* 70 reference line */}
+            <line x1={MG.left} y1={rsiY(70).toFixed(1)}
+              x2={w - MG.right} y2={rsiY(70).toFixed(1)}
+              stroke="rgba(248,113,113,0.18)" strokeWidth="1" strokeDasharray="3,4"
+            />
+            {/* 30 reference line */}
+            <line x1={MG.left} y1={rsiY(30).toFixed(1)}
+              x2={w - MG.right} y2={rsiY(30).toFixed(1)}
+              stroke="rgba(74,222,128,0.18)" strokeWidth="1" strokeDasharray="3,4"
+            />
+            {/* 50 midline */}
+            <line x1={MG.left} y1={rsiY(50).toFixed(1)}
+              x2={w - MG.right} y2={rsiY(50).toFixed(1)}
+              stroke="rgba(255,255,255,0.04)" strokeWidth="1"
+            />
+
+            {/* RSI line */}
+            {rsiPath && (
+              <path d={rsiPath} fill="none"
+                stroke="rgba(148,163,200,0.75)" strokeWidth="1.2" strokeLinecap="round"
+                clipPath={`url(#${uid}rc)`}
+              />
+            )}
+
+            {/* RSI y-axis labels */}
+            {[70, 50, 30].map(v => (
+              <text key={v} x={w - MG.right + 5} y={rsiY(v)}
+                fill="rgba(255,255,255,0.10)" fontSize="7.5"
+                fontFamily="ui-monospace,monospace" dominantBaseline="middle"
+              >{v}</text>
+            ))}
+
+            {/* "RSI" label */}
+            <text x={MG.left + 4} y={rsiTop + 9}
+              fill="rgba(255,255,255,0.12)" fontSize="7.5"
+              fontFamily="ui-sans-serif,sans-serif" fontWeight="600" letterSpacing="0.06em"
+            >RSI</text>
+
+            {/* Current RSI label on right axis */}
+            {(() => {
+              const rsi = indicators?.rsi;
+              const cur = rsi?.[rsi.length - 1];
+              if (cur == null || isNaN(cur)) return null;
+              const cy = rsiY(cur);
+              const col = cur > 70 ? "#f87171" : cur < 30 ? "#4ade80" : "rgba(148,163,200,0.85)";
+              return (
+                <g>
+                  <rect x={w - MG.right + 2} y={cy - 7} width={MG.right - 3} height={14} rx="3"
+                    fill={col} fillOpacity="0.12"
+                    stroke={col} strokeOpacity="0.40" strokeWidth="0.75"
+                  />
+                  <text x={w - MG.right + 5} y={cy + 0.5}
+                    fill={col} fontSize="8" fontFamily="ui-monospace,monospace"
+                    dominantBaseline="middle" fontWeight="600"
+                  >{cur.toFixed(1)}</text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
         {/* Volume separator */}
         <line
           x1={MG.left} y1={(volTopY - 2).toFixed(1)}
@@ -315,22 +430,33 @@ function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
 
         {/* Crosshair */}
         {crosshair && (() => {
-          const { cx, cy, bar } = crosshair;
-          const tipX = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
-          const tipY = priceTopY + 6;
+          const { cx, cy, bar, rsiVal, rsiCy } = crosshair;
+          const tipX   = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
+          const tipY   = priceTopY + 6;
+          const tipH2  = showRsi && rsiVal != null ? tipH + 16 : tipH;
+          const rsiCol = rsiVal != null
+            ? (rsiVal > 70 ? "#f87171" : rsiVal < 30 ? "#4ade80" : "rgba(148,163,200,0.85)")
+            : "rgba(148,163,200,0.85)";
           return (
             <>
-              {/* vertical line */}
+              {/* vertical line through all panels */}
               <line x1={cx.toFixed(1)} y1={priceTopY} x2={cx.toFixed(1)} y2={volBotY}
                 stroke="rgba(255,255,255,0.09)" strokeWidth="1"
               />
-              {/* dot */}
+              {/* price dot */}
               <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="5.5" fill={lineColor} fillOpacity="0.12" />
               <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="2.5" fill={lineColor} fillOpacity="0.90" />
+              {/* RSI dot */}
+              {showRsi && rsiCy != null && (
+                <>
+                  <circle cx={cx.toFixed(1)} cy={rsiCy.toFixed(1)} r="4" fill={rsiCol} fillOpacity="0.15" />
+                  <circle cx={cx.toFixed(1)} cy={rsiCy.toFixed(1)} r="2" fill={rsiCol} fillOpacity="0.90" />
+                </>
+              )}
 
-              {/* OHLCV tooltip */}
+              {/* OHLCV + RSI tooltip */}
               <g transform={`translate(${tipX.toFixed(1)},${tipY})`}>
-                <rect rx="7" width={tipW} height={tipH}
+                <rect rx="7" width={tipW} height={tipH2}
                   fill="rgba(5,6,16,0.94)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
                 />
                 <text x="10" y="14" fill="rgba(255,255,255,0.30)" fontSize="8"
@@ -356,6 +482,12 @@ function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
                   <tspan fill="rgba(255,255,255,0.22)">V </tspan>
                   <tspan fill="rgba(180,190,230,0.55)">{fmtVol(bar.volume)}</tspan>
                 </text>
+                {showRsi && rsiVal != null && (
+                  <text x="10" y={31 + 5 * 14} fontSize="9" fontFamily="ui-monospace,monospace">
+                    <tspan fill="rgba(255,255,255,0.22)">RSI </tspan>
+                    <tspan fill={rsiCol}>{rsiVal.toFixed(1)}</tspan>
+                  </text>
+                )}
               </g>
             </>
           );
@@ -396,8 +528,9 @@ export default function AIPredPanel({ ticker }: Props) {
   const volRatio   = avgVol > 0 ? lastVol / avgVol : 0;
   const isUp       = periodPct >= 0;
   const marketOpen = isMarketOpen();
+  const showRsi    = !isIntraday;
 
-  const CHART_H = 290;
+  const CHART_H = showRsi ? 344 : 290;
 
   return (
     <div
@@ -489,6 +622,7 @@ export default function AIPredPanel({ ticker }: Props) {
           bars={bars}
           indicators={indicators}
           emaVisible={ema}
+          showRsi={showRsi}
           tf={tf}
           chartH={CHART_H}
         />
