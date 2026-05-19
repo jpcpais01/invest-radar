@@ -1,9 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const DISMISS_KEY = "pwa-prompt-dismissed";
-const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
-
 function isInstalled() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -15,23 +12,13 @@ function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
 }
 
-function wasDismissedRecently() {
-  try {
-    const raw = localStorage.getItem(DISMISS_KEY);
-    if (!raw) return false;
-    return Date.now() - Number(raw) < DISMISS_TTL;
-  } catch {
-    return false;
-  }
-}
-
 export default function PWAProvider() {
   const [show, setShow] = useState(false);
   const [ios, setIos] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<Event & { prompt?: () => Promise<void> } | null>(null);
 
   useEffect(() => {
-    if (isInstalled() || wasDismissedRecently()) return;
+    if (isInstalled()) return;
 
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
@@ -70,7 +57,6 @@ export default function PWAProvider() {
 
   const dismiss = () => {
     setShow(false);
-    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
   };
 
   const install = async () => {
