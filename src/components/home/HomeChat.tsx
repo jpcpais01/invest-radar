@@ -12,13 +12,13 @@ export default function HomeChat({ ticker }: Props) {
   const { messages, isStreaming, clearHistory, pendingPrefill, clearPrefill } = useChatStore();
   const { sendMessage, stop } = useAIChat();
   const [input, setInput] = useState("");
-  const bottomRef  = useRef<HTMLDivElement>(null);
+  const msgsRef    = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
-  const mountedRef = useRef(false);
 
   useEffect(() => {
-    if (!mountedRef.current) { mountedRef.current = true; return; }
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = msgsRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
@@ -126,6 +126,7 @@ export default function HomeChat({ ticker }: Props) {
 
       {/* Messages */}
       <div
+        ref={msgsRef}
         className="overflow-y-auto px-4 py-3 flex flex-col gap-3"
         style={{
           minHeight: 180, maxHeight: 380,
@@ -200,7 +201,6 @@ export default function HomeChat({ ticker }: Props) {
             </div>
           ))
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
