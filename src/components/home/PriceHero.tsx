@@ -26,7 +26,7 @@ function SparklineBg({ bars, isUp, id }: { bars: OHLCVBar[]; isUp: boolean; id: 
     return `${acc} C ${cx.toFixed(1)} ${prev.y.toFixed(1)}, ${cx.toFixed(1)} ${y.toFixed(1)}, ${x.toFixed(1)} ${y.toFixed(1)}`;
   }, "");
   const areaPath = `${linePath} L ${W} ${H} L 0 ${H} Z`;
-  const color = isUp ? "#c0c0cc" : "#ef4444";
+  const color = isUp ? "#4ade80" : "#ef4444";
   const fillId = `sf-fill-${id}`, maskId = `sf-mask-${id}`, edgeId = `sf-edge-${id}`;
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none select-none" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
@@ -102,7 +102,7 @@ export default function PriceHero({ ticker }: Props) {
           {price != null ? (
             <span
               className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight font-mono leading-none"
-              style={{ color: isUp ? "#c0c0cc" : "#ef4444" }}
+              style={{ color: isUp ? "#4ade80" : "#ef4444" }}
             >
               ${price.toFixed(2)}
             </span>
@@ -134,7 +134,7 @@ export default function PriceHero({ ticker }: Props) {
         <div className="mt-2.5 flex items-center gap-2">
           {price != null && change != null && pct != null ? (
             <>
-              <div className={cn("flex items-center gap-1 text-sm font-medium", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
+              <div className={cn("flex items-center gap-1 text-sm font-medium", isUp ? "text-[#4ade80]" : "text-[#ef4444]")}>
                 {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                 <span className="font-mono tabular-nums">{isUp ? "+" : ""}{change.toFixed(2)}</span>
                 <span className="font-mono tabular-nums opacity-60">({isUp ? "+" : ""}{pct.toFixed(2)}%)</span>
