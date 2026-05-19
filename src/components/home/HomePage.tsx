@@ -13,6 +13,7 @@ import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
 import CommandPalette from "@/components/search/CommandPalette";
 import HomeWatchlistBar from "./HomeWatchlistBar";
+import HomeFooter from "./HomeFooter";
 
 type Tab = "overview" | "discover";
 
@@ -182,6 +183,8 @@ export default function HomePage() {
           <HomeDiscover onSelectTicker={selectTicker} />
         </main>
       )}
+
+      <HomeFooter />
 
       <CommandPalette
         open={paletteOpen}

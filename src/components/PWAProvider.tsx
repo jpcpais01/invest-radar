@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 
+const DISMISS_KEY = "pwa-prompt-dismissed";
+const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000;
+
 function isInstalled() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -12,43 +15,54 @@ function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
 }
 
+function wasDismissedRecently() {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    return Date.now() - Number(raw) < DISMISS_TTL;
+  } catch { return false; }
+}
+
 export default function PWAProvider() {
   const [show, setShow] = useState(false);
   const [ios, setIos] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<Event & { prompt?: () => Promise<void> } | null>(null);
 
   useEffect(() => {
-    if (isInstalled()) return;
-
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as Event & { prompt?: () => Promise<void> });
     };
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
 
+    // Explicit trigger from footer — always show regardless of cooldown
+    const handleForceShow = () => {
+      if (!isInstalled()) { setIos(isIOS()); setShow(true); }
+    };
+    window.addEventListener("pwa:show", handleForceShow);
+
+    // Auto-prompt after 3 s (respects cooldown + installed check)
     const timer = setTimeout(() => {
-      if (isIOS()) {
-        setIos(true);
-        setShow(true);
-      }
-      // For Android/Chrome, show after beforeinstallprompt fires (handled via state)
+      if (isInstalled() || wasDismissedRecently()) return;
+      if (isIOS()) { setIos(true); setShow(true); }
     }, 3000);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      window.removeEventListener("pwa:show", handleForceShow);
       clearTimeout(timer);
     };
   }, []);
 
-  // Show prompt once deferredPrompt is captured
+  // Auto-show when browser fires beforeinstallprompt (Chrome/Android), respects cooldown
   useEffect(() => {
-    if (deferredPrompt) {
-      const t = setTimeout(() => setShow(true), 3000);
-      return () => clearTimeout(t);
-    }
+    if (!deferredPrompt) return;
+    const t = setTimeout(() => {
+      if (!isInstalled() && !wasDismissedRecently()) setShow(true);
+    }, 3000);
+    return () => clearTimeout(t);
   }, [deferredPrompt]);
 
-  // Register service worker
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -57,12 +71,11 @@ export default function PWAProvider() {
 
   const dismiss = () => {
     setShow(false);
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
   };
 
   const install = async () => {
-    if (deferredPrompt?.prompt) {
-      await deferredPrompt.prompt();
-    }
+    if (deferredPrompt?.prompt) await deferredPrompt.prompt();
     dismiss();
   };
 
@@ -70,19 +83,14 @@ export default function PWAProvider() {
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 z-[9998] bg-black/60" onClick={dismiss} />
-
-      {/* Slide-up panel */}
       <div
         className="fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-[#2c2c2c] px-6 py-6 animate-slide-up"
         style={{ background: "#101010", boxShadow: "0 -24px 64px rgba(0,0,0,0.8)" }}
       >
-        {/* Handle */}
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-[#2c2c2c]" />
 
         <div className="flex items-start gap-4">
-          {/* Icon */}
           <div className="shrink-0 w-14 h-14 rounded-2xl border border-[#c0c0cc22] bg-[#080808] flex items-center justify-center">
             <svg width="32" height="32" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
