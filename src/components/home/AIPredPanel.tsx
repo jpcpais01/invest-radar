@@ -464,18 +464,18 @@ export default function AIPredPanel({ ticker }: Props) {
         </div>
 
         {prediction && lastClose && predFinal && predChange !== null && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2 shrink-0">
             <div className={cn(
-              "flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-semibold tabular-nums",
+              "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold tabular-nums",
               isUp
                 ? "text-[#c0c0cc] bg-[#c0c0cc0a] border-[#c0c0cc28]"
                 : "text-[#ef4444] bg-[#ef44440a] border-[#ef444428]"
             )}>
               {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               <span className="font-mono">{isUp ? "+" : ""}{predChange.toFixed(2)}%</span>
-              <span className="opacity-50">· {prediction.n}D</span>
+              <span className="opacity-50">·{prediction.n}D</span>
             </div>
-            <span className={cn("text-lg font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
+            <span className={cn("text-sm font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
               {fmtPrice(predFinal)}
             </span>
           </div>
@@ -527,41 +527,42 @@ export default function AIPredPanel({ ticker }: Props) {
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-t border-[#1e1e1e]">
-        {prediction && (
-          <div className="flex items-center gap-1.5 text-[9px] text-[#3a3a3a]">
-            <Sparkles className="w-3 h-3 text-[#c0c0cc]" />
-            <span>{prediction.successfulRuns}/{prediction.totalRuns} runs</span>
-          </div>
-        )}
-        <div className="flex-1" />
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-[#1e1e1e] gap-2">
+        {/* Days + Runs spinners */}
+        <div className="flex items-center gap-1.5">
           {[
-            { label: "Days", val: nDays, set: setNDays, min: 1,  max: 30, step: 1 },
-            { label: "Runs", val: nRuns, set: setNRuns, min: 1,  max: 20, step: 1 },
+            { label: "Days", val: nDays, set: setNDays, min: 1, max: 30, step: 1 },
+            { label: "Runs", val: nRuns, set: setNRuns, min: 1, max: 20, step: 1 },
           ].map(({ label, val, set, min, max, step }, i) => (
-            <div key={label} className="flex items-center gap-1">
-              {i > 0 && <div className="w-px h-3 bg-[#1e1e1e]" />}
+            <div key={label} className="flex items-center gap-0.5">
+              {i > 0 && <div className="w-px h-3 bg-[#1e1e1e] mx-1" />}
               <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">{label}</span>
-              <div className="flex items-center gap-0.5">
-                <button
-                  onClick={() => set((v: number) => Math.max(min, v - step))}
-                  className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
-                ><Minus className="w-3 h-3" /></button>
-                <span className="text-xs text-[#f0f0f0] w-7 text-center tabular-nums font-mono">{val}</span>
-                <button
-                  onClick={() => set((v: number) => Math.min(max, v + step))}
-                  className="w-6 h-6 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
-                ><Plus className="w-3 h-3" /></button>
-              </div>
+              <button
+                onClick={() => set((v: number) => Math.max(min, v - step))}
+                className="w-5 h-5 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
+              ><Minus className="w-2.5 h-2.5" /></button>
+              <span className="text-xs text-[#f0f0f0] w-6 text-center tabular-nums font-mono">{val}</span>
+              <button
+                onClick={() => set((v: number) => Math.min(max, v + step))}
+                className="w-5 h-5 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
+              ><Plus className="w-2.5 h-2.5" /></button>
             </div>
           ))}
+        </div>
+
+        {/* Right: runs count + Predict */}
+        <div className="flex items-center gap-2 shrink-0">
+          {prediction && (
+            <span className="text-[9px] text-[#3a3a3a] tabular-nums hidden xs:inline">
+              {prediction.successfulRuns}/{prediction.totalRuns}
+            </span>
+          )}
           <button
             onClick={runPredict}
             disabled={predLoading || !canPredict}
             title={canPredict ? undefined : "Select 1M or 6M to enable prediction"}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
+              "flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
               predLoading
                 ? "text-[#3a3a3a] border-[#1e1e1e] cursor-not-allowed"
                 : canPredict
