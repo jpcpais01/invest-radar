@@ -1,4 +1,55 @@
+import YahooFinanceClass from "yahoo-finance2";
 import { getQuote, getHistory, getFundamentals, getEarnings, getQualityData, getInsiderTransactions } from "@/lib/market/yahoo";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const yf = new (YahooFinanceClass as any)({ suppressNotices: ["yahooSurvey"] });
+const safeN = (val: any): number | undefined => {
+  if (val == null) return undefined;
+  if (typeof val === "number") return isFinite(val) ? val : undefined;
+  if (typeof val === "object" && "raw" in val) { const n = val.raw as number; return isFinite(n) ? n : undefined; }
+  return undefined;
+};
+
+// ── DCF helpers ───────────────────────────────────────────────────────────────
+const ERP = 0.055; const TAX_RATE = 0.21; const TERMINAL_GROWTH = 0.03;
+function runDCF(fcfPerShare: number, growthRate: number, wacc: number) {
+  const fadeRate = growthRate / 2;
+  let fcf = fcfPerShare; let pvHigh = 0; let pvFade = 0;
+  for (let t = 1; t <= 5; t++) { fcf *= (1 + growthRate); pvHigh += fcf / Math.pow(1 + wacc, t); }
+  for (let t = 6; t <= 10; t++) { fcf *= (1 + fadeRate); pvFade += fcf / Math.pow(1 + wacc, t); }
+  const tvPV = (fcf * (1 + TERMINAL_GROWTH) / (wacc - TERMINAL_GROWTH)) / Math.pow(1 + wacc, 10);
+  return { intrinsicValue: pvHigh + pvFade + tvPV, pvHighGrowth: pvHigh, pvFade, pvTerminal: tvPV };
+}
+
+// ── Heatmap helpers ───────────────────────────────────────────────────────────
+const WARMUP = 220;
+type Cell = "bullish" | "bearish" | "neutral";
+function lastV(arr?: number[]): number | null {
+  if (!arr?.length) return null; const v = arr[arr.length - 1]; return isNaN(v) ? null : v;
+}
+async function analyzeHeatmapTF(ticker: string, days: number, interval: "1d" | "1wk") {
+  const from = new Date(Date.now() - (days + WARMUP) * 86400000);
+  const allBars = await getHistory(ticker, interval, from);
+  if (allBars.length < 30) return { trend: "neutral", momentum: "neutral", macd: "neutral", volume: "neutral", position: "neutral" };
+  const ind = computeIndicators(allBars);
+  const price = allBars[allBars.length - 1].close;
+  const displayFrom = Date.now() / 1000 - days * 86400;
+  const disp = allBars.filter(b => b.time >= displayFrom);
+  const barsR = disp.length >= 5 ? disp : allBars;
+  const hi = Math.max(...barsR.map(b => b.high)); const lo = Math.min(...barsR.map(b => b.low));
+  const ema50 = lastV(ind.ema50);
+  const rsi   = lastV(ind.rsi);
+  const macdV = lastV(ind.macd?.macd); const sigV = lastV(ind.macd?.signal);
+  const obv   = (ind.obv ?? []).filter(v => !isNaN(v));
+  const pos   = (hi - lo) > 0 ? (price - lo) / (hi - lo) : 0.5;
+  return {
+    trend:    (ema50 == null ? "neutral" : price > ema50 ? "bullish" : "bearish") as Cell,
+    momentum: (rsi == null ? "neutral" : rsi > 60 ? "bullish" : rsi < 40 ? "bearish" : "neutral") as Cell,
+    macd:     (macdV == null || sigV == null ? "neutral" : macdV > sigV ? "bullish" : "bearish") as Cell,
+    volume:   (obv.length < 6 ? "neutral" : obv[obv.length - 1] > obv[obv.length - 6] ? "bullish" : "bearish") as Cell,
+    position: (pos > 0.65 ? "bullish" : pos < 0.35 ? "bearish" : "neutral") as Cell,
+  };
+}
 import { computeIndicators } from "@/lib/market/indicators";
 import { getNews } from "@/lib/market/news";
 import { TIMEFRAMES } from "@/types/market";
@@ -98,6 +149,49 @@ export async function executeTool(name: string, args: Record<string, string>): P
               ? "Golden Cross (Bullish)"
               : "Death Cross (Bearish)",
         },
+        stochastic: (() => {
+          const k = indicators.stochastic?.k?.slice(-1)[0];
+          const d = indicators.stochastic?.d?.slice(-1)[0];
+          return {
+            k: k != null && !isNaN(k) ? +k.toFixed(2) : null,
+            d: d != null && !isNaN(d) ? +d.toFixed(2) : null,
+            interpretation: k == null ? "N/A" : k > 80 ? "Overbought" : k < 20 ? "Oversold" : "Neutral",
+          };
+        })(),
+        adx: (() => {
+          const adxVal = indicators.adx?.adx?.slice(-1)[0];
+          const pdi = indicators.adx?.pdi?.slice(-1)[0];
+          const mdi = indicators.adx?.mdi?.slice(-1)[0];
+          return {
+            adx: adxVal != null && !isNaN(adxVal) ? +adxVal.toFixed(2) : null,
+            pdi: pdi != null && !isNaN(pdi) ? +pdi.toFixed(2) : null,
+            mdi: mdi != null && !isNaN(mdi) ? +mdi.toFixed(2) : null,
+            trendStrength: adxVal == null ? "N/A" : adxVal > 25 ? "Trending" : adxVal > 20 ? "Weak trend" : "Ranging",
+            direction: pdi != null && mdi != null ? (pdi > mdi ? "Bullish" : "Bearish") : "N/A",
+          };
+        })(),
+        cci: (() => {
+          const cciVal = indicators.cci?.slice(-1)[0];
+          return {
+            value: cciVal != null && !isNaN(cciVal) ? +cciVal.toFixed(2) : null,
+            interpretation: cciVal == null ? "N/A" : cciVal > 100 ? "Overbought" : cciVal < -100 ? "Oversold" : "Neutral",
+          };
+        })(),
+        obv: (() => {
+          const obvArr = (indicators.obv ?? []).filter(v => !isNaN(v));
+          const rising = obvArr.length >= 6 ? obvArr[obvArr.length - 1] > obvArr[obvArr.length - 6] : null;
+          return {
+            current: obvArr.length ? obvArr[obvArr.length - 1] : null,
+            trend: rising === null ? "N/A" : rising ? "Rising (accumulation)" : "Falling (distribution)",
+          };
+        })(),
+        psar: (() => {
+          const psarVal = indicators.psar?.slice(-1)[0];
+          return {
+            value: psarVal != null && !isNaN(psarVal) ? +psarVal.toFixed(4) : null,
+            signal: psarVal == null ? "N/A" : psarVal < quote.price ? "Bullish (price above PSAR)" : "Bearish (price below PSAR)",
+          };
+        })(),
       };
     }
 
@@ -213,6 +307,139 @@ export async function executeTool(name: string, args: Record<string, string>): P
         sellCount: transactions.filter(t => !t.isBuy).length,
         recentBuys:  recentBuys.map(t => ({ name: t.name, relation: t.relation, shares: t.shares, value: t.value, date: t.date })),
         recentSells: recentSells.map(t => ({ name: t.name, relation: t.relation, shares: t.shares, value: t.value, date: t.date })),
+      };
+    }
+
+    case "get_fair_value": {
+      const [summary, quote] = await Promise.all([
+        yf.quoteSummary(args.ticker.toUpperCase(), { modules: ["defaultKeyStatistics", "financialData", "earningsTrend"] }).catch(() => null),
+        yf.quote(args.ticker.toUpperCase()).catch(() => null),
+      ]);
+      const ks = (summary as any)?.defaultKeyStatistics;
+      const fd = (summary as any)?.financialData;
+      const trend = (summary as any)?.earningsTrend?.trend as any[] | undefined;
+      const currentPrice = safeN((quote as any)?.regularMarketPrice);
+      const trailingEps  = safeN(ks?.trailingEps);
+      let growthRate: number | undefined; let growthSource = "5Y est.";
+      if (trend) { const fy = trend.find((t: any) => t.period === "5y"); const r = safeN(fy?.growth); if (r != null && r > 0) { growthRate = r * 100; } }
+      if (growthRate == null) { const eg = safeN(fd?.earningsGrowth); if (eg != null && eg > 0) { growthRate = eg * 100; growthSource = "TTM growth"; } }
+      if (growthRate == null || trailingEps == null || trailingEps <= 0) return { ticker: args.ticker, error: "Insufficient data for fair value calculation" };
+      const cg = Math.min(Math.max(growthRate, 0), 50);
+      const fairValue = trailingEps * cg;
+      const upside = currentPrice != null ? ((fairValue - currentPrice) / currentPrice) * 100 : null;
+      const peg = currentPrice != null && trailingEps > 0 ? currentPrice / trailingEps / cg : null;
+      return {
+        ticker: args.ticker,
+        model: "Peter Lynch Fair Value (EPS × Growth Rate %)",
+        fairValue: +fairValue.toFixed(2),
+        currentPrice: currentPrice ? +currentPrice.toFixed(2) : null,
+        trailingEps: +trailingEps.toFixed(4),
+        growthRatePct: +cg.toFixed(2),
+        growthSource,
+        upsidePct: upside != null ? +upside.toFixed(2) : null,
+        peg: peg != null ? +peg.toFixed(3) : null,
+        interpretation: upside == null ? "N/A" : upside > 20 ? "Undervalued" : upside > 0 ? "Slightly undervalued" : upside > -20 ? "Slightly overvalued" : "Overvalued",
+        pegNote: peg == null ? "N/A" : peg < 1 ? "PEG < 1: potentially cheap vs growth" : peg < 2 ? "PEG 1–2: fairly valued" : "PEG > 2: expensive vs growth",
+      };
+    }
+
+    case "get_dcf_valuation": {
+      const [summary, quote, tnx] = await Promise.all([
+        yf.quoteSummary(args.ticker.toUpperCase(), { modules: ["defaultKeyStatistics", "summaryDetail", "financialData", "earningsTrend"] }).catch(() => null),
+        yf.quote(args.ticker.toUpperCase()).catch(() => null),
+        yf.quote("^TNX").catch(() => null),
+      ]);
+      const ks = (summary as any)?.defaultKeyStatistics;
+      const sd = (summary as any)?.summaryDetail;
+      const fd = (summary as any)?.financialData;
+      const trend = (summary as any)?.earningsTrend?.trend as any[] | undefined;
+      const currentPrice      = safeN((quote as any)?.regularMarketPrice);
+      const freeCashflow      = safeN(fd?.freeCashflow);
+      const sharesOutstanding = safeN(ks?.sharesOutstanding);
+      const beta              = safeN(sd?.beta) ?? 1.0;
+      const debtToEquityPct   = safeN(fd?.debtToEquity);
+      if (!freeCashflow || freeCashflow <= 0 || !sharesOutstanding) return { ticker: args.ticker, error: "Insufficient FCF data for DCF" };
+      const fcfPerShare = freeCashflow / sharesOutstanding;
+      const rfRate = (tnx as any)?.regularMarketPrice ? (tnx as any).regularMarketPrice / 100 : 0.045;
+      const costOfEquity = rfRate + beta * ERP;
+      const deRatio      = debtToEquityPct != null ? debtToEquityPct / 100 : 0;
+      const we = deRatio > 0 ? 1 / (1 + deRatio) : 1;
+      const wd = deRatio > 0 ? deRatio / (1 + deRatio) : 0;
+      const wacc = we * costOfEquity + wd * (rfRate + 0.02) * (1 - TAX_RATE);
+      if (wacc <= TERMINAL_GROWTH) return { ticker: args.ticker, error: "WACC ≤ terminal growth — DCF undefined" };
+      let growthRate: number | undefined;
+      if (trend) { const fy = trend.find((t: any) => t.period === "5y"); const r = safeN(fy?.growth); if (r != null && r > 0) growthRate = r; }
+      if (growthRate == null) { const eg = safeN(fd?.earningsGrowth); if (eg != null && eg > 0) growthRate = eg; }
+      if (growthRate == null) return { ticker: args.ticker, error: "No growth rate available for DCF" };
+      const cg = Math.min(growthRate, 0.50);
+      const base = runDCF(fcfPerShare, cg, wacc);
+      const bear = runDCF(fcfPerShare, cg * 0.6, wacc + 0.01);
+      const bull = runDCF(fcfPerShare, Math.min(cg * 1.4, 0.50), wacc - 0.01);
+      const upside = currentPrice != null ? ((base.intrinsicValue - currentPrice) / currentPrice) * 100 : null;
+      return {
+        ticker: args.ticker,
+        model: "10-Year DCF (5Y high-growth + 5Y fade + terminal value)",
+        currentPrice: currentPrice ? +currentPrice.toFixed(2) : null,
+        scenarios: {
+          bear: +bear.intrinsicValue.toFixed(2),
+          base: +base.intrinsicValue.toFixed(2),
+          bull: +bull.intrinsicValue.toFixed(2),
+        },
+        upsidePct: upside != null ? +upside.toFixed(2) : null,
+        assumptions: {
+          fcfPerShare: +fcfPerShare.toFixed(4),
+          growthRatePct: +(cg * 100).toFixed(2),
+          waccPct: +(wacc * 100).toFixed(2),
+          rfRatePct: +(rfRate * 100).toFixed(2),
+          beta,
+          terminalGrowthPct: TERMINAL_GROWTH * 100,
+        },
+        pvBreakdown: {
+          highGrowthPhase: +base.pvHighGrowth.toFixed(2),
+          fadePhase: +base.pvFade.toFixed(2),
+          terminalValue: +base.pvTerminal.toFixed(2),
+        },
+        interpretation: upside == null ? "N/A" : upside > 30 ? "Significant margin of safety" : upside > 10 ? "Moderate upside" : upside > -10 ? "Fairly valued" : "Trading above intrinsic value",
+      };
+    }
+
+    case "get_technical_heatmap": {
+      const HM_TFS = [
+        { label: "1M", days: 30,  interval: "1d"  as const },
+        { label: "3M", days: 90,  interval: "1d"  as const },
+        { label: "6M", days: 180, interval: "1d"  as const },
+        { label: "1Y", days: 365, interval: "1d"  as const },
+        { label: "2Y", days: 730, interval: "1wk" as const },
+      ];
+      const results = await Promise.all(HM_TFS.map(tf => analyzeHeatmapTF(args.ticker.toUpperCase(), tf.days, tf.interval)));
+      const rows = ["trend", "momentum", "macd", "volume", "position"] as const;
+      const rowLabels: Record<string, string> = { trend: "Trend (EMA50)", momentum: "Momentum (RSI)", macd: "MACD crossover", volume: "Volume (OBV)", position: "Price position" };
+      const grid = rows.map(row => ({
+        signal: rowLabels[row],
+        cells: HM_TFS.map((tf, i) => ({ timeframe: tf.label, rating: (results[i] as any)[row] as Cell })),
+      }));
+      const allCells = grid.flatMap(r => r.cells.map(c => c.rating));
+      const bullCount = allCells.filter(v => v === "bullish").length;
+      const bearCount = allCells.filter(v => v === "bearish").length;
+      const total = allCells.length;
+      const bias: "bullish" | "bearish" | "mixed" = bullCount > bearCount ? "bullish" : bearCount > bullCount ? "bearish" : "mixed";
+      return {
+        ticker: args.ticker,
+        timeframes: HM_TFS.map(t => t.label),
+        signals: rows.map(s => rowLabels[s]),
+        grid,
+        summary: {
+          bias,
+          bullishSignals: bullCount,
+          bearishSignals: bearCount,
+          neutralSignals: total - bullCount - bearCount,
+          agreementPct: Math.round((Math.max(bullCount, bearCount) / total) * 100),
+        },
+        interpretation: bias === "bullish"
+          ? `${bullCount}/${total} signals bullish — broad technical alignment to the upside`
+          : bias === "bearish"
+          ? `${bearCount}/${total} signals bearish — broad technical pressure to the downside`
+          : "Mixed signals across timeframes — no clear directional conviction",
       };
     }
 

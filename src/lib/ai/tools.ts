@@ -119,4 +119,46 @@ export const AI_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_fair_value",
+      description: "Compute Peter Lynch fair value (EPS × expected 5-year growth rate) and PEG ratio. Returns fair price estimate, current price, upside/downside %, and PEG. Use to assess whether a growth stock is cheap or expensive relative to its earnings growth.",
+      parameters: {
+        type: "object",
+        properties: {
+          ticker: { type: "string" },
+        },
+        required: ["ticker"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_dcf_valuation",
+      description: "Run a discounted cash flow (DCF) model with bear/base/bull scenarios using the live 10-year Treasury yield as the risk-free rate. Returns intrinsic value per share for each scenario, WACC, FCF per share, growth rate assumption, and upside/downside vs current price. Use for fundamental valuation and margin-of-safety analysis.",
+      parameters: {
+        type: "object",
+        properties: {
+          ticker: { type: "string" },
+        },
+        required: ["ticker"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_technical_heatmap",
+      description: "Analyze technical signals across five timeframes (1M, 3M, 6M, 1Y, 2Y) for trend (EMA50), momentum (RSI), MACD crossover, volume (OBV), and price position. Returns a grid of bullish/bearish/neutral ratings and an overall bias with agreement score. Use to quickly understand whether multiple timeframes are aligned.",
+      parameters: {
+        type: "object",
+        properties: {
+          ticker: { type: "string" },
+        },
+        required: ["ticker"],
+      },
+    },
+  },
 ];
