@@ -931,9 +931,6 @@ export function KeyMetricsCard({ ticker }: Props) {
             <ColMetric label="EPS"          value={fund?.eps != null ? `$${fmtD(fund.eps)}` : "—"} />
             <ColMetric label="EPS Growth"   value={fmtPct(fund?.epsGrowth)}      colored={pct(fund?.epsGrowth)} />
             <ColMetric label="Gross Margin" value={fmtPct(qual?.grossMargins)}   colored={pct(qual?.grossMargins)} />
-            <ColMetric label="Net Margin"   value={fmtPct(qual?.profitMargins)}  colored={pct(qual?.profitMargins)} />
-            <ColMetric label="ROE"          value={fmtPct(qual?.returnOnEquity)} colored={pct(qual?.returnOnEquity)} />
-            <ColMetric label="FCF"          value={fmtCap(qual?.freeCashflow)}   colored={qual?.freeCashflow != null ? pct(qual.freeCashflow) : null} />
           </div>
 
           {/* Risk */}

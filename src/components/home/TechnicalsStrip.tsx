@@ -101,7 +101,7 @@ export default function TechnicalsStrip({ ticker }: Props) {
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[#c0c0cc] text-[8px]">◆</span>
         <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Technical Indicators</span>
-        <span className="text-[9px] text-[#3a3a3a] ml-1">3M</span>
+        <span className="text-[9px] text-[#3a3a3a] ml-1">Calculated on Daily Prices</span>
       </div>
       {isLoading ? (
         <div className="flex gap-3 overflow-x-auto pb-1">
