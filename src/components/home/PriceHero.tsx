@@ -1,20 +1,11 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { OHLCVBar, TechnicalIndicators } from "@/types/market";
-import { computeSignalSummary } from "@/lib/market/indicators";
+import { OHLCVBar } from "@/types/market";
 import { TrendingUp, TrendingDown, Star } from "lucide-react";
 import { useTickerStore } from "@/store/tickerStore";
 
 interface Props { ticker: string }
-
-const SIGNAL_CONFIG = {
-  "strong-buy":  { label: "Strong Buy",  cls: "text-[#d8d8e4] border-[#d8d8e433] bg-[#d8d8e40a]", dot: "#d8d8e4" },
-  "buy":         { label: "Buy",          cls: "text-[#c0c0cc] border-[#c0c0cc33] bg-[#c0c0cc0a]", dot: "#c0c0cc" },
-  "neutral":     { label: "Neutral",      cls: "text-[#767676] border-[#2c2c2c]   bg-transparent",  dot: "#5a5570" },
-  "sell":        { label: "Sell",         cls: "text-[#ef4444] border-[#ef444433] bg-[#ef44440a]", dot: "#ef4444" },
-  "strong-sell": { label: "Strong Sell",  cls: "text-[#dc2626] border-[#dc262644] bg-[#dc26260a]", dot: "#dc2626" },
-};
 
 function SparklineBg({ bars, isUp, id }: { bars: OHLCVBar[]; isUp: boolean; id: string }) {
   if (bars.length < 2) return null;
@@ -73,11 +64,11 @@ export default function PriceHero({ ticker }: Props) {
     refetchInterval: 30000,
   });
 
-  const { data: indData } = useQuery({
-    queryKey: ["history-indicators", ticker, "3M"],
+  const { data: histData } = useQuery<{ bars: OHLCVBar[] }>({
+    queryKey: ["history-bars", ticker, "3M"],
     queryFn: async () => {
-      const r = await fetch(`/api/market/history/${ticker}?tf=3M&indicators=true`);
-      return r.json() as Promise<{ bars: OHLCVBar[]; indicators: TechnicalIndicators }>;
+      const r = await fetch(`/api/market/history/${ticker}?tf=3M`);
+      return r.json();
     },
     staleTime: 60000,
   });
@@ -88,12 +79,6 @@ export default function PriceHero({ ticker }: Props) {
   const name   = (quote?.name ?? ticker) as string;
   const isUp   = (change ?? 0) >= 0;
 
-  const signal = (() => {
-    if (!indData?.indicators || !price) return null;
-    return computeSignalSummary(indData.indicators, price).overall;
-  })();
-  const sigCfg = signal ? SIGNAL_CONFIG[signal] : null;
-
   return (
     <div
       className="relative rounded-xl border border-[#1e1e1e] overflow-hidden px-6 py-5"
@@ -103,12 +88,12 @@ export default function PriceHero({ ticker }: Props) {
       }}
     >
       {/* Background sparkline */}
-      {indData?.bars && <SparklineBg bars={indData.bars} isUp={isUp} id={ticker} />}
+      {histData?.bars && <SparklineBg bars={histData.bars} isUp={isUp} id={ticker} />}
 
       {/* Content */}
       <div className="relative z-10">
 
-        {/* Row 1: ticker · price · star · badge */}
+        {/* Row 1: ticker · price · star */}
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-3xl sm:text-4xl font-bold tracking-tight text-[#f0f0f0] font-mono leading-none">
             {ticker}
@@ -138,12 +123,6 @@ export default function PriceHero({ ticker }: Props) {
           >
             <Star className={cn("w-3.5 h-3.5", isWatchlisted && "fill-current")} />
           </button>
-
-          {sigCfg && (
-            <span className={cn("text-[10px] font-semibold px-2.5 py-0.5 rounded-full border tracking-wide", sigCfg.cls)}>
-              {sigCfg.label}
-            </span>
-          )}
         </div>
 
         {/* Row 2: company name */}

@@ -7,7 +7,7 @@ import { AskAIBtn, ForecastBtn, TerminalBtn, StrategyBtn } from "./NavButtons";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
-import { SignalCard, QualityCard, ValuationCard, FairPriceCard, KeyMetricsCard } from "./InsightCards";
+import { SignalCard, QualityCard, ValuationCard, FairPriceCard, KeyMetricsCard, EarningsCard } from "./InsightCards";
 import NewsPanel from "./NewsPanel";
 import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
@@ -70,7 +70,7 @@ export default function HomePage() {
               ><Compass className="w-3 h-3" />Discover</button>
             </div>
           </div>
-          {/* Row 2 — Ask AI · Forecast · Terminal */}
+          {/* Row 2 — Ask AI · Forecast · Strategy */}
           <div className="px-4 h-10 flex items-center gap-2 border-t border-[#1e1e1e]">
             <div ref={chatBtnRef} className="relative">
               <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} />
@@ -89,7 +89,6 @@ export default function HomePage() {
             </div>
             <ForecastBtn />
             <StrategyBtn />
-            <TerminalBtn ticker={activeTicker} />
           </div>
         </div>
 
@@ -155,6 +154,7 @@ export default function HomePage() {
             <QualityCard ticker={activeTicker} />
             <ValuationCard ticker={activeTicker} />
             <KeyMetricsCard ticker={activeTicker} />
+            <EarningsCard ticker={activeTicker} />
             <SignalCard ticker={activeTicker} />
             <TechnicalsStrip ticker={activeTicker} />
             <NewsPanel ticker={activeTicker} />
@@ -165,6 +165,7 @@ export default function HomePage() {
             <div className="flex flex-col gap-5">
               <AIPredPanel ticker={activeTicker} />
               <KeyMetricsCard ticker={activeTicker} />
+              <EarningsCard ticker={activeTicker} />
               <SignalCard ticker={activeTicker} />
               <NewsPanel ticker={activeTicker} />
             </div>

@@ -872,23 +872,22 @@ function fmtPct(v?: number): string { return v == null ? "—" : `${(v * 100).to
 function fmtX(v?: number): string   { return v == null ? "—" : `${v.toFixed(1)}x`; }
 function fmtD(v?: number, d = 2): string { return v == null ? "—" : v.toFixed(d); }
 
-function MetricRow({
+function ColMetric({
   label, value, colored,
 }: { label: string; value: string; colored?: "up" | "down" | null }) {
   const color = colored === "up" ? "#4ade80" : colored === "down" ? "#ef4444" : "#f0f0f0";
   return (
-    <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#101010] last:border-0">
-      <span className="text-[10px] text-[#3a3a3a] shrink-0">{label}</span>
-      <span className="text-[10px] font-mono font-medium tabular-nums" style={{ color }}>{value}</span>
+    <div className="py-1.5 border-b border-[#0d0d0d] last:border-0">
+      <div className="text-[8px] text-[#3a3a3a] leading-none mb-0.5 truncate">{label}</div>
+      <div className="text-[10px] font-mono font-medium tabular-nums truncate" style={{ color }}>{value}</div>
     </div>
   );
 }
 
-function SectionDivider({ label }: { label: string }) {
+function ColHeader({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 pt-1 pb-0.5">
-      <span className="text-[8px] font-semibold uppercase tracking-widest text-[#2c2c2c]">{label}</span>
-      <div className="flex-1 h-px bg-[#1a1a1a]" />
+    <div className="text-[8px] font-semibold uppercase tracking-widest text-[#2c2c2c] pb-1 mb-0.5 border-b border-[#1a1a1a]">
+      {label}
     </div>
   );
 }
@@ -906,39 +905,138 @@ export function KeyMetricsCard({ ticker }: Props) {
   });
 
   const isLoading = fLoading || qLoading;
-
   const pct = (v?: number) => v == null ? null : v >= 0 ? "up" as const : "down" as const;
 
   return (
     <CardShell title="Key Metrics">
       {isLoading ? (
-        <Skeleton lines={14} />
+        <Skeleton lines={8} />
       ) : (
-        <div>
-          <SectionDivider label="Valuation" />
-          <MetricRow label="Market Cap"  value={fmtCap(fund?.marketCap)} />
-          <MetricRow label="P/E (TTM)"   value={fmtX(fund?.pe)} />
-          <MetricRow label="Fwd P/E"     value={fmtX(fund?.forwardPE)} />
-          <MetricRow label="P/S"         value={fmtX(fund?.ps)} />
-          <MetricRow label="EV/EBITDA"   value={fmtX(fund?.evEbitda)} />
+        <div className="grid grid-cols-3 gap-3 divide-x divide-[#141414]">
+          {/* Valuation */}
+          <div>
+            <ColHeader label="Valuation" />
+            <ColMetric label="Mkt Cap"    value={fmtCap(fund?.marketCap)} />
+            <ColMetric label="P/E (TTM)"  value={fmtX(fund?.pe)} />
+            <ColMetric label="Fwd P/E"    value={fmtX(fund?.forwardPE)} />
+            <ColMetric label="P/S"        value={fmtX(fund?.ps)} />
+            <ColMetric label="EV/EBITDA"  value={fmtX(fund?.evEbitda)} />
+          </div>
 
-          <SectionDivider label="Financials" />
-          <MetricRow label="Revenue (TTM)"    value={fmtCap(fund?.revenue)} />
-          <MetricRow label="Revenue Growth"   value={fmtPct(fund?.revenueGrowth)}   colored={pct(fund?.revenueGrowth)} />
-          <MetricRow label="EPS (TTM)"        value={fund?.eps != null ? `$${fmtD(fund.eps)}` : "—"} />
-          <MetricRow label="EPS Growth"       value={fmtPct(fund?.epsGrowth)}        colored={pct(fund?.epsGrowth)} />
-          <MetricRow label="Gross Margin"     value={fmtPct(qual?.grossMargins)}     colored={pct(qual?.grossMargins)} />
-          <MetricRow label="Net Margin"       value={fmtPct(qual?.profitMargins)}    colored={pct(qual?.profitMargins)} />
-          <MetricRow label="ROE"              value={fmtPct(qual?.returnOnEquity)}   colored={pct(qual?.returnOnEquity)} />
-          <MetricRow label="Free Cash Flow"   value={fmtCap(qual?.freeCashflow)}     colored={qual?.freeCashflow != null ? pct(qual.freeCashflow) : null} />
+          {/* Financials */}
+          <div className="pl-3">
+            <ColHeader label="Financials" />
+            <ColMetric label="Revenue"      value={fmtCap(fund?.revenue)} />
+            <ColMetric label="Rev Growth"   value={fmtPct(fund?.revenueGrowth)}  colored={pct(fund?.revenueGrowth)} />
+            <ColMetric label="EPS"          value={fund?.eps != null ? `$${fmtD(fund.eps)}` : "—"} />
+            <ColMetric label="EPS Growth"   value={fmtPct(fund?.epsGrowth)}      colored={pct(fund?.epsGrowth)} />
+            <ColMetric label="Gross Margin" value={fmtPct(qual?.grossMargins)}   colored={pct(qual?.grossMargins)} />
+            <ColMetric label="Net Margin"   value={fmtPct(qual?.profitMargins)}  colored={pct(qual?.profitMargins)} />
+            <ColMetric label="ROE"          value={fmtPct(qual?.returnOnEquity)} colored={pct(qual?.returnOnEquity)} />
+            <ColMetric label="FCF"          value={fmtCap(qual?.freeCashflow)}   colored={qual?.freeCashflow != null ? pct(qual.freeCashflow) : null} />
+          </div>
 
-          <SectionDivider label="Risk" />
-          <MetricRow label="Beta"         value={fmtD(fund?.beta)} />
-          <MetricRow label="Debt / Equity" value={qual?.debtToEquity != null ? `${qual.debtToEquity.toFixed(0)}%` : "—"} />
-          <MetricRow label="Div Yield"    value={fund?.dividendYield != null ? `${(fund.dividendYield * 100).toFixed(2)}%` : "—"} />
-          <MetricRow label="52W High"     value={fund?.fiftyTwoWeekHigh != null ? `$${fmtD(fund.fiftyTwoWeekHigh)}` : "—"} />
-          <MetricRow label="52W Low"      value={fund?.fiftyTwoWeekLow  != null ? `$${fmtD(fund.fiftyTwoWeekLow)}`  : "—"} />
+          {/* Risk */}
+          <div className="pl-3">
+            <ColHeader label="Risk" />
+            <ColMetric label="Beta"       value={fmtD(fund?.beta)} />
+            <ColMetric label="Debt/Eq"    value={qual?.debtToEquity != null ? `${qual.debtToEquity.toFixed(0)}%` : "—"} />
+            <ColMetric label="Div Yield"  value={fund?.dividendYield != null ? `${(fund.dividendYield * 100).toFixed(2)}%` : "—"} />
+            <ColMetric label="52W High"   value={fund?.fiftyTwoWeekHigh != null ? `$${fmtD(fund.fiftyTwoWeekHigh)}` : "—"} />
+            <ColMetric label="52W Low"    value={fund?.fiftyTwoWeekLow  != null ? `$${fmtD(fund.fiftyTwoWeekLow)}`  : "—"} />
+          </div>
         </div>
+      )}
+    </CardShell>
+  );
+}
+
+// ── Earnings History Card ──────────────────────────────────────────────────────
+
+interface EarningsEvent {
+  date: string;
+  epsEstimate?: number;
+  epsActual?: number;
+  beat?: boolean;
+}
+
+function fmtEps(v?: number): string {
+  if (v == null) return "—";
+  return (v >= 0 ? "" : "-") + "$" + Math.abs(v).toFixed(2);
+}
+
+function fmtQuarter(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const month = d.getUTCMonth();
+  const year  = d.getUTCFullYear();
+  const q = Math.floor(month / 3) + 1;
+  return `Q${q} '${String(year).slice(2)}`;
+}
+
+export function EarningsCard({ ticker }: Props) {
+  const { data, isLoading } = useQuery<{ earnings: EarningsEvent[] }>({
+    queryKey: ["earnings", ticker],
+    queryFn: async () => { const r = await fetch(`/api/market/earnings/${ticker}`); return r.json(); },
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const earnings = (data?.earnings ?? []).slice().reverse().slice(0, 8);
+
+  return (
+    <CardShell title="Earnings History">
+      {isLoading ? (
+        <Skeleton lines={4} />
+      ) : earnings.length > 0 ? (
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-[#161616]">
+                <th className="pb-1.5 text-left text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Quarter</th>
+                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Est EPS</th>
+                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Actual</th>
+                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Surprise</th>
+                <th className="pb-1.5 text-center text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {earnings.map((e, i) => {
+                const surprise = e.epsActual != null && e.epsEstimate != null
+                  ? e.epsActual - e.epsEstimate : null;
+                const surprisePct = surprise != null && e.epsEstimate != null && e.epsEstimate !== 0
+                  ? (surprise / Math.abs(e.epsEstimate)) * 100 : null;
+                return (
+                  <tr key={i} className="border-b border-[#0d0d0d] last:border-0">
+                    <td className="py-2 px-1 font-mono text-[10px] text-[#767676]">{fmtQuarter(e.date)}</td>
+                    <td className="py-2 px-1 text-right font-mono text-[10px] text-[#3a3a3a] tabular-nums">{fmtEps(e.epsEstimate)}</td>
+                    <td className="py-2 px-1 text-right font-mono text-[10px] text-[#f0f0f0] tabular-nums font-medium">{fmtEps(e.epsActual)}</td>
+                    <td className="py-2 px-1 text-right font-mono text-[10px] tabular-nums" style={{
+                      color: surprisePct == null ? "#3a3a3a" : surprisePct >= 0 ? "#4ade80" : "#ef4444"
+                    }}>
+                      {surprisePct != null
+                        ? `${surprisePct >= 0 ? "+" : ""}${surprisePct.toFixed(1)}%`
+                        : "—"}
+                    </td>
+                    <td className="py-2 px-1 text-center">
+                      {e.beat != null ? (
+                        <span className={cn(
+                          "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border",
+                          e.beat
+                            ? "text-[#4ade80] bg-[#4ade8010] border-[#4ade8030]"
+                            : "text-[#ef4444] bg-[#ef444410] border-[#ef444430]"
+                        )}>
+                          {e.beat ? "Beat" : "Miss"}
+                        </span>
+                      ) : <span className="text-[#2c2c2c]">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-[11px] text-[#3a3a3a]">No earnings data available</p>
       )}
     </CardShell>
   );
