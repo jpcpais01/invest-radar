@@ -56,8 +56,6 @@ function evenIdxs(total: number, n: number): number[] {
 // ── chart ─────────────────────────────────────────────────────────────────────
 
 const MG = { top: 12, right: 60, bottom: 22, left: 0 };
-const VOL_H   = 44; // height of volume panel in px
-const VOL_GAP =  5; // gap between sections
 const RSI_H   = 50; // height of RSI panel in px
 const RSI_GAP =  5;
 
@@ -88,13 +86,12 @@ function PriceChart({ bars, indicators, emaVisible, showRsi, tf, chartH }: Chart
   const { w, h } = size ?? { w: 0, h: 0 };
   const cW = w - MG.left - MG.right;
 
-  // Section boundaries (RSI panel sits between price and volume when enabled)
-  const volBotY   = h - MG.bottom;
-  const volTopY   = volBotY - VOL_H;
-  const rsiBot    = showRsi ? volTopY - VOL_GAP : volTopY;
-  const rsiTop    = showRsi ? rsiBot - RSI_H    : rsiBot;
+  // Section boundaries
+  const chartBot  = h - MG.bottom;
+  const rsiBot    = showRsi ? chartBot           : chartBot;
+  const rsiTop    = showRsi ? chartBot - RSI_H   : chartBot;
   const priceTopY = MG.top;
-  const priceBotY = showRsi ? rsiTop - RSI_GAP  : volTopY - VOL_GAP;
+  const priceBotY = showRsi ? rsiTop - RSI_GAP   : chartBot;
   const priceH    = Math.max(1, priceBotY - priceTopY);
 
   const n = bars.length;
@@ -149,10 +146,6 @@ function PriceChart({ bars, indicators, emaVisible, showRsi, tf, chartH }: Chart
     if (pts.length < 2) return "";
     return "M" + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L");
   }, [xS, yS, priceTopY, priceBotY]);
-
-  // Volume
-  const maxVol  = useMemo(() => Math.max(...bars.map(b => b.volume), 1), [bars]);
-  const barPixW = cW > 0 && n > 1 ? Math.max(1, (cW / n) * 0.72) : 4;
 
   // RSI
   const rsiY = useCallback(
@@ -396,29 +389,6 @@ function PriceChart({ bars, indicators, emaVisible, showRsi, tf, chartH }: Chart
           </>
         )}
 
-        {/* Volume separator */}
-        <line
-          x1={MG.left} y1={(volTopY - 2).toFixed(1)}
-          x2={w - MG.right} y2={(volTopY - 2).toFixed(1)}
-          stroke="rgba(255,255,255,0.04)" strokeWidth="1"
-        />
-
-        {/* Volume bars */}
-        {bars.map((b, i) => {
-          const bx  = xS(i) - barPixW / 2;
-          const bh  = Math.max(1, (b.volume / maxVol) * VOL_H);
-          const by  = volBotY - bh;
-          const up  = b.close >= b.open;
-          return (
-            <rect key={i}
-              x={bx.toFixed(1)} y={by.toFixed(1)}
-              width={barPixW.toFixed(1)} height={bh.toFixed(1)}
-              fill={up ? "rgba(74,222,128,0.28)" : "rgba(248,113,113,0.24)"}
-              rx="0.5"
-            />
-          );
-        })}
-
         {/* X-axis labels */}
         {xTickIdxs.map(i => (
           <text key={i}
@@ -440,7 +410,7 @@ function PriceChart({ bars, indicators, emaVisible, showRsi, tf, chartH }: Chart
           return (
             <>
               {/* vertical line through all panels */}
-              <line x1={cx.toFixed(1)} y1={priceTopY} x2={cx.toFixed(1)} y2={volBotY}
+              <line x1={cx.toFixed(1)} y1={priceTopY} x2={cx.toFixed(1)} y2={rsiBot}
                 stroke="rgba(255,255,255,0.09)" strokeWidth="1"
               />
               {/* price dot */}
@@ -523,14 +493,11 @@ export default function AIPredPanel({ ticker }: Props) {
   const periodPct  = firstClose > 0 ? ((lastClose - firstClose) / firstClose) * 100 : 0;
   const periodHigh = bars.length ? Math.max(...bars.map(b => b.high)) : 0;
   const periodLow  = bars.length ? Math.min(...bars.map(b => b.low))  : 0;
-  const avgVol     = bars.length ? bars.reduce((s, b) => s + b.volume, 0) / bars.length : 1;
-  const lastVol    = bars.at(-1)?.volume ?? 0;
-  const volRatio   = avgVol > 0 ? lastVol / avgVol : 0;
   const isUp       = periodPct >= 0;
   const marketOpen = isMarketOpen();
   const showRsi    = !isIntraday;
 
-  const CHART_H = showRsi ? 344 : 290;
+  const CHART_H = showRsi ? 290 : 240;
 
   return (
     <div
@@ -669,25 +636,6 @@ export default function AIPredPanel({ ticker }: Props) {
             </span>
           </div>
 
-          <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
-
-          {/* Volume */}
-          <div className="flex flex-col items-start">
-            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">Volume</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-[11px] font-semibold tabular-nums font-mono text-[#c8c8e0]">
-                {fmtVol(lastVol)}
-              </span>
-              {volRatio > 0 && (
-                <span
-                  className="text-[9px] tabular-nums font-mono"
-                  style={{ color: volRatio > 1.5 ? "#fbbf24" : volRatio < 0.6 ? "#f87171" : "#323248" }}
-                >
-                  {volRatio.toFixed(1)}×
-                </span>
-              )}
-            </div>
-          </div>
         </div>
       )}
     </div>
