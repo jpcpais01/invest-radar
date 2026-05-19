@@ -43,6 +43,19 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
     bars.length
   );
 
+  const sma20 = padLeft(
+    closes.length >= 20 ? ti.SMA.calculate({ period: 20, values: closes }) : [],
+    bars.length
+  );
+  const sma50 = padLeft(
+    closes.length >= 50 ? ti.SMA.calculate({ period: 50, values: closes }) : [],
+    bars.length
+  );
+  const sma200 = padLeft(
+    closes.length >= 200 ? ti.SMA.calculate({ period: 200, values: closes }) : [],
+    bars.length
+  );
+
   const stochInput = ti.Stochastic.calculate({
     high: highs,
     low: lows,
@@ -79,6 +92,9 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
     ema21,
     ema50,
     ema200,
+    sma20,
+    sma50,
+    sma200,
     adx: { adx, pdi, mdi },
     psar,
     cci,

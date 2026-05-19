@@ -88,6 +88,9 @@ export interface TechnicalIndicators {
   ema21?: number[];
   ema50?: number[];
   ema200?: number[];
+  sma20?: number[];
+  sma50?: number[];
+  sma200?: number[];
   adx?: { adx: number[]; pdi: number[]; mdi: number[] };
   psar?: number[];
   cci?: number[];

@@ -64,7 +64,7 @@ const RSI_GAP =  5;
 interface ChartProps {
   bars: OHLCVBar[];
   indicators?: TechnicalIndicators;
-  emaVisible: { ema21: boolean; ema50: boolean; ema200: boolean };
+  emaVisible: { ma20: boolean; ma50: boolean; ma200: boolean };
   showRsi: boolean;
   tf: TFOption;
   chartH: number;
@@ -240,23 +240,23 @@ function PriceChart({ bars, indicators, emaVisible, showRsi, tf, chartH }: Chart
           <path d={priceArea} fill={`url(#${uid}ag)`} clipPath={`url(#${uid}pc)`} />
         )}
 
-        {/* EMA overlays */}
-        {emaVisible.ema200 && (() => {
-          const d = buildEmaPath(indicators?.ema200);
+        {/* MA overlays */}
+        {emaVisible.ma200 && (() => {
+          const d = buildEmaPath(indicators?.sma200);
           return d ? (
             <path d={d} fill="none" stroke="rgba(167,139,250,0.55)" strokeWidth="1"
               clipPath={`url(#${uid}pc)`} />
           ) : null;
         })()}
-        {emaVisible.ema50 && (() => {
-          const d = buildEmaPath(indicators?.ema50);
+        {emaVisible.ma50 && (() => {
+          const d = buildEmaPath(indicators?.sma50);
           return d ? (
             <path d={d} fill="none" stroke="rgba(96,165,250,0.60)" strokeWidth="1"
               clipPath={`url(#${uid}pc)`} />
           ) : null;
         })()}
-        {emaVisible.ema21 && (() => {
-          const d = buildEmaPath(indicators?.ema21);
+        {emaVisible.ma20 && (() => {
+          const d = buildEmaPath(indicators?.sma20);
           return d ? (
             <path d={d} fill="none" stroke="rgba(251,191,36,0.60)" strokeWidth="1"
               clipPath={`url(#${uid}pc)`} />
@@ -501,7 +501,7 @@ function PriceChart({ bars, indicators, emaVisible, showRsi, tf, chartH }: Chart
 
 export default function AIPredPanel({ ticker }: Props) {
   const [tf, setTf]     = useState<TFOption>("1Y");
-  const [ema, setEma]   = useState({ ema21: false, ema50: true, ema200: false });
+  const [ema, setEma]   = useState({ ma20: false, ma50: true, ma200: false });
   const isIntraday      = INTRADAY_TFS.has(tf);
 
   const { data, isLoading } = useQuery<{ bars: OHLCVBar[]; indicators?: TechnicalIndicators }>({
@@ -582,9 +582,9 @@ export default function AIPredPanel({ ticker }: Props) {
           <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-[#1a1a28]">
             {(
               [
-                { key: "ema21"  as const, label: "21",  color: "#fbbf24" },
-                { key: "ema50"  as const, label: "50",  color: "#60a5fa" },
-                { key: "ema200" as const, label: "200", color: "#a78bfa" },
+                { key: "ma20"  as const, label: "20",  color: "#fbbf24" },
+                { key: "ma50"  as const, label: "50",  color: "#60a5fa" },
+                { key: "ma200" as const, label: "200", color: "#a78bfa" },
               ]
             ).map(({ key, label, color }) => (
               <button
@@ -602,7 +602,7 @@ export default function AIPredPanel({ ticker }: Props) {
                 onMouseLeave={e => {
                   if (!ema[key]) (e.currentTarget as HTMLElement).style.color = "#252535";
                 }}
-              >EMA{label}</button>
+              >MA{label}</button>
             ))}
           </div>
         )}
