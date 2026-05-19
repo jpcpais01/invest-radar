@@ -46,6 +46,15 @@ body {
   background: #484f58;
 }
 
+/* ── PWA slide-up animation ─────────────────────────────────────────────── */
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* ── GridStack overrides ────────────────────────────────────────────────── */
 
 /* Widget tile */

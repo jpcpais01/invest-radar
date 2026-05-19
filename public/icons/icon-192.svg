@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="diamond-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0e0e8"/>
+      <stop offset="50%" stop-color="#c0c0cc"/>
+      <stop offset="100%" stop-color="#8888a0"/>
+    </linearGradient>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111114"/>
+      <stop offset="100%" stop-color="#080808"/>
+    </linearGradient>
+  </defs>
+  <!-- Background with rounded corners -->
+  <rect width="192" height="192" rx="40" ry="40" fill="url(#bg-grad)"/>
+  <!-- Subtle border -->
+  <rect width="192" height="192" rx="40" ry="40" fill="none" stroke="#c0c0cc" stroke-width="1.5" stroke-opacity="0.18"/>
+  <!-- Diamond shape centered -->
+  <polygon points="96,32 152,96 96,160 40,96" fill="url(#diamond-grad)" opacity="0.95"/>
+  <!-- Inner diamond cutout for depth -->
+  <polygon points="96,56 132,96 96,136 60,96" fill="#080808" opacity="0.45"/>
+  <!-- Center highlight -->
+  <polygon points="96,68 120,96 96,124 72,96" fill="url(#diamond-grad)" opacity="0.6"/>
+</svg>

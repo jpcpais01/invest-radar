@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="diamond-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0e0e8"/>
+      <stop offset="50%" stop-color="#c0c0cc"/>
+      <stop offset="100%" stop-color="#8888a0"/>
+    </linearGradient>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111114"/>
+      <stop offset="100%" stop-color="#080808"/>
+    </linearGradient>
+  </defs>
+  <!-- Background — Apple applies its own corner rounding -->
+  <rect width="180" height="180" fill="url(#bg-grad)"/>
+  <!-- Diamond shape centered -->
+  <polygon points="90,28 144,90 90,152 36,90" fill="url(#diamond-grad)" opacity="0.95"/>
+  <!-- Inner diamond cutout -->
+  <polygon points="90,54 124,90 90,126 56,90" fill="#080808" opacity="0.45"/>
+  <!-- Center highlight -->
+  <polygon points="90,66 114,90 90,114 66,90" fill="url(#diamond-grad)" opacity="0.6"/>
+</svg>
