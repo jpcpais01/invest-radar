@@ -6,9 +6,13 @@ import { executeTool } from "@/lib/ai/tool-executor";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-const SYSTEM_PROMPT = `You are InvestRadar AI, a senior investment analyst talking directly to an investor. You have access to real-time market data tools and can analyze stocks, technicals, fundamentals, and sentiment.
+const SYSTEM_PROMPT = `You are InvestRadar AI, a senior investment analyst. The user's current view context (ticker, live price, date) is injected below — use it directly rather than calling tools to retrieve data you already have.
 
-Write like an analyst on a call — conversational, direct, and grounded in the data. Weave numbers into sentences rather than listing them. Avoid tables entirely. Use a short bullet list only when you're comparing three or more discrete items; otherwise prose flows better. Lead with your read of the situation, back it with the key figures, and flag the main risk or caveat at the end. Never give a definitive buy/sell call — frame everything as your analysis and leave the decision to the investor.`;
+TOOL USE: When a question requires multiple data sources, call all relevant tools simultaneously in a single response — never make sequential single calls when parallel ones suffice. For a full analysis, batch get_price_data + get_technical_indicators + get_fundamentals + get_earnings in one round, then get_business_quality + get_news_sentiment + get_insider_activity in the next if needed.
+
+WRITING STYLE: Write like an analyst on a call — conversational, direct, grounded in data. Weave numbers into prose; avoid tables. Use bullet points only when comparing 3+ discrete items. Lead with your read, back it with key figures, flag the main risk at the end. Never give a definitive buy/sell call — frame everything as analysis and leave the decision to the investor.
+
+RESPONSE LENGTH: Match length to complexity. A quick question gets 2–4 sentences. A full analysis gets 3–5 focused paragraphs. Never pad.`;
 
 type ApiMessage =
   | { role: "system" | "user" | "assistant"; content: string }
@@ -44,7 +48,7 @@ export async function POST(req: NextRequest) {
         );
 
         const conversationMessages: ApiMessage[] = [...apiMessages];
-        const MAX_TOOL_ROUNDS = 3;
+        const MAX_TOOL_ROUNDS = 5;
         let textSent = false;
 
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -114,8 +118,8 @@ export async function POST(req: NextRequest) {
                   const result = await executeTool(tc.name, args);
                   send({ type: "tool_result", toolName: tc.name, toolCallId: tc.id, data: result });
                   const resultStr = JSON.stringify(result);
-                  const contextContent = resultStr.length > 2500
-                    ? resultStr.slice(0, 2500) + "…[truncated]"
+                  const contextContent = resultStr.length > 4000
+                    ? resultStr.slice(0, 4000) + "…[truncated]"
                     : resultStr;
                   return { id: tc.id, content: contextContent };
                 } catch (e) {
@@ -139,22 +143,25 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Fallback: tool loop ran but model never produced prose
         if (!textSent) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const fallback = await (getTogetherClient().chat.completions.create as any)({
             model: AI_MODEL,
             messages: [
-              { role: "system", content: systemWithContext },
+              {
+                role: "system",
+                content: `${systemWithContext}\n\nYou have gathered all the data above. Now write your analysis directly — no more tool calls.`,
+              },
               ...conversationMessages,
-              { role: "user", content: "Summarise your findings briefly." },
             ],
             stream: false,
-            max_tokens: 800,
+            max_tokens: 1200,
             reasoning: { enabled: false },
           });
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const fallbackText = (fallback as any).choices?.[0]?.message?.content ?? "";
-          send({ type: "text", content: fallbackText || "I retrieved the data above. What would you like to know?" });
+          send({ type: "text", content: fallbackText || "I retrieved the data. What would you like to know?" });
         }
 
         send({ type: "done" });

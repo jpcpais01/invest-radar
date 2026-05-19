@@ -88,7 +88,7 @@ export async function executeTool(name: string, args: Record<string, string>): P
       ]);
       return {
         quote,
-        recentBars: bars.slice(-20).map((b) => ({
+        recentBars: bars.slice(-60).map((b) => ({
           date: new Date(b.time * 1000).toISOString().split("T")[0],
           open: b.open,
           high: b.high,

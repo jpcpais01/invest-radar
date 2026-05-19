@@ -1,13 +1,36 @@
 "use client";
 import { useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useChatStore } from "@/store/chatStore";
 import { useTickerStore } from "@/store/tickerStore";
 import { ChatMessage, ToolResult } from "@/types/ai";
 
+function fmtMcap(v: number): string {
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (v >= 1e9)  return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6)  return `$${(v / 1e6).toFixed(1)}M`;
+  return `$${v.toFixed(0)}`;
+}
+
 export function useAIChat() {
-  const { messages, addMessage, updateLastMessage, appendToLastMessage, setStreaming, isStreaming } = useChatStore();
+  const {
+    messages, addMessage, updateLastMessage, appendToLastMessage,
+    setStreaming, isStreaming,
+    addActiveTool, removeActiveTool, clearActiveTools,
+  } = useChatStore();
   const { activeTicker } = useTickerStore();
   const abortRef = useRef<AbortController | null>(null);
+
+  // Cached quote — will hit React Query cache if PriceHero already fetched it
+  const { data: quote } = useQuery<{
+    ticker: string; name?: string; price: number;
+    changePercent: number; marketCap?: number; sector?: string;
+  }>({
+    queryKey: ["quote", activeTicker],
+    queryFn: () => fetch(`/api/market/quote/${encodeURIComponent(activeTicker)}`).then((r) => r.json()),
+    staleTime: 30_000,
+    enabled: !!activeTicker,
+  });
 
   const sendMessage = useCallback(
     async (userText: string) => {
@@ -32,7 +55,15 @@ export function useAIChat() {
       addMessage(assistantMsg);
       setStreaming(true);
 
-      const viewContext = `Ticker: ${activeTicker}`;
+      // Rich view context — the AI uses this to avoid redundant tool calls
+      const lines: string[] = [`Ticker: ${activeTicker}${quote?.name ? ` (${quote.name})` : ""}`];
+      if (quote?.price != null) {
+        const sign = quote.changePercent >= 0 ? "+" : "";
+        lines.push(`Current price: $${quote.price.toFixed(2)} (${sign}${quote.changePercent.toFixed(2)}% today)`);
+      }
+      if (quote?.marketCap) lines.push(`Market cap: ${fmtMcap(quote.marketCap)}`);
+      lines.push(`Date: ${new Date().toISOString().split("T")[0]}`);
+      const viewContext = lines.join("\n");
 
       abortRef.current = new AbortController();
 
@@ -41,10 +72,7 @@ export function useAIChat() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: [...messages, userMsg].map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
+            messages: [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
             ticker: activeTicker,
             viewContext,
           }),
@@ -71,18 +99,18 @@ export function useAIChat() {
               if (event.type === "text_chunk") {
                 appendToLastMessage(event.content);
               } else if (event.type === "retract_text") {
-                // Model called tools after streaming some text — clear the partial content
                 updateLastMessage("");
               } else if (event.type === "text") {
-                // Safety-net fallback: full content in one event
                 updateLastMessage(event.content);
+              } else if (event.type === "tool_start") {
+                addActiveTool(event.toolName, event.toolCallId);
               } else if (event.type === "tool_result") {
+                removeActiveTool(event.toolCallId);
                 const tr: ToolResult = {
                   toolCallId: event.toolCallId,
                   toolName: event.toolName,
                   data: event.data,
                 };
-                // Append tool result to the last message in store
                 useChatStore.setState((s) => {
                   const msgs = [...s.messages];
                   const last = { ...msgs[msgs.length - 1] };
@@ -101,16 +129,18 @@ export function useAIChat() {
           updateLastMessage("Sorry, I encountered an error. Please try again.");
         }
       } finally {
+        clearActiveTools();
         setStreaming(false);
       }
     },
-    [messages, activeTicker, isStreaming, addMessage, updateLastMessage, appendToLastMessage, setStreaming]
+    [messages, activeTicker, quote, isStreaming, addMessage, updateLastMessage, appendToLastMessage, setStreaming, addActiveTool, removeActiveTool, clearActiveTools]
   );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
+    clearActiveTools();
     setStreaming(false);
-  }, [setStreaming]);
+  }, [setStreaming, clearActiveTools]);
 
   return { sendMessage, stop, isStreaming };
 }
