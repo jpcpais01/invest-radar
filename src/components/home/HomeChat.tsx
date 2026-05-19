@@ -3,12 +3,26 @@ import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { useAIChat } from "@/hooks/useAIChat";
 import { cn } from "@/lib/utils";
-import { Send, Square, Trash2, Sparkles } from "lucide-react";
+import { Send, Square, Trash2, Sparkles, ChevronRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 interface Props { ticker: string }
 
 const TOOL_LABELS: Record<string, string> = {
+  get_price_data:           "Price data",
+  get_technical_indicators: "Technicals",
+  get_fundamentals:         "Fundamentals",
+  get_news_sentiment:       "News sentiment",
+  get_earnings:             "Earnings",
+  get_business_quality:     "Business quality",
+  get_narrative:            "Narrative",
+  get_insider_activity:     "Insider activity",
+  get_fair_value:           "Fair value",
+  get_dcf_valuation:        "DCF model",
+  get_technical_heatmap:    "Signal heatmap",
+};
+
+const TOOL_LOADING: Record<string, string> = {
   get_price_data:           "Fetching price data",
   get_technical_indicators: "Computing technicals",
   get_fundamentals:         "Loading fundamentals",
@@ -39,14 +53,14 @@ export default function HomeChat({ ticker }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
-  // Scroll messages container (not the page) on new messages
+  // Scroll messages container on new messages / tool updates
   useEffect(() => {
     const el = msgsRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages, activeTools]);
 
-  // Prefill from external triggers (e.g. signal card "Ask AI" buttons)
+  // Prefill from external triggers
   useEffect(() => {
     if (!pendingPrefill) return;
     setInput(pendingPrefill);
@@ -95,6 +109,10 @@ export default function HomeChat({ ticker }: Props) {
         0%, 100% { opacity: 0.4; }
         50%       { opacity: 1; }
       }
+      @keyframes dotBounce {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+        40%           { transform: translateY(-4px); opacity: 1; }
+      }
     ` }} />
     <div
       className="overflow-hidden flex flex-col relative"
@@ -134,6 +152,9 @@ export default function HomeChat({ ticker }: Props) {
         <Sparkles className="w-3 h-3 shrink-0" style={{ color: "#93c5fd", filter: "drop-shadow(0 0 4px rgba(147,197,253,0.6))" }} />
         <span className="text-[11px] font-semibold tracking-wide" style={{ color: "#93c5fd" }}>AI Assistant</span>
         <span className="text-[9px] ml-0.5" style={{ color: "rgba(96,165,250,0.35)" }}>{ticker}</span>
+        <span className="text-[8px] ml-1 px-1.5 py-0.5 rounded" style={{ background: "rgba(37,99,235,0.15)", color: "rgba(147,197,253,0.5)", border: "1px solid rgba(96,165,250,0.12)" }}>
+          Claude Sonnet
+        </span>
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearHistory(); }}
           className="ml-auto w-5 h-5 rounded flex items-center justify-center transition-colors"
@@ -166,7 +187,7 @@ export default function HomeChat({ ticker }: Props) {
                 <button
                   key={q}
                   onClick={() => sendMessage(q)}
-                  className="w-full text-left px-3 py-2 rounded-md text-[11px] transition-all"
+                  className="w-full text-left px-3 py-2 rounded-md text-[11px] transition-all flex items-center gap-2"
                   style={{ border: "1px solid rgba(96,165,250,0.12)", background: "rgba(37,99,235,0.05)", color: "rgba(147,197,253,0.55)" }}
                   onMouseEnter={e => {
                     (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(96,165,250,0.28)";
@@ -179,6 +200,7 @@ export default function HomeChat({ ticker }: Props) {
                     (e.currentTarget as HTMLButtonElement).style.color       = "rgba(147,197,253,0.55)";
                   }}
                 >
+                  <ChevronRight className="w-3 h-3 shrink-0 opacity-50" />
                   {q}
                 </button>
               ))}
@@ -190,57 +212,124 @@ export default function HomeChat({ ticker }: Props) {
             const showToolIndicators = isLastAssistant && isStreaming && !msg.content && activeTools.length > 0;
             const showCursor = isLastAssistant && isStreaming && !msg.content && activeTools.length === 0;
 
+            // Collect unique tool names from toolResults for this message
+            const usedTools = [...new Set((msg.toolResults ?? []).map((tr) => tr.toolName))];
+
             return (
-              <div key={msg.id} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
-                {msg.role === "assistant" && (
-                  <Sparkles className="w-3 h-3 shrink-0 mt-1" style={{ color: "rgba(147,197,253,0.5)" }} />
-                )}
-                <div
-                  className="max-w-[88%] rounded-lg px-3 py-2 text-xs leading-relaxed"
-                  style={msg.role === "user" ? {
-                    background: "rgba(37,99,235,0.18)",
-                    border: "1px solid rgba(96,165,250,0.22)",
-                    color: "#e0e8ff",
-                  } : {
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(96,165,250,0.10)",
-                    color: "rgba(220,228,255,0.85)",
-                  }}
-                >
-                  {msg.role === "assistant" ? (
-                    showToolIndicators ? (
-                      /* Live tool call indicators */
-                      <div className="flex flex-col gap-1.5 py-0.5">
-                        {activeTools.map(t => (
-                          <div key={t.callId} className="flex items-center gap-2">
-                            <div
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ background: "rgba(96,165,250,0.6)", animation: "toolPulse 1.2s ease-in-out infinite" }}
-                            />
-                            <span className="text-[10px]" style={{ color: "rgba(147,197,253,0.6)" }}>
-                              {TOOL_LABELS[t.name] ?? t.name}…
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : showCursor ? (
-                      <span style={{ color: "rgba(96,165,250,0.4)" }}>▋</span>
-                    ) : (
-                      <div
-                        className="prose prose-invert prose-xs max-w-none
-                          [&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0
-                          [&_ul]:my-1 [&_ul]:pl-3 [&_li]:my-0.5
-                          [&_ol]:my-1 [&_ol]:pl-3
-                          [&_strong]:font-semibold
-                          [&_code]:px-1 [&_code]:rounded [&_code]:font-mono [&_code]:text-[10px]
-                          [&_h3]:text-[11px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1"
-                        style={{ "--tw-prose-body": "rgba(220,228,255,0.85)", "--tw-prose-bold": "#93c5fd", "--tw-prose-code": "#93c5fd" } as React.CSSProperties}
-                      >
-                        <ReactMarkdown>{msg.content || (isStreaming && isLastAssistant ? "▋" : "")}</ReactMarkdown>
-                      </div>
-                    )
-                  ) : msg.content}
+              <div key={msg.id} className={cn("flex flex-col gap-1", msg.role === "user" ? "items-end" : "items-start")}>
+                <div className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start w-full")}>
+                  {msg.role === "assistant" && (
+                    <Sparkles className="w-3 h-3 shrink-0 mt-1" style={{ color: "rgba(147,197,253,0.5)" }} />
+                  )}
+                  <div
+                    className="max-w-[88%] rounded-lg px-3 py-2 text-xs leading-relaxed"
+                    style={msg.role === "user" ? {
+                      background: "rgba(37,99,235,0.18)",
+                      border: "1px solid rgba(96,165,250,0.22)",
+                      color: "#e0e8ff",
+                    } : {
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(96,165,250,0.10)",
+                      color: "rgba(220,228,255,0.85)",
+                    }}
+                  >
+                    {msg.role === "assistant" ? (
+                      showToolIndicators ? (
+                        /* Live tool call indicators */
+                        <div className="flex flex-col gap-1.5 py-0.5">
+                          {activeTools.map(t => (
+                            <div key={t.callId} className="flex items-center gap-2">
+                              <div
+                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                style={{ background: "rgba(96,165,250,0.6)", animation: "toolPulse 1.2s ease-in-out infinite" }}
+                              />
+                              <span className="text-[10px]" style={{ color: "rgba(147,197,253,0.6)" }}>
+                                {TOOL_LOADING[t.name] ?? t.name}…
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : showCursor ? (
+                        /* Thinking dots */
+                        <div className="flex items-center gap-1 py-0.5">
+                          {[0, 1, 2].map(i => (
+                            <div key={i} style={{
+                              width: 4, height: 4, borderRadius: "50%",
+                              background: "rgba(96,165,250,0.5)",
+                              animation: `dotBounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                            }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          className="prose prose-invert prose-xs max-w-none
+                            [&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0
+                            [&_ul]:my-1 [&_ul]:pl-3 [&_li]:my-0.5
+                            [&_ol]:my-1 [&_ol]:pl-3
+                            [&_strong]:font-semibold
+                            [&_code]:px-1 [&_code]:rounded [&_code]:font-mono [&_code]:text-[10px]
+                            [&_h3]:text-[11px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1"
+                          style={{ "--tw-prose-body": "rgba(220,228,255,0.85)", "--tw-prose-bold": "#93c5fd", "--tw-prose-code": "#93c5fd" } as React.CSSProperties}
+                        >
+                          <ReactMarkdown>{msg.content || (isStreaming && isLastAssistant ? "" : "")}</ReactMarkdown>
+                        </div>
+                      )
+                    ) : msg.content}
+                  </div>
                 </div>
+
+                {/* Tool source badges */}
+                {msg.role === "assistant" && usedTools.length > 0 && (
+                  <div className="flex flex-wrap gap-1 ml-5">
+                    {usedTools.map(name => (
+                      <span
+                        key={name}
+                        className="text-[9px] px-1.5 py-0.5 rounded"
+                        style={{
+                          background: "rgba(37,99,235,0.10)",
+                          border: "1px solid rgba(96,165,250,0.12)",
+                          color: "rgba(96,165,250,0.45)",
+                        }}
+                      >
+                        {TOOL_LABELS[name] ?? name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Follow-up chips */}
+                {msg.role === "assistant" && msg.followups && msg.followups.length > 0 && !isStreaming && (
+                  <div className="flex flex-col gap-1 ml-5 mt-0.5 w-[calc(100%-1.25rem)]">
+                    <span className="text-[8px] mb-0.5" style={{ color: "rgba(96,165,250,0.3)" }}>Suggested follow-ups</span>
+                    {msg.followups.map((q, i) => (
+                      <button
+                        key={i}
+                        onClick={() => sendMessage(q)}
+                        disabled={isStreaming}
+                        className="text-left px-2.5 py-1.5 rounded-md text-[10px] transition-all flex items-center gap-1.5"
+                        style={{
+                          border: "1px solid rgba(96,165,250,0.10)",
+                          background: "rgba(37,99,235,0.04)",
+                          color: "rgba(147,197,253,0.50)",
+                          width: "100%",
+                        }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(96,165,250,0.25)";
+                          (e.currentTarget as HTMLButtonElement).style.background  = "rgba(37,99,235,0.10)";
+                          (e.currentTarget as HTMLButtonElement).style.color       = "rgba(147,197,253,0.85)";
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(96,165,250,0.10)";
+                          (e.currentTarget as HTMLButtonElement).style.background  = "rgba(37,99,235,0.04)";
+                          (e.currentTarget as HTMLButtonElement).style.color       = "rgba(147,197,253,0.50)";
+                        }}
+                      >
+                        <ChevronRight className="w-2.5 h-2.5 shrink-0 opacity-60" />
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })

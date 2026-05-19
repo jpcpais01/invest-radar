@@ -1,53 +1,49 @@
 "use client";
 import { useRef, useState, useEffect, useCallback, useMemo, useId } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, RefreshCw, Minus, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { OHLCVBar } from "@/types/market";
-
-interface PredictionResponse {
-  historical: { time: number; close: number }[];
-  futureDates: number[];
-  runs: number[][];
-  median: number[];
-  p25: number[];
-  p75: number[];
-  n: number;
-  successfulRuns: number;
-  totalRuns: number;
-}
+import { OHLCVBar, TechnicalIndicators } from "@/types/market";
 
 interface Props { ticker: string }
 
-const TF_OPTIONS = ["1M", "6M", "1Y", "2Y", "5Y", "10Y"] as const;
+const TF_OPTIONS = ["1D", "7D", "1M", "3M", "6M", "1Y", "2Y"] as const;
 type TFOption = typeof TF_OPTIONS[number];
-const PREDICT_ENABLED = new Set<TFOption>(["1M", "6M"]);
+const INTRADAY_TFS = new Set<TFOption>(["1D", "7D"]);
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function fmtPrice(p: number) {
+function fmtPrice(p: number): string {
   if (p >= 10000) return `$${(p / 1000).toFixed(1)}k`;
   if (p >= 1000)  return `$${p.toFixed(0)}`;
   return `$${p.toFixed(2)}`;
 }
-function fmtDate(ts: number) {
-  return new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function fmtVol(v: number): string {
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
+  return String(v);
 }
-function smooth(pts: [number, number][]): string {
-  if (pts.length < 2) return "";
-  let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
-  for (let i = 1; i < pts.length; i++) {
-    const [x0, y0] = pts[i - 1];
-    const [x1, y1] = pts[i];
-    const cx = ((x0 + x1) / 2).toFixed(2);
-    d += ` C${cx},${y0.toFixed(2)} ${cx},${y1.toFixed(2)} ${x1.toFixed(2)},${y1.toFixed(2)}`;
+function fmtDateTick(ts: number, tf: TFOption): string {
+  const d = new Date(ts * 1000);
+  if (INTRADAY_TFS.has(tf)) {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   }
-  return d;
+  if (tf === "2Y") return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-function straightPath(pts: [number, number][]): string {
-  if (pts.length < 2) return "";
-  return `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} ` +
-    pts.slice(1).map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+function fmtTooltipDate(ts: number, tf: TFOption): string {
+  const d = new Date(ts * 1000);
+  if (INTRADAY_TFS.has(tf)) {
+    return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+function isMarketOpen(): boolean {
+  const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = ny.getDay();
+  if (day === 0 || day === 6) return false;
+  const mins = ny.getHours() * 60 + ny.getMinutes();
+  return mins >= 570 && mins < 960; // 9:30–16:00
 }
 function evenIdxs(total: number, n: number): number[] {
   if (total <= n) return Array.from({ length: total }, (_, i) => i);
@@ -59,17 +55,19 @@ function evenIdxs(total: number, n: number): number[] {
 
 // ── chart ─────────────────────────────────────────────────────────────────────
 
-const M = { top: 20, right: 60, bottom: 30, left: 12 };
+const MG = { top: 12, right: 60, bottom: 22, left: 0 };
+const VOL_H  = 48; // height of volume panel in px
+const VOL_GAP = 5; // gap between price and volume panels
 
-function PredChart({
-  bars,
-  prediction,
-  height = 264,
-}: {
-  bars: { time: number; close: number }[];
-  prediction?: PredictionResponse;
-  height?: number;
-}) {
+interface ChartProps {
+  bars: OHLCVBar[];
+  indicators?: TechnicalIndicators;
+  emaVisible: { ema21: boolean; ema50: boolean; ema200: boolean };
+  tf: TFOption;
+  chartH: number;
+}
+
+function PriceChart({ bars, indicators, emaVisible, tf, chartH }: ChartProps) {
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -85,298 +83,279 @@ function PredChart({
   }, []);
 
   const { w, h } = size ?? { w: 0, h: 0 };
-  const cW = w - M.left - M.right;
-  const cH = h - M.top  - M.bottom;
+  const cW = w - MG.left - MG.right;
 
-  const futureDates = prediction?.futureDates ?? [];
+  // Section boundaries
+  const priceTopY = MG.top;
+  const priceBotY = h - MG.bottom - VOL_H - VOL_GAP;
+  const priceH    = Math.max(1, priceBotY - priceTopY);
+  const volTopY   = h - MG.bottom - VOL_H;
+  const volBotY   = h - MG.bottom;
 
-  const allTimes = useMemo(
-    () => [...bars.map(b => b.time), ...futureDates],
-    [bars, futureDates]
-  );
-  const n = allTimes.length;
-  const timeToIdx = useMemo(
-    () => new Map(allTimes.map((t, i) => [t, i])),
-    [allTimes]
-  );
+  const n = bars.length;
+
   const xS = useCallback(
-    (t: number) => M.left + ((timeToIdx.get(t) ?? 0) / Math.max(n - 1, 1)) * cW,
-    [timeToIdx, n, cW]
+    (i: number) => MG.left + (n <= 1 ? cW / 2 : (i / (n - 1)) * cW),
+    [n, cW]
   );
 
-  const allPrices = useMemo(() => {
-    const prices = bars.map(b => b.close);
-    if (prediction) {
-      prices.push(...prediction.median, ...prediction.p25, ...prediction.p75);
-    }
-    return prices;
-  }, [bars, prediction]);
+  // Price scale
+  const [minP, maxP] = useMemo(() => {
+    if (!bars.length) return [0, 1];
+    const lo = Math.min(...bars.map(b => b.low));
+    const hi = Math.max(...bars.map(b => b.high));
+    const pad = (hi - lo) * 0.07 || hi * 0.02;
+    return [lo - pad, hi + pad * 1.8];
+  }, [bars]);
 
-  const rawMin = Math.min(...allPrices);
-  const rawMax = Math.max(...allPrices);
-  const vPad   = (rawMax - rawMin) * 0.10 || rawMax * 0.04;
-  const minP   = rawMin - vPad;
-  const maxP   = rawMax + vPad * 1.5;
   const yS = useCallback(
-    (p: number) => M.top + cH - ((p - minP) / (maxP - minP)) * cH,
-    [cH, minP, maxP]
+    (p: number) => priceTopY + priceH - ((p - minP) / (maxP - minP)) * priceH,
+    [priceTopY, priceH, minP, maxP]
   );
 
-  const lastBar   = bars[bars.length - 1];
-  const anchorPt  = useMemo<[number, number]>(
-    () => lastBar ? [xS(lastBar.time), yS(lastBar.close)] : [M.left, M.top],
-    [lastBar, xS, yS]
-  );
-  const sepX      = anchorPt[0];
+  // Period direction → color
+  const firstClose = bars[0]?.close ?? 0;
+  const lastClose  = bars.at(-1)?.close ?? 0;
+  const isUp       = lastClose >= firstClose;
+  const lineColor  = isUp ? "#4ade80" : "#f87171";
 
-  // For large bar counts, use straight lines for perf
-  const useStraight = bars.length > 300;
-
-  const histPts = useMemo(
-    () => bars.map(b => [xS(b.time), yS(b.close)] as [number, number]),
+  // Price line + area
+  const closePts = useMemo<[number, number][]>(
+    () => bars.map((b, i) => [xS(i), yS(b.close)]),
     [bars, xS, yS]
   );
-  const histLine = useMemo(
-    () => useStraight ? straightPath(histPts) : smooth(histPts),
-    [histPts, useStraight]
-  );
-  const histLast = histPts[histPts.length - 1] ?? [M.left, M.top + cH];
-  const histAreaD = `${histLine} L${histLast[0].toFixed(2)},${(M.top + cH).toFixed(2)} L${M.left},${(M.top + cH).toFixed(2)} Z`;
+  const priceLine = useMemo(() => {
+    if (closePts.length < 2) return "";
+    return "M" + closePts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L");
+  }, [closePts]);
+  const priceArea = useMemo(() => {
+    if (!priceLine || !closePts.length) return "";
+    const [lx, ly] = closePts[closePts.length - 1];
+    return `${priceLine} L${lx.toFixed(1)},${priceBotY} L${MG.left},${priceBotY} Z`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceLine, closePts, priceBotY]);
 
-  const medPts = useMemo(
-    () => prediction
-      ? [anchorPt, ...prediction.median.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number])]
-      : [],
-    [prediction, anchorPt, futureDates, xS, yS]
-  );
-  const medPath = useMemo(() => smooth(medPts), [medPts]);
+  // EMA path builder
+  const buildEmaPath = useCallback((arr: number[] | undefined) => {
+    if (!arr || arr.length < 2) return "";
+    const pts = arr
+      .map((v, i) => [xS(i), yS(v)] as [number, number])
+      .filter(([, y]) => y >= priceTopY - 2 && y <= priceBotY + 2);
+    if (pts.length < 2) return "";
+    return "M" + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L");
+  }, [xS, yS, priceTopY, priceBotY]);
 
-  const bandPath = useMemo(() => {
-    if (!prediction?.p25.length || !prediction?.p75.length || cW <= 0) return "";
-    const topPts = [anchorPt, ...prediction.p75.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number])];
-    const botPts = [...prediction.p25.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number])].reverse();
-    return `M${topPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")} L${botPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")} Z`;
-  }, [prediction, anchorPt, futureDates, xS, yS, cW]);
+  // Volume
+  const maxVol  = useMemo(() => Math.max(...bars.map(b => b.volume), 1), [bars]);
+  const barPixW = cW > 0 && n > 1 ? Math.max(1, (cW / n) * 0.72) : 4;
 
-  const yTicks = useMemo(
-    () => Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)),
-    [minP, maxP]
-  );
-  const xTicks = useMemo(
-    () => evenIdxs(allTimes.length, 5).map(i => allTimes[i]),
-    [allTimes]
-  );
+  // Ticks
+  const yTicks     = useMemo(() => Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)), [minP, maxP]);
+  const xTickIdxs  = useMemo(() => evenIdxs(n, 5), [n]);
 
+  // Crosshair
   const crosshair = useMemo(() => {
-    if (mouseX === null || cW <= 0) return null;
-    const ratio = (mouseX - M.left) / cW;
-    const nearestIdx = Math.round(Math.max(0, Math.min(1, ratio)) * (n - 1));
-    const ts = allTimes[nearestIdx];
-    const cx = xS(ts);
-    const hi = bars.find(b => b.time === ts);
-    const fi = futureDates.indexOf(ts);
-    return {
-      x: cx, time: ts,
-      histPrice: hi?.close ?? null,
-      median: fi >= 0 && prediction ? prediction.median[fi] : null,
-      p25:    fi >= 0 && prediction ? prediction.p25[fi]    : null,
-      p75:    fi >= 0 && prediction ? prediction.p75[fi]    : null,
-    };
-  }, [mouseX, allTimes, cW, n, bars, futureDates, prediction, xS]);
+    if (mouseX === null || cW <= 0 || !bars.length) return null;
+    const ratio = Math.max(0, Math.min(1, (mouseX - MG.left) / cW));
+    const idx   = Math.round(ratio * (n - 1));
+    const bar   = bars[idx];
+    return { idx, bar, cx: xS(idx), cy: yS(bar.close) };
+  }, [mouseX, bars, n, cW, xS, yS]);
 
-  const tipW = 96;
-  const tipX = crosshair
-    ? (crosshair.x + tipW + 14 > w - M.right ? crosshair.x - tipW - 8 : crosshair.x + 10)
-    : 0;
+  if (!size || cW <= 0 || priceH <= 0) {
+    return <div ref={wrapRef} style={{ height: chartH, background: "#0c0c10" }} />;
+  }
 
-  if (!size || cW <= 0 || cH <= 0) return <div ref={wrapRef} style={{ height, background: "#101010" }} />;
+  const curPriceY        = yS(lastClose);
+  const showCurrentLabel = curPriceY >= priceTopY && curPriceY <= priceBotY;
+
+  const tipW = 114;
+  const tipH = 100;
 
   return (
-    <div ref={wrapRef} style={{ height, background: "#101010" }}>
+    <div ref={wrapRef} style={{ height: chartH, background: "#0c0c10" }}>
       <svg
         width={w} height={h}
         style={{ display: "block", userSelect: "none" }}
         onMouseMove={e => {
-          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          setMouseX(x >= M.left && x <= w - M.right ? x : null);
+          const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+          setMouseX(x >= MG.left && x <= w - MG.right ? x : null);
         }}
         onMouseLeave={() => setMouseX(null)}
       >
         <defs>
-          <linearGradient id={`${uid}hg`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#c0c0cc" stopOpacity="0.10" />
-            <stop offset="80%"  stopColor="#c0c0cc" stopOpacity="0.02" />
-            <stop offset="100%" stopColor="#c0c0cc" stopOpacity="0" />
+          <linearGradient id={`${uid}ag`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={lineColor} stopOpacity="0.20" />
+            <stop offset="85%"  stopColor={lineColor} stopOpacity="0.03" />
+            <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
           </linearGradient>
-          <filter id={`${uid}gw`} x="-30%" y="-120%" width="160%" height="340%">
-            <feGaussianBlur stdDeviation="5" result="blur" />
+          <filter id={`${uid}gf`} x="-30%" y="-100%" width="160%" height="300%">
+            <feGaussianBlur stdDeviation="4" />
           </filter>
-          <clipPath id={`${uid}cl`}>
-            <rect x={M.left} y={M.top} width={cW} height={cH} />
+          <clipPath id={`${uid}pc`}>
+            <rect x={MG.left} y={priceTopY} width={cW} height={priceH} />
           </clipPath>
         </defs>
 
-        {/* horizontal grid */}
+        {/* Horizontal grid lines */}
         {yTicks.map((p, i) => (
           <line key={i}
-            x1={M.left} y1={yS(p).toFixed(1)}
-            x2={w - M.right} y2={yS(p).toFixed(1)}
-            stroke="rgba(255,255,255,0.03)" strokeWidth="1"
+            x1={MG.left}        y1={yS(p).toFixed(1)}
+            x2={w - MG.right}   y2={yS(p).toFixed(1)}
+            stroke="rgba(255,255,255,0.035)" strokeWidth="1"
           />
         ))}
 
-        {/* y labels */}
-        {yTicks.map((p, i) => (
-          <text key={i}
-            x={w - M.right + 7} y={yS(p)}
-            fill="rgba(255,255,255,0.14)" fontSize="9"
-            fontFamily="ui-monospace,monospace"
-            dominantBaseline="middle"
-          >{fmtPrice(p)}</text>
-        ))}
-
-        {/* x labels */}
-        {xTicks.map((ts, i) => (
-          <text key={i}
-            x={xS(ts).toFixed(1)} y={h - 8}
-            fill="rgba(255,255,255,0.14)" fontSize="9"
-            fontFamily="ui-sans-serif,sans-serif"
-            textAnchor="middle"
-          >{fmtDate(ts)}</text>
-        ))}
-
-        {/* history area */}
-        <path d={histAreaD} fill={`url(#${uid}hg)`} clipPath={`url(#${uid}cl)`} />
-
-        {/* history line */}
-        <path d={histLine} fill="none"
-          stroke="rgba(192,192,204,0.40)" strokeWidth="1.5"
-          strokeLinecap="round" clipPath={`url(#${uid}cl)`}
-        />
-
-        {/* prediction overlay */}
-        {prediction && (
-          <>
-            {/* spaghetti runs */}
-            {prediction.runs.map((run, ri) => {
-              const pts: [number, number][] = [
-                anchorPt,
-                ...run.map((p, i) => [xS(futureDates[i]), yS(p)] as [number, number]),
-              ];
-              return (
-                <path key={ri} d={smooth(pts)} fill="none"
-                  stroke="rgba(192,192,204,0.10)" strokeWidth="1"
-                  strokeLinecap="round" clipPath={`url(#${uid}cl)`}
-                />
-              );
-            })}
-
-            {/* P25–P75 band */}
-            {bandPath && (
-              <path d={bandPath} fill="rgba(192,192,204,0.06)"
-                clipPath={`url(#${uid}cl)`}
-              />
-            )}
-
-            {/* separator */}
-            <line
-              x1={sepX.toFixed(1)} y1={M.top}
-              x2={sepX.toFixed(1)} y2={M.top + cH}
-              stroke="rgba(255,255,255,0.07)" strokeWidth="1"
-              strokeDasharray="4,5"
-            />
-
-            {/* forecast zone tint */}
-            <rect
-              x={sepX} y={M.top}
-              width={Math.max(0, w - M.right - sepX)} height={cH}
-              fill="rgba(255,255,255,0.010)"
-              clipPath={`url(#${uid}cl)`}
-            />
-
-            {/* FORECAST label */}
-            <text
-              x={(sepX + 7).toFixed(1)} y={(M.top + 13).toFixed(1)}
-              fill="rgba(255,255,255,0.12)" fontSize="7.5"
-              fontFamily="ui-sans-serif,sans-serif"
-              fontWeight="600" letterSpacing="0.08em"
-            >FORECAST</text>
-
-            {/* median glow */}
-            <path d={medPath} fill="none"
-              stroke="rgba(192,192,204,0.18)" strokeWidth="10"
-              filter={`url(#${uid}gw)`}
-              clipPath={`url(#${uid}cl)`}
-            />
-
-            {/* median line */}
-            <path d={medPath} fill="none"
-              stroke="#c0c0cc" strokeWidth="2"
-              strokeDasharray="6,4" strokeLinecap="round"
-              clipPath={`url(#${uid}cl)`}
-            />
-
-            {/* anchor dot */}
-            <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
-            <circle cx={anchorPt[0].toFixed(1)} cy={anchorPt[1].toFixed(1)} r="3.5" fill="#c0c0cc" />
-
-            {/* endpoint marker */}
-            {prediction.median.length > 0 && (() => {
-              const ex = xS(futureDates[futureDates.length - 1]);
-              const ey = yS(prediction.median[prediction.median.length - 1]);
-              return (
-                <g>
-                  <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="7" fill="rgba(192,192,204,0.10)" />
-                  <circle cx={ex.toFixed(1)} cy={ey.toFixed(1)} r="3" fill="#c0c0cc" />
-                </g>
-              );
-            })()}
-          </>
+        {/* Area fill */}
+        {priceArea && (
+          <path d={priceArea} fill={`url(#${uid}ag)`} clipPath={`url(#${uid}pc)`} />
         )}
 
-        {/* crosshair */}
-        {crosshair && (() => {
-          const activePrice = crosshair.histPrice ?? crosshair.median;
-          const cy = activePrice !== null ? yS(activePrice) : null;
-          const isForecast = crosshair.median !== null;
-          const tipH = isForecast ? 74 : 44;
+        {/* EMA overlays */}
+        {emaVisible.ema200 && (() => {
+          const d = buildEmaPath(indicators?.ema200);
+          return d ? (
+            <path d={d} fill="none" stroke="rgba(167,139,250,0.55)" strokeWidth="1"
+              clipPath={`url(#${uid}pc)`} />
+          ) : null;
+        })()}
+        {emaVisible.ema50 && (() => {
+          const d = buildEmaPath(indicators?.ema50);
+          return d ? (
+            <path d={d} fill="none" stroke="rgba(96,165,250,0.60)" strokeWidth="1"
+              clipPath={`url(#${uid}pc)`} />
+          ) : null;
+        })()}
+        {emaVisible.ema21 && (() => {
+          const d = buildEmaPath(indicators?.ema21);
+          return d ? (
+            <path d={d} fill="none" stroke="rgba(251,191,36,0.60)" strokeWidth="1"
+              clipPath={`url(#${uid}pc)`} />
+          ) : null;
+        })()}
 
+        {/* Price line glow */}
+        <path d={priceLine} fill="none"
+          stroke={lineColor} strokeOpacity="0.15" strokeWidth="10"
+          filter={`url(#${uid}gf)`} clipPath={`url(#${uid}pc)`}
+        />
+
+        {/* Price line */}
+        <path d={priceLine} fill="none"
+          stroke={lineColor} strokeWidth="1.6" strokeLinecap="round"
+          clipPath={`url(#${uid}pc)`}
+        />
+
+        {/* Current price dashed reference + label */}
+        {showCurrentLabel && (
+          <g>
+            <line
+              x1={MG.left}      y1={curPriceY.toFixed(1)}
+              x2={w - MG.right} y2={curPriceY.toFixed(1)}
+              stroke={lineColor} strokeOpacity="0.18" strokeWidth="1" strokeDasharray="3,5"
+            />
+            <rect
+              x={w - MG.right + 2} y={curPriceY - 8.5}
+              width={MG.right - 3} height={17} rx="3"
+              fill={lineColor} fillOpacity="0.13"
+              stroke={lineColor} strokeOpacity="0.45" strokeWidth="0.75"
+            />
+            <text
+              x={w - MG.right + 5} y={curPriceY + 0.5}
+              fill={lineColor} fontSize="8.5" fontFamily="ui-monospace,monospace"
+              dominantBaseline="middle" fontWeight="600"
+            >{fmtPrice(lastClose)}</text>
+          </g>
+        )}
+
+        {/* Y-axis labels — skip ticks too close to current price label */}
+        {yTicks.map((p, i) => {
+          const py = yS(p);
+          if (showCurrentLabel && Math.abs(py - curPriceY) < 14) return null;
+          return (
+            <text key={i}
+              x={w - MG.right + 5} y={py}
+              fill="rgba(255,255,255,0.13)" fontSize="8.5"
+              fontFamily="ui-monospace,monospace" dominantBaseline="middle"
+            >{fmtPrice(p)}</text>
+          );
+        })}
+
+        {/* Volume separator */}
+        <line
+          x1={MG.left} y1={(volTopY - 2).toFixed(1)}
+          x2={w - MG.right} y2={(volTopY - 2).toFixed(1)}
+          stroke="rgba(255,255,255,0.04)" strokeWidth="1"
+        />
+
+        {/* Volume bars */}
+        {bars.map((b, i) => {
+          const bx  = xS(i) - barPixW / 2;
+          const bh  = Math.max(1, (b.volume / maxVol) * VOL_H);
+          const by  = volBotY - bh;
+          const up  = b.close >= b.open;
+          return (
+            <rect key={i}
+              x={bx.toFixed(1)} y={by.toFixed(1)}
+              width={barPixW.toFixed(1)} height={bh.toFixed(1)}
+              fill={up ? "rgba(74,222,128,0.28)" : "rgba(248,113,113,0.24)"}
+              rx="0.5"
+            />
+          );
+        })}
+
+        {/* X-axis labels */}
+        {xTickIdxs.map(i => (
+          <text key={i}
+            x={xS(i).toFixed(1)} y={h - 5}
+            fill="rgba(255,255,255,0.17)" fontSize="8.5"
+            fontFamily="ui-sans-serif,sans-serif" textAnchor="middle"
+          >{fmtDateTick(bars[i]?.time ?? 0, tf)}</text>
+        ))}
+
+        {/* Crosshair */}
+        {crosshair && (() => {
+          const { cx, cy, bar } = crosshair;
+          const tipX = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
+          const tipY = priceTopY + 6;
           return (
             <>
-              <line
-                x1={crosshair.x.toFixed(1)} y1={M.top}
-                x2={crosshair.x.toFixed(1)} y2={M.top + cH}
+              {/* vertical line */}
+              <line x1={cx.toFixed(1)} y1={priceTopY} x2={cx.toFixed(1)} y2={volBotY}
                 stroke="rgba(255,255,255,0.09)" strokeWidth="1"
               />
-              {cy !== null && (
-                <g>
-                  <circle cx={crosshair.x.toFixed(1)} cy={cy.toFixed(1)} r="5" fill="rgba(192,192,204,0.12)" />
-                  <circle cx={crosshair.x.toFixed(1)} cy={cy.toFixed(1)} r="2.5" fill="rgba(192,192,204,0.9)" />
-                </g>
-              )}
-              <g transform={`translate(${tipX.toFixed(1)},${M.top + 10})`}>
-                <rect x="0" y="0" rx="7" ry="7" width={tipW} height={tipH}
-                  fill="rgba(8,8,8,0.88)" stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+              {/* dot */}
+              <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="5.5" fill={lineColor} fillOpacity="0.12" />
+              <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="2.5" fill={lineColor} fillOpacity="0.90" />
+
+              {/* OHLCV tooltip */}
+              <g transform={`translate(${tipX.toFixed(1)},${tipY})`}>
+                <rect rx="7" width={tipW} height={tipH}
+                  fill="rgba(5,6,16,0.94)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
                 />
-                <text x="9" y="15" fill="rgba(255,255,255,0.30)" fontSize="8.5"
+                <text x="10" y="14" fill="rgba(255,255,255,0.30)" fontSize="8"
                   fontFamily="ui-sans-serif,sans-serif">
-                  {fmtDate(crosshair.time)}
+                  {fmtTooltipDate(bar.time, tf)}
                 </text>
-                <line x1="9" y1="20" x2={tipW - 9} y2="20" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-                {crosshair.histPrice !== null && (
-                  <text x="9" y="34" fill="rgba(192,192,204,0.85)" fontSize="10.5"
-                    fontWeight="500" fontFamily="ui-monospace,monospace">
-                    {fmtPrice(crosshair.histPrice)}
+                <line x1="10" y1="19" x2={tipW - 10} y2="19"
+                  stroke="rgba(255,255,255,0.06)" strokeWidth="1"
+                />
+                {(
+                  [["O", bar.open], ["H", bar.high], ["L", bar.low], ["C", bar.close]] as [string, number][]
+                ).map(([label, val], i2) => (
+                  <text key={label} x="10" y={31 + i2 * 14}
+                    fontSize="9.5" fontFamily="ui-monospace,monospace"
+                  >
+                    <tspan fill="rgba(255,255,255,0.22)">{label} </tspan>
+                    <tspan fill={label === "C" ? lineColor : "rgba(220,228,255,0.82)"}>
+                      {fmtPrice(val)}
+                    </tspan>
                   </text>
-                )}
-                {isForecast && (
-                  <>
-                    <text x="9" y="34" fill="rgba(255,255,255,0.25)" fontSize="8" fontFamily="ui-sans-serif,sans-serif">↑ {fmtPrice(crosshair.p75!)}</text>
-                    <text x="9" y="50" fill="rgba(192,192,204,0.85)" fontSize="10.5" fontWeight="500" fontFamily="ui-monospace,monospace">{fmtPrice(crosshair.median!)}</text>
-                    <text x="9" y="66" fill="rgba(255,255,255,0.25)" fontSize="8" fontFamily="ui-sans-serif,sans-serif">↓ {fmtPrice(crosshair.p25!)}</text>
-                  </>
-                )}
+                ))}
+                <text x="10" y={31 + 4 * 14} fontSize="9" fontFamily="ui-monospace,monospace">
+                  <tspan fill="rgba(255,255,255,0.22)">V </tspan>
+                  <tspan fill="rgba(180,190,230,0.55)">{fmtVol(bar.volume)}</tspan>
+                </text>
               </g>
             </>
           );
@@ -386,197 +365,197 @@ function PredChart({
   );
 }
 
-// ── panel ─────────────────────────────────────────────────────────────────────
+// ── Panel ─────────────────────────────────────────────────────────────────────
 
 export default function AIPredPanel({ ticker }: Props) {
-  const [tf, setTf]     = useState<TFOption>("6M");
-  const [nDays, setNDays] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-days") ?? "10"); } catch { return 10; } });
-  const [nRuns, setNRuns] = useState(() => { try { return JSON.parse(localStorage.getItem("home-pred-runs") ?? "10"); } catch { return 10; } });
-  const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
-  const [predLoading, setPredLoading] = useState(false);
-  const [predError,   setPredError]   = useState<string | null>(null);
+  const [tf, setTf]     = useState<TFOption>("1M");
+  const [ema, setEma]   = useState({ ema21: false, ema50: true, ema200: false });
+  const isIntraday      = INTRADAY_TFS.has(tf);
 
-  const canPredict = PREDICT_ENABLED.has(tf);
-  const cacheKey   = `home-pred-${ticker}`;
-
-  useEffect(() => { localStorage.setItem("home-pred-days", String(nDays)); }, [nDays]);
-  useEffect(() => { localStorage.setItem("home-pred-runs", String(nRuns)); }, [nRuns]);
-
-  // Clear prediction when ticker or TF changes
-  useEffect(() => { setPrediction(null); setPredError(null); }, [ticker, tf]);
-
-  // Restore cached prediction (6M only, on ticker change)
-  useEffect(() => {
-    if (tf !== "6M") return;
-    try {
-      const c = localStorage.getItem(cacheKey);
-      if (c) setPrediction(JSON.parse(c));
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker]);
-
-  // Fetch price history for selected TF
-  const { data: histData, isLoading: histLoading } = useQuery<{ bars: { time: number; close: number }[] }>({
-    queryKey: ["price-chart", ticker, tf],
-    queryFn: async () => {
-      const res = await fetch(`/api/market/history/${encodeURIComponent(ticker)}?tf=${tf}`);
-      if (!res.ok) throw new Error("Failed to load history");
-      const json = await res.json();
-      return { bars: (json.bars as OHLCVBar[]).map(b => ({ time: b.time, close: b.close })) };
-    },
-    staleTime: 5 * 60 * 1000,
+  const { data, isLoading } = useQuery<{ bars: OHLCVBar[]; indicators?: TechnicalIndicators }>({
+    queryKey: ["price-panel", ticker, tf],
+    queryFn:  () =>
+      fetch(
+        `/api/market/history/${encodeURIComponent(ticker)}?tf=${tf}&indicators=${isIntraday ? "false" : "true"}`
+      ).then(r => r.json()),
+    staleTime: 5 * 60_000,
+    refetchInterval: () => isIntraday && isMarketOpen() ? 60_000 : false,
   });
 
-  const bars = histData?.bars ?? [];
+  const bars       = data?.bars        ?? [];
+  const indicators = data?.indicators;
 
-  const runPredict = useCallback(async () => {
-    if (!canPredict || predLoading) return;
-    setPredLoading(true);
-    setPredError(null);
-    try {
-      const res  = await fetch(`/api/market/predict/${encodeURIComponent(ticker)}?n=${nDays}&runs=${nRuns}&history=252`);
-      const json = await res.json();
-      if (json.error) throw new Error(json.details?.[0] ?? json.error);
-      setPrediction(json);
-      if (tf === "6M") {
-        try { localStorage.setItem(cacheKey, JSON.stringify(json)); } catch { /* quota */ }
-      }
-    } catch (e) { setPredError(String(e)); }
-    finally { setPredLoading(false); }
-  }, [ticker, nDays, nRuns, canPredict, predLoading, tf, cacheKey]);
+  // Period statistics
+  const firstClose = bars[0]?.close    ?? 0;
+  const lastClose  = bars.at(-1)?.close ?? 0;
+  const periodPct  = firstClose > 0 ? ((lastClose - firstClose) / firstClose) * 100 : 0;
+  const periodHigh = bars.length ? Math.max(...bars.map(b => b.high)) : 0;
+  const periodLow  = bars.length ? Math.min(...bars.map(b => b.low))  : 0;
+  const avgVol     = bars.length ? bars.reduce((s, b) => s + b.volume, 0) / bars.length : 1;
+  const lastVol    = bars.at(-1)?.volume ?? 0;
+  const volRatio   = avgVol > 0 ? lastVol / avgVol : 0;
+  const isUp       = periodPct >= 0;
+  const marketOpen = isMarketOpen();
 
-  const lastClose  = bars.at(-1)?.close ?? null;
-  const predFinal  = prediction?.median.at(-1) ?? null;
-  const predChange = lastClose && predFinal ? ((predFinal - lastClose) / lastClose) * 100 : null;
-  const isUp       = (predChange ?? 0) >= 0;
+  const CHART_H = 290;
 
   return (
-    <div className="rounded-xl border border-[#1e1e1e] overflow-hidden" style={{ background: "#101010" }}>
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3.5 pb-3 border-b border-[#1e1e1e]">
-        <div className="flex items-center gap-2.5">
-          <span className="text-[#c0c0cc] text-[8px]">◆</span>
-          <div>
-            <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Price & Forecast</span>
-            <p className="text-[9px] text-[#3a3a3a] mt-0.5">Monte Carlo · LLM Ensemble</p>
-          </div>
+    <div
+      className="rounded-xl overflow-hidden border border-[#1a1a22]"
+      style={{ background: "#0c0c10" }}
+    >
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-[#181820]">
+        <div className="flex items-center gap-2">
+          <span className="text-[#2e2e42] text-[9px]">◆</span>
+          <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">Price</span>
+          <span className="text-[9px] text-[#2a2a3a] mx-0.5">·</span>
+          <span className="text-[10px] text-[#383850] font-mono">{ticker}</span>
         </div>
-
-        {prediction && lastClose && predFinal && predChange !== null && (
-          <div className="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2 shrink-0">
-            <div className={cn(
-              "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold tabular-nums",
-              isUp
-                ? "text-[#c0c0cc] bg-[#c0c0cc0a] border-[#c0c0cc28]"
-                : "text-[#ef4444] bg-[#ef44440a] border-[#ef444428]"
-            )}>
-              {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              <span className="font-mono">{isUp ? "+" : ""}{predChange.toFixed(2)}%</span>
-              <span className="opacity-50">·{prediction.n}D</span>
-            </div>
-            <span className={cn("text-sm font-bold tabular-nums font-mono", isUp ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
-              {fmtPrice(predFinal)}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* TF selector */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-[#1e1e1e]">
-        {TF_OPTIONS.map(t => (
-          <button
-            key={t}
-            onClick={() => setTf(t)}
-            className={cn(
-              "px-2.5 py-1 rounded text-[10px] font-medium transition-colors tracking-wide",
-              tf === t
-                ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc28]"
-                : "text-[#3a3a3a] hover:text-[#767676]"
-            )}
-          >{t}</button>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <div className="relative">
-        {histLoading ? (
-          <div className="flex flex-col items-center justify-center gap-3" style={{ height: 264, background: "#101010" }}>
-            <div className="w-8 h-8 rounded-full border-2 border-[#c0c0cc22] border-t-[#c0c0cc] animate-spin" />
-            <p className="text-[10px] text-[#3a3a3a]">Loading…</p>
-          </div>
-        ) : bars.length > 0 ? (
-          <PredChart bars={bars} prediction={prediction ?? undefined} height={264} />
-        ) : (
-          <div className="flex items-center justify-center" style={{ height: 264 }}>
-            <p className="text-[10px] text-[#3a3a3a]">No data</p>
-          </div>
-        )}
-
-        {predLoading && (
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#101010] border border-[#1e1e1e]">
-            <div className="w-3 h-3 rounded-full border border-[#c0c0cc33] border-t-[#c0c0cc] animate-spin" />
-            <span className="text-[9px] text-[#3a3a3a]">Running scenarios…</span>
-          </div>
-        )}
-        {predError && !prediction && (
-          <div className="absolute bottom-3 left-4 right-4">
-            <p className="text-[9px] text-[#ef4444] text-center">{predError}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-[#1e1e1e] gap-2">
-        {/* Days + Runs spinners */}
         <div className="flex items-center gap-1.5">
-          {[
-            { label: "Days", val: nDays, set: setNDays, min: 1, max: 30, step: 1 },
-            { label: "Runs", val: nRuns, set: setNRuns, min: 1, max: 20, step: 1 },
-          ].map(({ label, val, set, min, max, step }, i) => (
-            <div key={label} className="flex items-center gap-0.5">
-              {i > 0 && <div className="w-px h-3 bg-[#1e1e1e] mx-1" />}
-              <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest">{label}</span>
-              <button
-                onClick={() => set((v: number) => Math.max(min, v - step))}
-                className="w-5 h-5 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
-              ><Minus className="w-2.5 h-2.5" /></button>
-              <span className="text-xs text-[#f0f0f0] w-6 text-center tabular-nums font-mono">{val}</span>
-              <button
-                onClick={() => set((v: number) => Math.min(max, v + step))}
-                className="w-5 h-5 rounded flex items-center justify-center text-[#3a3a3a] hover:text-[#f0f0f0] hover:bg-[#161616] transition-colors"
-              ><Plus className="w-2.5 h-2.5" /></button>
-            </div>
+          <div
+            className={cn("w-1.5 h-1.5 rounded-full transition-colors", marketOpen ? "bg-green-400" : "bg-[#252535]")}
+            style={marketOpen ? { boxShadow: "0 0 6px rgba(74,222,128,0.55)" } : {}}
+          />
+          <span
+            className="text-[9px] transition-colors"
+            style={{ color: marketOpen ? "rgba(74,222,128,0.65)" : "#252535" }}
+          >
+            {marketOpen ? "Market open" : "Market closed"}
+          </span>
+        </div>
+      </div>
+
+      {/* ── TF tabs + EMA toggles ── */}
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-[#181820]">
+        {/* Timeframe buttons */}
+        <div className="flex items-center gap-0.5 flex-1">
+          {TF_OPTIONS.map(t => (
+            <button
+              key={t}
+              onClick={() => setTf(t)}
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-medium transition-all tracking-wide",
+                tf === t
+                  ? "text-[#ddddf0] bg-[#ffffff0d] border border-[#ffffff1a]"
+                  : "text-[#282838] hover:text-[#585870]"
+              )}
+            >{t}</button>
           ))}
         </div>
 
-        {/* Right: runs count + Predict */}
-        <div className="flex items-center gap-2 shrink-0">
-          {prediction && (
-            <span className="text-[9px] text-[#3a3a3a] tabular-nums hidden xs:inline">
-              {prediction.successfulRuns}/{prediction.totalRuns}
-            </span>
-          )}
-          <button
-            onClick={runPredict}
-            disabled={predLoading || !canPredict}
-            title={canPredict ? undefined : "Select 1M or 6M to enable prediction"}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-[10px] font-semibold tracking-wide transition-all whitespace-nowrap",
-              predLoading
-                ? "text-[#3a3a3a] border-[#1e1e1e] cursor-not-allowed"
-                : canPredict
-                  ? "text-[#c0c0cc] bg-[#c0c0cc0a] border-[#c0c0cc33] hover:bg-[#c0c0cc18] hover:border-[#c0c0cc55]"
-                  : "text-[#252525] border-[#161616] cursor-not-allowed opacity-40"
-            )}
-          >
-            {predLoading
-              ? <><RefreshCw className="w-3 h-3 animate-spin" />Running…</>
-              : <><Sparkles className="w-3 h-3" />Predict</>
-            }
-          </button>
-        </div>
+        {/* EMA toggles — only when daily data is available */}
+        {!isIntraday && (
+          <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-[#1a1a28]">
+            {(
+              [
+                { key: "ema21"  as const, label: "21",  color: "#fbbf24" },
+                { key: "ema50"  as const, label: "50",  color: "#60a5fa" },
+                { key: "ema200" as const, label: "200", color: "#a78bfa" },
+              ]
+            ).map(({ key, label, color }) => (
+              <button
+                key={key}
+                onClick={() => setEma(prev => ({ ...prev, [key]: !prev[key] }))}
+                className="px-1.5 py-0.5 rounded text-[9px] font-medium transition-all"
+                style={
+                  ema[key]
+                    ? { color, background: `${color}14`, border: `1px solid ${color}38` }
+                    : { color: "#252535", border: "1px solid transparent" }
+                }
+                onMouseEnter={e => {
+                  if (!ema[key]) (e.currentTarget as HTMLElement).style.color = "#404055";
+                }}
+                onMouseLeave={e => {
+                  if (!ema[key]) (e.currentTarget as HTMLElement).style.color = "#252535";
+                }}
+              >EMA{label}</button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ── Chart ── */}
+      {isLoading ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3"
+          style={{ height: CHART_H, background: "#0c0c10" }}
+        >
+          <div className="w-6 h-6 rounded-full border border-[#22223a] border-t-[#505068] animate-spin" />
+          <p className="text-[9px] text-[#252535]">Loading…</p>
+        </div>
+      ) : bars.length > 0 ? (
+        <PriceChart
+          bars={bars}
+          indicators={indicators}
+          emaVisible={ema}
+          tf={tf}
+          chartH={CHART_H}
+        />
+      ) : (
+        <div className="flex items-center justify-center" style={{ height: CHART_H }}>
+          <p className="text-[9px] text-[#252535]">No data</p>
+        </div>
+      )}
+
+      {/* ── Stats strip ── */}
+      {bars.length > 0 && (
+        <div
+          className="flex items-center px-4 py-2.5 border-t border-[#181820]"
+          style={{ gap: 0 }}
+        >
+          {/* Period return */}
+          <div className="flex flex-col items-start flex-1 min-w-0">
+            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">Period</span>
+            <span
+              className="text-[13px] font-bold tabular-nums font-mono leading-none"
+              style={{ color: isUp ? "#4ade80" : "#f87171" }}
+            >
+              {isUp ? "+" : ""}{periodPct.toFixed(2)}%
+            </span>
+          </div>
+
+          <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
+
+          {/* Period high */}
+          <div className="flex flex-col items-start">
+            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">High</span>
+            <span className="text-[11px] font-semibold tabular-nums font-mono text-[#c8c8e0]">
+              {fmtPrice(periodHigh)}
+            </span>
+          </div>
+
+          <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
+
+          {/* Period low */}
+          <div className="flex flex-col items-start">
+            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">Low</span>
+            <span className="text-[11px] font-semibold tabular-nums font-mono text-[#c8c8e0]">
+              {fmtPrice(periodLow)}
+            </span>
+          </div>
+
+          <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
+
+          {/* Volume */}
+          <div className="flex flex-col items-start">
+            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">Volume</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-[11px] font-semibold tabular-nums font-mono text-[#c8c8e0]">
+                {fmtVol(lastVol)}
+              </span>
+              {volRatio > 0 && (
+                <span
+                  className="text-[9px] tabular-nums font-mono"
+                  style={{ color: volRatio > 1.5 ? "#fbbf24" : volRatio < 0.6 ? "#f87171" : "#323248" }}
+                >
+                  {volRatio.toFixed(1)}×
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

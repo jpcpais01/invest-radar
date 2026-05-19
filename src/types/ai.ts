@@ -4,6 +4,7 @@ export interface ChatMessage {
   content: string;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
+  followups?: string[];
   timestamp: number;
 }
 

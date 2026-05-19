@@ -102,6 +102,22 @@ export function useAIChat() {
                 updateLastMessage("");
               } else if (event.type === "text") {
                 updateLastMessage(event.content);
+              } else if (event.type === "trim") {
+                useChatStore.setState((s) => {
+                  const msgs = [...s.messages];
+                  const last = { ...msgs[msgs.length - 1] };
+                  last.content = last.content.slice(0, last.content.length - event.chars);
+                  msgs[msgs.length - 1] = last;
+                  return { messages: msgs };
+                });
+              } else if (event.type === "followups") {
+                useChatStore.setState((s) => {
+                  const msgs = [...s.messages];
+                  const last = { ...msgs[msgs.length - 1] };
+                  last.followups = event.questions;
+                  msgs[msgs.length - 1] = last;
+                  return { messages: msgs };
+                });
               } else if (event.type === "tool_start") {
                 addActiveTool(event.toolName, event.toolCallId);
               } else if (event.type === "tool_result") {

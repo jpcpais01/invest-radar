@@ -104,6 +104,7 @@ export interface Timeframe {
 export const TIMEFRAMES: Timeframe[] = [
   { label: "1D", value: "1D", days: 1, interval: "5m" },
   { label: "5D", value: "5D", days: 5, interval: "15m" },
+  { label: "7D", value: "7D", days: 7, interval: "1h" },
   { label: "1M", value: "1M", days: 30, interval: "1d" },
   { label: "3M", value: "3M", days: 90, interval: "1d" },
   { label: "6M", value: "6M", days: 180, interval: "1d" },
