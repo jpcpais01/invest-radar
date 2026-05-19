@@ -71,7 +71,7 @@ export default function HomePage() {
             </div>
           </div>
           {/* Row 2 — Ask AI · Forecast · Strategy */}
-          <div className="px-4 h-10 flex items-center gap-2 border-t border-[#1e1e1e]">
+          <div className="px-4 h-10 flex items-center justify-center gap-2 border-t border-[#1e1e1e]">
             <div ref={chatBtnRef} className="relative">
               <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} />
               {chatOpen && (
