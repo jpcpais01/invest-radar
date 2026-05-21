@@ -430,6 +430,24 @@ function CorrelationMatrix({ tickers, matrix }: { tickers: string[]; matrix: num
 }
 
 /* ══════════════════════════════════════════════════════════════
+   INLINE MARKDOWN RENDERER — handles **bold** and *italic*
+══════════════════════════════════════════════════════════════ */
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**"))
+          return <strong key={i} className="font-semibold text-[#e4e4ee]">{part.slice(2, -2)}</strong>;
+        if (part.startsWith("*") && part.endsWith("*"))
+          return <em key={i} className="italic text-[#c8c8d8]">{part.slice(1, -1)}</em>;
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    AI ANALYSIS PANEL
 ══════════════════════════════════════════════════════════════ */
 function AIPanel({
@@ -444,7 +462,8 @@ function AIPanel({
     return `${Math.floor(mins / 60)}h ago`;
   })() : null;
 
-  const paras = text.split(/\n\n+/).filter(Boolean);
+  // Split into paragraphs, handle ### headings
+  const blocks = text.split(/\n\n+/).filter(Boolean);
 
   return (
     <div className="flex flex-col gap-4">
@@ -459,21 +478,49 @@ function AIPanel({
         </div>
       )}
 
-      {/* Streamed paragraphs */}
-      {paras.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {paras.map((p, i) => (
-            <p key={i} className="text-[12.5px] text-[#b0b0bc] leading-[1.75] tracking-[0.01em]">
-              {p}
-              {/* blinking cursor on last paragraph while streaming */}
-              {loading && i === paras.length - 1 && (
-                <span
-                  className="inline-block w-[2px] h-[14px] ml-[2px] align-middle rounded-sm bg-[#2dd4bf]"
-                  style={{ animation: "ddBounce 0.6s ease-in-out infinite alternate" }}
-                />
-              )}
-            </p>
-          ))}
+      {/* Streamed content */}
+      {blocks.length > 0 && (
+        <div className="flex flex-col gap-4">
+          {blocks.map((block, i) => {
+            const isLast = i === blocks.length - 1;
+            const cursor = loading && isLast ? (
+              <span
+                className="inline-block w-[2px] h-[14px] ml-[2px] align-middle rounded-sm bg-[#2dd4bf]"
+                style={{ animation: "ddBounce 0.6s ease-in-out infinite alternate" }}
+              />
+            ) : null;
+
+            // ### Heading
+            if (block.startsWith("### ")) {
+              return (
+                <div key={i} className="flex items-center gap-2 pt-1">
+                  <span className="text-[#2dd4bf] text-[8px]">◆</span>
+                  <span className="text-[10px] font-bold text-[#f0f0f0] uppercase tracking-widest">
+                    {block.slice(4)}
+                  </span>
+                </div>
+              );
+            }
+
+            // Whole block is **bold** — treat as section label
+            if (/^\*\*[^*]+\*\*[:\s]*$/.test(block.trim())) {
+              return (
+                <div key={i} className="flex items-center gap-2 pt-1">
+                  <span className="text-[#2dd4bf] text-[8px]">◆</span>
+                  <span className="text-[10px] font-bold text-[#f0f0f0] uppercase tracking-widest">
+                    {block.trim().replace(/\*\*/g, "").replace(/:$/, "")}
+                  </span>
+                </div>
+              );
+            }
+
+            // Regular paragraph
+            return (
+              <p key={i} className="text-[12.5px] text-[#b0b0bc] leading-[1.78] tracking-[0.01em]">
+                {renderInline(block)}{cursor}
+              </p>
+            );
+          })}
         </div>
       )}
 
@@ -482,7 +529,7 @@ function AIPanel({
         <p className="text-[11px] text-[#f87171]">Failed to generate analysis. Try again.</p>
       )}
 
-      {/* Footer: timestamp + regenerate */}
+      {/* Footer */}
       {!loading && (text || error) && (
         <div className="flex items-center justify-between pt-2 border-t border-[#1a1a1a]">
           <span className="text-[10px] text-[#2c2c2c]">
@@ -591,7 +638,7 @@ export default function PulsePage() {
 
   /* Cache key */
   const cacheKey = useMemo(
-    () => `pulse-ai-v2-${watchlist.slice().sort().join(",")}`,
+    () => `pulse-ai-v3-${watchlist.slice().sort().join(",")}`,
     [watchlist]
   );
 
@@ -822,14 +869,7 @@ export default function PulsePage() {
                 <p className="text-[9px] text-[#3a3a3a] mb-4 ml-3.5">
                   Ideal position: top-left (high return, low vol). Dashed lines split at avg volatility and 0% return.
                 </p>
-                <div
-                  className="overflow-x-auto -mx-1 px-1"
-                  style={{ scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}
-                >
-                  <div style={{ minWidth: 420 }}>
-                    <ScatterPlot items={stats} />
-                  </div>
-                </div>
+                <ScatterPlot items={stats} />
               </div>
 
               <div className="rounded-xl border border-[#1e1e1e] bg-[#0c0c0c] p-5 flex flex-col">

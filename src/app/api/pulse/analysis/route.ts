@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     )
     .join("\n");
 
-  const prompt = `You are a sharp portfolio analyst. Review this watchlist data and write a concise 3-paragraph analysis.
+  const prompt = `You are a sharp portfolio analyst. Review this watchlist data and write a 3-paragraph analysis.
 
 Data:
 ${statLines}
@@ -27,16 +27,21 @@ Most correlated pair: ${portfolio.maxPair[0]} / ${portfolio.maxPair[1]} (r = ${p
 Least correlated pair: ${portfolio.minPair[0]} / ${portfolio.minPair[1]} (r = ${portfolio.minCorrVal.toFixed(2)})
 Best risk-adjusted: ${portfolio.bestSharpeTicker} (Sharpe ${portfolio.bestSharpeVal?.toFixed(2)})
 
-Write exactly 3 paragraphs:
-1. Performance narrative — who is driving returns, who is dragging, what the spread reveals about the current market environment
-2. Risk picture — which names carry outsized risk relative to their return, any drawdown concerns, what the volatility distribution means
-3. One specific, direct observation that follows from this exact data — something actionable or noteworthy that a sharp analyst would flag
+Write exactly 3 paragraphs separated by a blank line:
+1. Performance narrative — who is driving returns, who is lagging, what the spread reveals
+2. Risk picture — which names carry outsized risk vs their return, drawdown concerns, vol distribution
+3. Key insights — based purely on the numbers, which position(s) look worth adding to or trimming, what setup or inflection point stands out, what a sharp investor would act on or watch closely
 
-Rules: reference specific tickers and actual numbers throughout. No disclaimers. No generic advice. No "it's important to note." Write as if briefing a sophisticated investor.`;
+Rules:
+- Reference specific tickers and numbers throughout all 3 paragraphs
+- No disclaimers, no "it's important to note", no generic advice
+- You may use **bold** to emphasise specific ticker names or key numbers
+- Do NOT use markdown headers (###), bullet points, or numbered lists
+- Write as if briefing a sophisticated investor in 3 plain paragraphs`;
 
   const stream = client.messages.stream({
     model: "claude-sonnet-4-6",
-    max_tokens: 520,
+    max_tokens: 700,
     messages: [{ role: "user", content: prompt }],
   });
 

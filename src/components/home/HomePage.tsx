@@ -45,6 +45,28 @@ export default function HomePage() {
       className="h-screen overflow-y-auto text-[#f0f0f0]"
       style={{ background: "#080808", scrollbarWidth: "thin", scrollbarColor: "#1e1e1e transparent" }}
     >
+      {/* ── Chat popup — fixed, outside header stacking context ────────── */}
+      {chatOpen && (
+        <>
+          <div className="fixed inset-0 z-[90]" onClick={() => setChatOpen(false)} />
+          {/* Mobile: full-width below both header rows (≈90px) */}
+          <div className="fixed z-[100] left-3 right-3 md:hidden" style={{ top: 93 }}>
+            <div className="rounded-xl border border-[#2c2c2c] overflow-hidden shadow-2xl"
+              style={{ background: "#101010", boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.06)" }}>
+              <HomeChat ticker={activeTicker} />
+            </div>
+          </div>
+          {/* Desktop: right-aligned below single header row (56px) */}
+          <div className="fixed z-[100] right-6 hidden md:block" style={{ top: 64, width: "min(440px, calc(100vw - 48px))" }}>
+            <div className="absolute -top-1.5 right-4 w-3 h-3 rotate-45 bg-[#101010] border-l border-t border-[#2c2c2c]" />
+            <div className="rounded-xl border border-[#2c2c2c] overflow-hidden shadow-2xl"
+              style={{ background: "#101010", boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.06)" }}>
+              <HomeChat ticker={activeTicker} />
+            </div>
+          </div>
+        </>
+      )}
+
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-[#1e1e1e]" style={{ background: "rgba(8,8,8,0.92)", backdropFilter: "blur(12px)" }}>
 
@@ -71,28 +93,14 @@ export default function HomePage() {
               ><Compass className="w-3 h-3" />Discover</button>
             </div>
           </div>
-          {/* Row 2 — Ask AI · Forecast · Screener · Pulse (scrollable) */}
-          <div className="border-t border-[#1e1e1e] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-          <div className="px-4 h-10 flex items-center justify-center gap-2 min-w-max mx-auto">
-            <div ref={chatBtnRef} className="relative">
-              <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} />
-              {chatOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setChatOpen(false)} />
-                  <div className="absolute top-[calc(100%+10px)] left-0 z-50 w-[min(440px,calc(100vw-32px))]">
-                    <div className="absolute -top-1.5 left-4 w-3 h-3 rotate-45 bg-[#101010] border-l border-t border-[#2c2c2c]" />
-                    <div className="rounded-xl border border-[#2c2c2c] overflow-hidden shadow-2xl"
-                      style={{ background: "#101010", boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.06)" }}>
-                      <HomeChat ticker={activeTicker} />
-                    </div>
-                  </div>
-                </>
-              )}
+          {/* Row 2 — 4 equal-width buttons */}
+          <div className="px-2 h-10 flex items-center gap-1.5 border-t border-[#1e1e1e]">
+            <div ref={chatBtnRef} className="flex-1 min-w-0">
+              <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} className="w-full shrink justify-center" />
             </div>
-            <ForecastBtn />
-            <ScreenerBtn />
-            <PulseBtn />
-          </div>
+            <ForecastBtn className="flex-1 shrink justify-center" />
+            <ScreenerBtn className="flex-1 shrink justify-center" />
+            <PulseBtn className="flex-1 shrink justify-center" />
           </div>
         </div>
 
@@ -121,20 +129,8 @@ export default function HomePage() {
             ><Compass className="w-3 h-3" /><span>Discover</span></button>
           </div>
 
-          <div ref={chatBtnRef} className="relative shrink-0">
+          <div ref={chatBtnRef} className="shrink-0">
             <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} />
-            {chatOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setChatOpen(false)} />
-                <div className="absolute top-[calc(100%+10px)] right-0 z-50 w-[min(440px,calc(100vw-32px))]">
-                  <div className="absolute -top-1.5 right-4 w-3 h-3 rotate-45 bg-[#101010] border-l border-t border-[#2c2c2c]" />
-                  <div className="rounded-xl border border-[#2c2c2c] overflow-hidden shadow-2xl"
-                    style={{ background: "#101010", boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,192,204,0.06)" }}>
-                    <HomeChat ticker={activeTicker} />
-                  </div>
-                </div>
-              </>
-            )}
           </div>
 
           <ForecastBtn />

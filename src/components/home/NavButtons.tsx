@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch, Activity } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /* ─── shared keyframes ────────────────────────────────────────────────────── */
 const KEYFRAMES = `
@@ -70,13 +71,13 @@ const BUBBLES = [
 /* ════════════════════════════════════════════════════════════════════════════
    ASK AI — blue glassmorphism with light refraction
    ════════════════════════════════════════════════════════════════════════════ */
-export function AskAIBtn({ open, onClick }: { open: boolean; onClick: () => void }) {
+export function AskAIBtn({ open, onClick, className }: { open: boolean; onClick: () => void; className?: string }) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
       <button
         onClick={onClick}
-        className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+        className={cn("relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all", className)}
         style={{
           background: open
             ? "linear-gradient(135deg, rgba(37,99,235,0.30) 0%, rgba(79,70,229,0.24) 50%, rgba(37,99,235,0.20) 100%)"
@@ -149,11 +150,11 @@ export function AskAIBtn({ open, onClick }: { open: boolean; onClick: () => void
 /* ════════════════════════════════════════════════════════════════════════════
    FORECAST — titanium metal with shine sweep
    ════════════════════════════════════════════════════════════════════════════ */
-export function ForecastBtn() {
+export function ForecastBtn({ className }: { className?: string } = {}) {
   return (
     <a
       href="/forecast"
-      className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0"
+      className={cn("relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0", className)}
       style={{
         background:
           "linear-gradient(160deg, #1a1a20 0%, #2d2d38 14%, #3b3b48 28%, #484855 42%, #3a3a46 56%, #2c2c36 70%, #3e3e4a 84%, #1a1a20 100%)",
@@ -460,13 +461,13 @@ export function StrategyBtn() {
 /* ════════════════════════════════════════════════════════════════════════════
    PULSE — teal glassmorphism with sonar-ping rings
    ════════════════════════════════════════════════════════════════════════════ */
-export function PulseBtn() {
+export function PulseBtn({ className }: { className?: string } = {}) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
       <a
         href="/pulse"
-        className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0"
+        className={cn("relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0", className)}
         style={{
           background:
             "linear-gradient(135deg, rgba(0,80,72,0.20) 0%, rgba(0,60,55,0.14) 50%, rgba(0,80,72,0.10) 100%)",
@@ -531,13 +532,13 @@ export function PulseBtn() {
 /* ════════════════════════════════════════════════════════════════════════════
    SCREENER — amber scan beam, data-scanner aesthetic
    ════════════════════════════════════════════════════════════════════════════ */
-export function ScreenerBtn() {
+export function ScreenerBtn({ className }: { className?: string } = {}) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
       <a
         href="/screener"
-        className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0"
+        className={cn("relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0", className)}
         style={{
           background:
             "linear-gradient(135deg, rgba(120,80,0,0.18) 0%, rgba(90,58,0,0.12) 50%, rgba(120,80,0,0.10) 100%)",
