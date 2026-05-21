@@ -309,7 +309,7 @@ export default function ScreenerPage() {
 
         {/* ── market heatmap strip ── */}
         {isAllLoaded && loadedRows.length > 0 && (
-          <div className="mb-6 flex gap-2 flex-wrap">
+          <div className="mb-6 grid grid-cols-5 gap-2">
             {sorted.map((row) => {
               const abs = Math.abs(row.day);
               const intensity = Math.min(abs / 5, 1); // 5% = max intensity
@@ -329,7 +329,7 @@ export default function ScreenerPage() {
                 <div
                   key={row.ticker}
                   className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg border cursor-pointer hover:scale-105 transition-transform"
-                  style={{ background: bg, borderColor: border, minWidth: 64 }}
+                  style={{ background: bg, borderColor: border }}
                   onClick={() => {
                     useTickerStore.getState().setActiveTicker(row.ticker);
                     window.location.href = "/";
