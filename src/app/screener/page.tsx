@@ -216,7 +216,7 @@ export default function ScreenerPage() {
 
   return (
     <div
-      className="min-h-screen text-[#f0f0f0]"
+      className="h-screen overflow-y-auto text-[#f0f0f0]"
       style={{ background: "#080808", scrollbarWidth: "thin", scrollbarColor: "#1e1e1e transparent" }}
     >
       {/* ── header ── */}
