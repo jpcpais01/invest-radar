@@ -5,7 +5,7 @@ import { useTickerStore } from "@/store/tickerStore";
 import { OHLCVBar } from "@/types/market";
 import {
   Activity, ArrowLeft, ShieldCheck, Zap, Wind,
-  AlertTriangle, Sparkles, RefreshCw, TrendingUp,
+  Sparkles, RefreshCw, TrendingUp,
 } from "lucide-react";
 
 /* ══════════════════════════════════════════════════════════════
@@ -61,8 +61,7 @@ interface TickerStats {
   sharpe: number;
   returns: number[];
 }
-interface DDPoint { time: number; dd: number }
-interface DDSeries { ticker: string; points: DDPoint[] }
+interface NormSeries { ticker: string; points: { time: number; val: number }[] }
 
 /* ══════════════════════════════════════════════════════════════
    CORRELATION CELL COLOUR
@@ -228,112 +227,147 @@ function ScatterPlot({ items }: { items: TickerStats[] }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   DRAWDOWN TIMELINE  ← surprise widget
+   RELATIVE PERFORMANCE  — all tickers rebased to 100
 ══════════════════════════════════════════════════════════════ */
-function DrawdownTimeline({ series, tickerOrder }: { series: DDSeries[]; tickerOrder: string[] }) {
+function RelativePerformance({ series, tickerOrder }: { series: NormSeries[]; tickerOrder: string[] }) {
   const [hov, setHov] = useState<string | null>(null);
   if (!series.length) return null;
 
-  const VW = 680, VH = 200;
-  const ML = 52, MR = 16, MT = 16, MB = 36;
+  const VW = 700, VH = 220;
+  const ML = 58, MR = 16, MT = 18, MB = 38;
   const PW = VW - ML - MR, PH = VH - MT - MB;
 
-  const allDD = series.flatMap(s => s.points.map(p => p.dd));
-  const minDD = Math.min(...allDD, -0.5);
-  const allT  = series.flatMap(s => s.points.map(p => p.time));
-  const tMin  = Math.min(...allT), tMax = Math.max(...allT);
+  const allV = series.flatMap(s => s.points.map(p => p.val));
+  const rawMin = Math.min(...allV), rawMax = Math.max(...allV);
+  const range = rawMax - rawMin || 10;
+  const vMin = rawMin - range * 0.07;
+  const vMax = rawMax + range * 0.07;
+
+  const allT = series.flatMap(s => s.points.map(p => p.time));
+  const tMin = Math.min(...allT), tMax = Math.max(...allT);
 
   const mx = (t: number) => ML + ((t - tMin) / (tMax - tMin || 1)) * PW;
-  const my = (dd: number) => MT + ((0 - dd) / (0 - minDD)) * PH;
+  const my = (v: number) => MT + ((vMax - v) / (vMax - vMin)) * PH;
 
-  // nice y ticks
-  const absMin = Math.abs(minDD);
-  const step = absMin <= 3 ? 1 : absMin <= 8 ? 2 : absMin <= 20 ? 5 : 10;
+  // Y ticks at clean intervals
+  const step = range <= 6 ? 1 : range <= 15 ? 2 : range <= 35 ? 5 : 10;
   const yTicks: number[] = [];
-  for (let v = 0; v >= minDD * 1.1; v -= step) yTicks.push(v);
+  for (let v = Math.ceil(vMin / step) * step; v <= vMax + 0.01; v += step) yTicks.push(parseFloat(v.toFixed(6)));
 
-  // x ticks (5 dates)
   const xTicks = Array.from({ length: 5 }, (_, i) => tMin + (i / 4) * (tMax - tMin));
+  const ref100Y = my(100);
+  const showRef = ref100Y >= MT - 1 && ref100Y <= MT + PH + 1;
 
   return (
     <div>
-      <svg viewBox={`0 0 ${VW} ${VH}`} width="100%" style={{ overflow: "visible" }}>
-        <rect x={ML} y={MT} width={PW} height={PH} fill="none" stroke="#1e1e1e" strokeWidth="1" rx="2" />
-        {yTicks.map(v => {
-          const y = my(v);
-          if (y < MT - 1 || y > MT + PH + 1) return null;
-          return (
-            <g key={v}>
-              <line x1={ML} y1={y} x2={ML+PW} y2={y}
-                stroke={v === 0 ? "#2c2c2c" : "#161616"} strokeWidth="1"
-                strokeDasharray={v === 0 ? undefined : "3,3"} />
-              <text x={ML-5} y={y+3.5} textAnchor="end" fontSize="9" fill="#3a3a3a" fontFamily="monospace">{v}%</text>
-            </g>
-          );
-        })}
-        {xTicks.map((t, i) => {
-          const x = mx(t);
-          const d = new Date(t * 1000);
-          const lbl = `${d.getMonth() + 1}/${d.getDate()}`;
-          return (
-            <g key={i}>
-              <line x1={x} y1={MT+PH} x2={x} y2={MT+PH+4} stroke="#2c2c2c" strokeWidth="1" />
-              <text x={x} y={MT+PH+16} textAnchor="middle" fontSize="9" fill="#3a3a3a" fontFamily="monospace">{lbl}</text>
-            </g>
-          );
-        })}
-        {series.map((s, idx) => {
-          const ci = tickerOrder.indexOf(s.ticker);
-          const col = PALETTE[(ci >= 0 ? ci : idx) % PALETTE.length];
-          const isHov = hov === s.ticker;
-          const opacity = hov === null ? 0.82 : isHov ? 1 : 0.14;
-          const d = s.points.map((p, i) =>
-            `${i === 0 ? "M" : "L"}${mx(p.time).toFixed(1)},${my(p.dd).toFixed(1)}`
-          ).join(" ");
-          return (
-            <path
-              key={s.ticker}
-              d={d}
-              fill="none"
-              stroke={col}
-              strokeWidth={isHov ? 2 : 1.5}
-              opacity={opacity}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              style={{
-                cursor: "pointer",
-                transition: "opacity 0.12s, stroke-width 0.12s",
-                filter: isHov ? `drop-shadow(0 0 5px ${col})` : "none",
-              }}
-              onMouseEnter={() => setHov(s.ticker)}
-              onMouseLeave={() => setHov(null)}
-            />
-          );
-        })}
-      </svg>
+      <div
+        className="overflow-x-auto -mx-1 px-1"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}
+      >
+        <div style={{ minWidth: 420 }}>
+          <svg viewBox={`0 0 ${VW} ${VH}`} width="100%" style={{ overflow: "visible" }}>
+            <rect x={ML} y={MT} width={PW} height={PH} fill="none" stroke="#1e1e1e" strokeWidth="1" rx="2" />
 
-      {/* Legend */}
+            {/* Y grid */}
+            {yTicks.map(v => {
+              const y = my(v);
+              if (y < MT - 1 || y > MT + PH + 1) return null;
+              const is100 = Math.abs(v - 100) < 0.01;
+              return (
+                <g key={v}>
+                  <line x1={ML} y1={y} x2={ML + PW} y2={y}
+                    stroke={is100 ? "rgba(45,212,191,0.30)" : "#181818"} strokeWidth="1"
+                    strokeDasharray={is100 ? "6,4" : "3,3"} />
+                  <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize="9"
+                    fill={is100 ? "rgba(45,212,191,0.65)" : "#3a3a3a"}
+                    fontFamily="monospace" fontWeight={is100 ? "700" : "400"}>
+                    {v.toFixed(0)}
+                  </text>
+                </g>
+              );
+            })}
+            {/* 100 label if not already on a tick */}
+            {showRef && !yTicks.some(v => Math.abs(v - 100) < 0.01) && (
+              <g>
+                <line x1={ML} y1={ref100Y} x2={ML + PW} y2={ref100Y}
+                  stroke="rgba(45,212,191,0.30)" strokeWidth="1" strokeDasharray="6,4" />
+                <text x={ML - 6} y={ref100Y + 3.5} textAnchor="end" fontSize="9"
+                  fill="rgba(45,212,191,0.65)" fontFamily="monospace" fontWeight="700">100</text>
+              </g>
+            )}
+
+            {/* X ticks */}
+            {xTicks.map((t, i) => {
+              const x = mx(t);
+              const d = new Date(t * 1000);
+              const lbl = `${d.getMonth() + 1}/${d.getDate()}`;
+              return (
+                <g key={i}>
+                  <line x1={x} y1={MT + PH} x2={x} y2={MT + PH + 4} stroke="#2c2c2c" strokeWidth="1" />
+                  <text x={x} y={MT + PH + 16} textAnchor="middle" fontSize="9" fill="#3a3a3a" fontFamily="monospace">{lbl}</text>
+                </g>
+              );
+            })}
+
+            {/* Lines */}
+            {series.map((s, idx) => {
+              const ci = tickerOrder.indexOf(s.ticker);
+              const col = PALETTE[(ci >= 0 ? ci : idx) % PALETTE.length];
+              const isHov = hov === s.ticker;
+              const opacity = hov === null ? 0.80 : isHov ? 1 : 0.10;
+              const pathD = s.points.map((p, i) =>
+                `${i === 0 ? "M" : "L"}${mx(p.time).toFixed(1)},${my(p.val).toFixed(1)}`
+              ).join(" ");
+              const last = s.points[s.points.length - 1];
+              const lx = mx(last.time), ly = my(last.val);
+              return (
+                <g key={s.ticker}>
+                  <path d={pathD} fill="none" stroke={col}
+                    strokeWidth={isHov ? 2.5 : 1.5} opacity={opacity}
+                    strokeLinejoin="round" strokeLinecap="round"
+                    style={{
+                      cursor: "pointer", transition: "opacity 0.12s, stroke-width 0.12s",
+                      filter: isHov ? `drop-shadow(0 0 5px ${col})` : "none",
+                    }}
+                    onMouseEnter={() => setHov(s.ticker)}
+                    onMouseLeave={() => setHov(null)}
+                  />
+                  <circle cx={lx} cy={ly} r={isHov ? 3.5 : 2.5} fill={col} opacity={opacity}
+                    style={{ transition: "opacity 0.12s", filter: isHov ? `drop-shadow(0 0 5px ${col})` : "none" }}
+                    onMouseEnter={() => setHov(s.ticker)}
+                    onMouseLeave={() => setHov(null)}
+                  />
+                </g>
+              );
+            })}
+
+            {/* Axis labels */}
+            <text x={ML + PW / 2} y={VH - 2} textAnchor="middle" fontSize="10" fill="#4a4a4a" fontFamily="system-ui">Date →</text>
+            <text x={11} y={MT + PH / 2} textAnchor="middle" fontSize="10" fill="#4a4a4a" fontFamily="system-ui"
+              transform={`rotate(-90,11,${MT + PH / 2})`}>Rebased (100 = start)</text>
+          </svg>
+        </div>
+      </div>
+
+      {/* Legend chips */}
       <div className="flex flex-wrap gap-2 mt-3 ml-14">
         {series.map((s, idx) => {
           const ci = tickerOrder.indexOf(s.ticker);
           const col = PALETTE[(ci >= 0 ? ci : idx) % PALETTE.length];
-          const cur = s.points[s.points.length - 1]?.dd ?? 0;
+          const cur = s.points[s.points.length - 1]?.val ?? 100;
+          const chg = cur - 100;
           const isHov = hov === s.ticker;
           return (
-            <button
-              key={s.ticker}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all text-left"
-              style={{
-                borderColor: isHov ? col : "#242424",
-                background: isHov ? `${col}18` : "transparent",
-              }}
+            <button key={s.ticker}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all"
+              style={{ borderColor: isHov ? col : "#242424", background: isHov ? `${col}18` : "transparent" }}
               onMouseEnter={() => setHov(s.ticker)}
               onMouseLeave={() => setHov(null)}
             >
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: col, boxShadow: `0 0 4px ${col}` }} />
               <span className="text-[10px] font-mono font-bold text-[#f0f0f0]">{s.ticker}</span>
-              <span className="text-[10px] font-mono" style={{ color: cur < -0.05 ? "#f87171" : "#4ade80" }}>
-                {cur.toFixed(1)}%
+              <span className="text-[10px] font-mono font-semibold" style={{ color: chg >= 0 ? "#4ade80" : "#f87171" }}>
+                {chg >= 0 ? "+" : ""}{chg.toFixed(1)}%
               </span>
             </button>
           );
@@ -506,18 +540,15 @@ export default function PulsePage() {
     }).filter((s): s is TickerStats => s !== null && s.vol > 0);
   }, [watchlist, histResults]);
 
-  /* Drawdown series */
-  const drawdownData: DDSeries[] = useMemo(() => {
+  /* Normalised performance series (rebased to 100) */
+  const normData: NormSeries[] = useMemo(() => {
     return watchlist.map((ticker, i) => {
       const bars = histResults[i].data?.bars ?? [];
-      if (bars.length < 2) return null;
-      let peak = bars[0].close;
-      const points = bars.map(b => {
-        if (b.close > peak) peak = b.close;
-        return { time: b.time, dd: peak > 0 ? (b.close - peak) / peak * 100 : 0 };
-      });
+      if (bars.length < 2 || !bars[0].close) return null;
+      const base = bars[0].close;
+      const points = bars.map(b => ({ time: b.time, val: (b.close / base) * 100 }));
       return { ticker, points };
-    }).filter((d): d is DDSeries => d !== null && d.points.length > 1);
+    }).filter((d): d is NormSeries => d !== null && d.points.length > 1);
   }, [watchlist, histResults]);
 
   /* Correlation */
@@ -713,8 +744,8 @@ export default function PulsePage() {
 
         {isLoading && (
           <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-              {[...Array(5)].map((_, i) => (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => (
                 <div key={i} className="h-24 rounded-xl bg-[#0c0c0c] animate-pulse border border-[#1a1a1a]" />
               ))}
             </div>
@@ -734,8 +765,8 @@ export default function PulsePage() {
         {!isLoading && stats.length >= 2 && portfolio && (
           <div className="flex flex-col gap-6">
 
-            {/* ── STAT CARDS — 5 columns ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* ── STAT CARDS — 4 columns ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
               {/* 1 — Diversification score (compact) */}
               <div className="rounded-xl border border-[#1e1e1e] bg-[#0c0c0c] px-4 py-3.5 flex items-center gap-3 min-w-0">
@@ -779,14 +810,6 @@ export default function PulsePage() {
                 icon={<Wind className="w-3 h-3" />}
               />
 
-              {/* 5 — Concentration alert */}
-              <StatCard
-                label="Most Correlated Pair"
-                value={`${portfolio.maxPair[0]} · ${portfolio.maxPair[1]}`}
-                sub={`r = ${portfolio.maxCorrVal.toFixed(2)} — move closely together`}
-                color={portfolio.maxCorrVal > 0.8 ? "#f87171" : portfolio.maxCorrVal > 0.55 ? "#fbbf24" : "#767676"}
-                icon={<AlertTriangle className="w-3 h-3" />}
-              />
             </div>
 
             {/* ── SCATTER + BREAKDOWN ── */}
@@ -799,7 +822,14 @@ export default function PulsePage() {
                 <p className="text-[9px] text-[#3a3a3a] mb-4 ml-3.5">
                   Ideal position: top-left (high return, low vol). Dashed lines split at avg volatility and 0% return.
                 </p>
-                <ScatterPlot items={stats} />
+                <div
+                  className="overflow-x-auto -mx-1 px-1"
+                  style={{ scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}
+                >
+                  <div style={{ minWidth: 420 }}>
+                    <ScatterPlot items={stats} />
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-xl border border-[#1e1e1e] bg-[#0c0c0c] p-5 flex flex-col">
@@ -831,17 +861,17 @@ export default function PulsePage() {
               </div>
             </div>
 
-            {/* ── DRAWDOWN TIMELINE ── */}
+            {/* ── RELATIVE PERFORMANCE ── */}
             <div className="rounded-xl border border-[#1e1e1e] bg-[#0c0c0c] p-5">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[#2dd4bf] text-[8px]">◆</span>
-                <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Drawdown Timeline</span>
+                <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Relative Performance</span>
               </div>
               <p className="text-[9px] text-[#3a3a3a] mb-5 ml-3.5">
-                How far each ticker has fallen from its 1M rolling peak, day by day.
-                Hover a line or chip to isolate it. Staying near 0% = no meaningful pullback.
+                All tickers rebased to 100 at the start of the period — divergence reveals who's actually leading.
+                Hover a line or chip to isolate it.
               </p>
-              <DrawdownTimeline series={drawdownData} tickerOrder={stats.map(s => s.ticker)} />
+              <RelativePerformance series={normData} tickerOrder={stats.map(s => s.ticker)} />
             </div>
 
             {/* ── CORRELATION MATRIX ── */}
