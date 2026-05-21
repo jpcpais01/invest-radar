@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch } from "lucide-react";
+import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch, Activity } from "lucide-react";
 
 /* ─── shared keyframes ────────────────────────────────────────────────────── */
 const KEYFRAMES = `
@@ -30,6 +30,12 @@ const KEYFRAMES = `
   @keyframes glassGlow {
     0%, 100% { opacity: 0.5; }
     50%       { opacity: 1.0; }
+  }
+
+  /* Pulse sonar ring — expands outward and fades */
+  @keyframes sonarRing {
+    0%   { transform: scale(1);   opacity: 0.8; }
+    100% { transform: scale(9);   opacity: 0;   }
   }
 
   /* Screener scan beam — sweeps left to right */
@@ -446,6 +452,77 @@ export function StrategyBtn() {
           style={{ filter: "drop-shadow(0 0 5px rgba(196,181,253,0.70))" }}
         />
         <span className="relative z-10 whitespace-nowrap">Backtest</span>
+      </a>
+    </>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PULSE — teal glassmorphism with sonar-ping rings
+   ════════════════════════════════════════════════════════════════════════════ */
+export function PulseBtn() {
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
+      <a
+        href="/pulse"
+        className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(0,80,72,0.20) 0%, rgba(0,60,55,0.14) 50%, rgba(0,80,72,0.10) 100%)",
+          border: "1px solid rgba(45,212,191,0.28)",
+          color: "#2dd4bf",
+          textDecoration: "none",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          boxShadow:
+            "inset 0 1px 0 rgba(45,212,191,0.14), 0 0 14px rgba(45,212,191,0.06)",
+        }}
+      >
+        {/* sonar rings — emit from center, expand and fade */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          {[0, 0.75, 1.5].map((delay) => (
+            <div
+              key={delay}
+              className="absolute rounded-full"
+              style={{
+                width: 7, height: 7,
+                border: "1px solid rgba(45,212,191,0.65)",
+                animation: `sonarRing 2.2s ease-out ${delay}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* top gleam */}
+        <div
+          className="absolute top-0 inset-x-3 h-px pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(45,212,191,0.52), transparent)",
+          }}
+        />
+
+        {/* depth glow pulse */}
+        <div
+          className="absolute inset-0 pointer-events-none rounded-md"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 50%, rgba(45,212,191,0.08) 0%, transparent 68%)",
+            animation: "glassGlow 4s ease-in-out infinite",
+          }}
+        />
+
+        <Activity
+          className="w-3.5 h-3.5 relative z-10 shrink-0"
+          style={{ filter: "drop-shadow(0 0 5px rgba(45,212,191,0.70))" }}
+        />
+        <span
+          className="relative z-10 whitespace-nowrap"
+          style={{ textShadow: "0 0 10px rgba(45,212,191,0.38)" }}
+        >
+          Pulse
+        </span>
       </a>
     </>
   );
