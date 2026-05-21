@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
 import { Search, Compass } from "lucide-react";
-import { AskAIBtn, ForecastBtn, TerminalBtn, StrategyBtn } from "./NavButtons";
+import { AskAIBtn, ForecastBtn, TerminalBtn, StrategyBtn, ScreenerBtn } from "./NavButtons";
 import PriceHero from "./PriceHero";
 import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
@@ -71,7 +71,7 @@ export default function HomePage() {
               ><Compass className="w-3 h-3" />Discover</button>
             </div>
           </div>
-          {/* Row 2 — Ask AI · Forecast · Strategy */}
+          {/* Row 2 — Ask AI · Forecast · Screener */}
           <div className="px-4 h-10 flex items-center justify-center gap-2 border-t border-[#1e1e1e]">
             <div ref={chatBtnRef} className="relative">
               <AskAIBtn open={chatOpen} onClick={() => setChatOpen(v => !v)} />
@@ -89,7 +89,7 @@ export default function HomePage() {
               )}
             </div>
             <ForecastBtn />
-            <StrategyBtn />
+            <ScreenerBtn />
           </div>
         </div>
 
@@ -136,6 +136,7 @@ export default function HomePage() {
 
           <ForecastBtn />
           <StrategyBtn />
+          <ScreenerBtn />
           <TerminalBtn ticker={activeTicker} />
         </div>
       </header>

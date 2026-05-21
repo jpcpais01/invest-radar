@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Sparkles, LineChart, Terminal, FlaskConical, X } from "lucide-react";
+import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch } from "lucide-react";
 
 /* ─── shared keyframes ────────────────────────────────────────────────────── */
 const KEYFRAMES = `
@@ -30,6 +30,14 @@ const KEYFRAMES = `
   @keyframes glassGlow {
     0%, 100% { opacity: 0.5; }
     50%       { opacity: 1.0; }
+  }
+
+  /* Screener scan beam — sweeps left to right */
+  @keyframes scanSweep {
+    0%   { transform: translateX(-120%); opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { transform: translateX(2400%); opacity: 0; }
   }
 
   /* Rising bubbles — science-beaker fizz for the Backtest button */
@@ -438,6 +446,85 @@ export function StrategyBtn() {
           style={{ filter: "drop-shadow(0 0 5px rgba(196,181,253,0.70))" }}
         />
         <span className="relative z-10 whitespace-nowrap">Backtest</span>
+      </a>
+    </>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SCREENER — amber scan beam, data-scanner aesthetic
+   ════════════════════════════════════════════════════════════════════════════ */
+export function ScreenerBtn() {
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
+      <a
+        href="/screener"
+        className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(120,80,0,0.18) 0%, rgba(90,58,0,0.12) 50%, rgba(120,80,0,0.10) 100%)",
+          border: "1px solid rgba(251,191,36,0.28)",
+          color: "#fbbf24",
+          textDecoration: "none",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          boxShadow:
+            "inset 0 1px 0 rgba(251,191,36,0.14), 0 0 14px rgba(251,191,36,0.07)",
+        }}
+      >
+        {/* data-grid texture */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(251,191,36,0.045) 1px, transparent 1px), " +
+              "linear-gradient(90deg, rgba(251,191,36,0.045) 1px, transparent 1px)",
+            backgroundSize: "7px 7px",
+          }}
+        />
+
+        {/* scan beam */}
+        <div
+          className="absolute top-0 bottom-0 pointer-events-none"
+          style={{
+            width: "28%",
+            background:
+              "linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.22) 40%, rgba(251,191,36,0.38) 50%, rgba(251,191,36,0.22) 60%, transparent 100%)",
+            animation: "scanSweep 2.8s ease-in-out infinite",
+            animationDelay: "0.4s",
+          }}
+        />
+
+        {/* top gleam */}
+        <div
+          className="absolute top-0 inset-x-3 h-px pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(251,191,36,0.55), transparent)",
+          }}
+        />
+
+        {/* amber corner glow */}
+        <div
+          className="absolute inset-0 pointer-events-none rounded-md"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 50%, rgba(251,191,36,0.07) 0%, transparent 70%)",
+            animation: "glassGlow 3.5s ease-in-out infinite",
+          }}
+        />
+
+        <ScanSearch
+          className="w-3.5 h-3.5 relative z-10 shrink-0"
+          style={{ filter: "drop-shadow(0 0 5px rgba(251,191,36,0.65))" }}
+        />
+        <span
+          className="relative z-10 whitespace-nowrap"
+          style={{ textShadow: "0 0 10px rgba(251,191,36,0.35)" }}
+        >
+          Screener
+        </span>
       </a>
     </>
   );
