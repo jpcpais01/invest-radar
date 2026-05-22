@@ -134,7 +134,8 @@ export default function ScreenerPage() {
     queries: watchlist.map((t) => ({
       queryKey: ["quote", t],
       queryFn: () => fetch(`/api/market/quote/${t}`).then((r) => r.json()) as Promise<Quote>,
-      staleTime: 30_000,
+      staleTime: 10_000,
+      refetchInterval: 10_000,
     })),
   });
 
@@ -143,7 +144,8 @@ export default function ScreenerPage() {
       queryKey: ["history-screener", t],
       queryFn: () =>
         fetch(`/api/market/history/${t}?tf=1M`).then((r) => r.json()) as Promise<{ bars: OHLCVBar[] }>,
-      staleTime: 60_000,
+      staleTime: 10_000,
+      refetchInterval: 10_000,
     })),
   });
 
@@ -429,7 +431,7 @@ export default function ScreenerPage() {
         {/* footer note */}
         <div className="mt-4 flex items-center justify-between">
           <p className="text-[10px] text-[#2c2c2c]">
-            Click any row to open the ticker · Data refreshes every 30s
+            Click any row to open the ticker · Data refreshes every 10s
           </p>
           <p className="text-[10px] text-[#2c2c2c]">
             7D & 1M changes calculated from last trading session closes
