@@ -4,7 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useTickerStore } from "@/store/tickerStore";
 import { OHLCVBar } from "@/types/market";
 import {
-  Activity, ArrowLeft, ShieldCheck, Zap, Wind,
+  Aperture, ArrowLeft, ShieldCheck, Zap, Wind,
   Sparkles, RefreshCw, TrendingUp,
 } from "lucide-react";
 
@@ -12,7 +12,7 @@ import {
    PALETTE — one colour per ticker in the drawdown chart
 ══════════════════════════════════════════════════════════════ */
 const PALETTE = [
-  "#2dd4bf", "#fbbf24", "#60a5fa", "#c084fc",
+  "#7dd3fc", "#fbbf24", "#60a5fa", "#c084fc",
   "#fb923c", "#f472b6", "#4ade80", "#a3a3a3",
 ];
 
@@ -68,7 +68,7 @@ interface TickerStats {
 function corrBg(r: number): string {
   const c = Math.max(-1, Math.min(1, r));
   return c >= 0
-    ? `rgba(45,212,191,${(c * 0.52).toFixed(2)})`
+    ? `rgba(125,211,252,${(c * 0.52).toFixed(2)})`
     : `rgba(248,113,113,${(-c * 0.42).toFixed(2)})`;
 }
 
@@ -169,12 +169,12 @@ function ScatterPlot({ items }: { items: TickerStats[] }) {
       {/* quadrant fills */}
       {qy > 0 && (
         <>
-          <rect x={ML}  y={MT}  width={qx - ML}      height={qy - MT}      fill="rgba(45,212,191,0.04)" />
+          <rect x={ML}  y={MT}  width={qx - ML}      height={qy - MT}      fill="rgba(125,211,252,0.04)" />
           <rect x={qx}  y={MT}  width={ML + PW - qx} height={qy - MT}      fill="rgba(251,191,36,0.035)" />
           <rect x={ML}  y={qy}  width={qx - ML}      height={MT + PH - qy} fill="rgba(255,255,255,0.012)" />
           <rect x={qx}  y={qy}  width={ML + PW - qx} height={MT + PH - qy} fill="rgba(248,113,113,0.04)" />
           {/* quadrant labels — inside, near corners */}
-          <text x={ML+8}  y={MT+14} fontSize="7" fill="rgba(45,212,191,0.35)"  fontFamily="monospace" letterSpacing="1.5">SWEET SPOT</text>
+          <text x={ML+8}  y={MT+14} fontSize="7" fill="rgba(125,211,252,0.35)"  fontFamily="monospace" letterSpacing="1.5">SWEET SPOT</text>
           <text x={qx+8}  y={MT+14} fontSize="7" fill="rgba(251,191,36,0.35)"  fontFamily="monospace" letterSpacing="1.5">HIGH MOMENTUM</text>
           <text x={ML+8}  y={MT+PH-8} fontSize="7" fill="rgba(100,100,100,0.35)" fontFamily="monospace" letterSpacing="1.5">DEFENSIVE</text>
           <text x={qx+8}  y={MT+PH-8} fontSize="7" fill="rgba(248,113,113,0.35)" fontFamily="monospace" letterSpacing="1.5">RISK ZONE</text>
@@ -294,10 +294,10 @@ function CorrelationMatrix({ tickers, matrix }: { tickers: string[]; matrix: num
                       className="flex items-center justify-center rounded font-mono font-bold"
                       style={{
                         width: CELL - 6, height: 40,
-                        background: isDiag ? "rgba(45,212,191,0.13)" : corrBg(r),
-                        border: isDiag ? "1px solid rgba(45,212,191,0.28)" : "1px solid rgba(255,255,255,0.04)",
+                        background: isDiag ? "rgba(125,211,252,0.13)" : corrBg(r),
+                        border: isDiag ? "1px solid rgba(125,211,252,0.28)" : "1px solid rgba(255,255,255,0.04)",
                         fontSize: 10.5,
-                        color: isDiag ? "#2dd4bf" : Math.abs(r) > 0.35 ? "rgba(240,240,240,0.9)" : "#767676",
+                        color: isDiag ? "#7dd3fc" : Math.abs(r) > 0.35 ? "rgba(240,240,240,0.9)" : "#767676",
                       }}
                     >
                       {r.toFixed(2)}
@@ -356,7 +356,7 @@ function AIPanel({
         <div className="flex items-center gap-1.5 py-2">
           <span className="text-[11px] text-[#3a3a3a]">Analyzing</span>
           {[0, 0.18, 0.36].map(d => (
-            <div key={d} className="w-1.5 h-1.5 rounded-full bg-[#2dd4bf]"
+            <div key={d} className="w-1.5 h-1.5 rounded-full bg-[#7dd3fc]"
               style={{ animation: `ddBounce 1s ease-in-out ${d}s infinite alternate` }} />
           ))}
         </div>
@@ -369,7 +369,7 @@ function AIPanel({
             const isLast = i === blocks.length - 1;
             const cursor = loading && isLast ? (
               <span
-                className="inline-block w-[2px] h-[14px] ml-[2px] align-middle rounded-sm bg-[#2dd4bf]"
+                className="inline-block w-[2px] h-[14px] ml-[2px] align-middle rounded-sm bg-[#7dd3fc]"
                 style={{ animation: "ddBounce 0.6s ease-in-out infinite alternate" }}
               />
             ) : null;
@@ -378,7 +378,7 @@ function AIPanel({
             if (block.startsWith("### ")) {
               return (
                 <div key={i} className="flex items-center gap-2 pt-1">
-                  <span className="text-[#2dd4bf] text-[8px]">◆</span>
+                  <span className="text-[#7dd3fc] text-[8px]">◆</span>
                   <span className="text-[10px] font-bold text-[#f0f0f0] uppercase tracking-widest">
                     {block.slice(4)}
                   </span>
@@ -390,7 +390,7 @@ function AIPanel({
             if (/^\*\*[^*]+\*\*[:\s]*$/.test(block.trim())) {
               return (
                 <div key={i} className="flex items-center gap-2 pt-1">
-                  <span className="text-[#2dd4bf] text-[8px]">◆</span>
+                  <span className="text-[#7dd3fc] text-[8px]">◆</span>
                   <span className="text-[10px] font-bold text-[#f0f0f0] uppercase tracking-widest">
                     {block.trim().replace(/\*\*/g, "").replace(/:$/, "")}
                   </span>
@@ -421,7 +421,7 @@ function AIPanel({
           </span>
           <button
             onClick={onRegenerate}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#242424] text-[10px] text-[#767676] hover:text-[#2dd4bf] hover:border-[#2dd4bf33] transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#242424] text-[10px] text-[#767676] hover:text-[#7dd3fc] hover:border-[#7dd3fc33] transition-all"
           >
             <RefreshCw className="w-3 h-3" />
             Regenerate
@@ -603,9 +603,9 @@ export default function PulsePage() {
       style={{ background: "#080808", scrollbarWidth: "thin", scrollbarColor: "#1e1e1e transparent" }}
     >
       <style>{`
-        @keyframes sonarPage {
-          0%   { transform: scale(0.5); opacity: 0.9; }
-          100% { transform: scale(6);   opacity: 0;   }
+        @keyframes lensPageAperture {
+          0%   { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
         @keyframes ddBounce {
           from { opacity: 0.3; transform: translateY(0); }
@@ -628,15 +628,19 @@ export default function PulsePage() {
           {/* Badge */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="relative flex items-center justify-center" style={{ width: 22, height: 22 }}>
-              {[0, 0.75, 1.5].map(d => (
-                <div key={d} className="absolute rounded-full"
-                  style={{ width: 8, height: 8, border: "1.5px solid rgba(45,212,191,0.65)", animation: `sonarPage 2.2s ease-out ${d}s infinite`, transformOrigin: "center" }} />
-              ))}
-              <div className="w-2 h-2 rounded-full" style={{ background: "#2dd4bf", boxShadow: "0 0 5px #2dd4bf" }} />
+              {/* rotating aperture ring */}
+              <div className="absolute inset-0 rounded-full overflow-hidden">
+                <div style={{
+                  position: "absolute", inset: -2,
+                  background: "conic-gradient(from 0deg, transparent 0deg, rgba(125,211,252,0.55) 80deg, transparent 160deg, transparent 360deg)",
+                  animation: "lensPageAperture 3s linear infinite",
+                }} />
+              </div>
+              <Aperture className="w-3.5 h-3.5 relative z-10" style={{ color: "#7dd3fc", filter: "drop-shadow(0 0 4px rgba(125,211,252,0.7))" }} />
             </div>
             <div>
-              <div className="text-sm font-bold leading-none" style={{ color: "#2dd4bf", textShadow: "0 0 14px rgba(45,212,191,0.42)" }}>
-                Pulse
+              <div className="text-sm font-bold leading-none" style={{ color: "#7dd3fc", textShadow: "0 0 14px rgba(125,211,252,0.42)" }}>
+                Lens
               </div>
               <div className="text-[9px] text-[#3a3a3a] mt-0.5">Portfolio Analytics</div>
             </div>
@@ -677,8 +681,8 @@ export default function PulsePage() {
 
         {!isLoading && stats.length < 2 && (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
-            <Activity className="w-10 h-10 text-[#2c2c2c]" />
-            <p className="text-[#3a3a3a] text-sm">Add at least 2 tickers to your watchlist to unlock Pulse.</p>
+            <Aperture className="w-10 h-10 text-[#2c2c2c]" />
+            <p className="text-[#3a3a3a] text-sm">Add at least 2 tickers to your watchlist to unlock Lens.</p>
           </div>
         )}
 
@@ -717,7 +721,7 @@ export default function PulsePage() {
                 label="Best Risk-Adj. Return"
                 value={portfolio.bestSharpe.ticker}
                 sub={`Sharpe ${portfolio.bestSharpe.sharpe.toFixed(2)} · ${portfolio.bestSharpe.ret >= 0 ? "+" : ""}${portfolio.bestSharpe.ret.toFixed(1)}% 1M`}
-                color="#2dd4bf"
+                color="#7dd3fc"
                 icon={<Zap className="w-3 h-3" />}
               />
 
@@ -736,7 +740,7 @@ export default function PulsePage() {
             <div className="grid lg:grid-cols-[1fr_300px] gap-5">
               <div className="rounded-xl border border-[#1e1e1e] bg-[#0c0c0c] p-5">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[#2dd4bf] text-[8px]">◆</span>
+                  <span className="text-[#7dd3fc] text-[8px]">◆</span>
                   <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Risk / Return Universe</span>
                 </div>
                 <p className="text-[9px] text-[#3a3a3a] mb-4 ml-3.5">
@@ -747,7 +751,7 @@ export default function PulsePage() {
 
               <div className="rounded-xl border border-[#1e1e1e] bg-[#0c0c0c] p-5 flex flex-col">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[#2dd4bf] text-[8px]">◆</span>
+                  <span className="text-[#7dd3fc] text-[8px]">◆</span>
                   <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Breakdown</span>
                 </div>
                 <p className="text-[9px] text-[#3a3a3a] mb-4 ml-3.5">Sorted by risk-adjusted return</p>
@@ -778,14 +782,14 @@ export default function PulsePage() {
             <div className="rounded-xl border border-[#1e1e1e] bg-[#0c0c0c] p-5">
               <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[#2dd4bf] text-[8px]">◆</span>
+                  <span className="text-[#7dd3fc] text-[8px]">◆</span>
                   <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Correlation Matrix</span>
                 </div>
                 <div className="flex items-center gap-3">
                   {[
                     { label: "−1 Inverse", bg: "rgba(248,113,113,0.42)" },
                     { label: "0 None",     bg: "#181818" },
-                    { label: "+1 Perfect", bg: "rgba(45,212,191,0.52)" },
+                    { label: "+1 Perfect", bg: "rgba(125,211,252,0.52)" },
                   ].map(({ label, bg }) => (
                     <div key={label} className="flex items-center gap-1.5">
                       <div className="w-6 h-2 rounded-sm" style={{ background: bg }} />
@@ -807,18 +811,18 @@ export default function PulsePage() {
             <div
               className="rounded-xl border p-5 flex flex-col gap-4"
               style={{
-                background: "linear-gradient(135deg, rgba(45,212,191,0.035) 0%, rgba(0,0,0,0) 55%)",
-                borderColor: "rgba(45,212,191,0.16)",
+                background: "linear-gradient(135deg, rgba(125,211,252,0.035) 0%, rgba(0,0,0,0) 55%)",
+                borderColor: "rgba(125,211,252,0.16)",
               }}
             >
               {/* Header */}
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5" style={{ color: "#2dd4bf", filter: "drop-shadow(0 0 4px rgba(45,212,191,0.6))" }} />
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: "#7dd3fc", filter: "drop-shadow(0 0 4px rgba(125,211,252,0.6))" }} />
                   <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Portfolio Analysis</span>
                   <span
                     className="text-[9px] px-1.5 py-0.5 rounded-full border font-semibold"
-                    style={{ color: "#2dd4bf", borderColor: "rgba(45,212,191,0.28)", background: "rgba(45,212,191,0.08)" }}
+                    style={{ color: "#7dd3fc", borderColor: "rgba(125,211,252,0.28)", background: "rgba(125,211,252,0.08)" }}
                   >
                     Claude
                   </span>

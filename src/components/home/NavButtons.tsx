@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch, Activity } from "lucide-react";
+import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch, Aperture } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ─── shared keyframes ────────────────────────────────────────────────────── */
@@ -53,6 +53,18 @@ const KEYFRAMES = `
     18%  { opacity: 0.85; }
     80%  { opacity: 0.4; }
     100% { transform: translateY(-21px) scale(1.05); opacity: 0; }
+  }
+
+  /* Lens aperture — conic sweep rotates like an iris opening */
+  @keyframes lensAperture {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Lens glint — small bright spot pulses */
+  @keyframes lensGlint {
+    0%, 100% { opacity: 0.0; transform: scale(0.6); }
+    50%       { opacity: 0.9; transform: scale(1.2); }
   }
 `;
 
@@ -459,9 +471,9 @@ export function StrategyBtn() {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   PULSE — teal glassmorphism with sonar-ping rings
+   LENS — sky-blue glass with rotating aperture iris sweep
    ════════════════════════════════════════════════════════════════════════════ */
-export function PulseBtn({ className }: { className?: string } = {}) {
+export function LensBtn({ className }: { className?: string } = {}) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
@@ -470,59 +482,69 @@ export function PulseBtn({ className }: { className?: string } = {}) {
         className={cn("relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0", className)}
         style={{
           background:
-            "linear-gradient(135deg, rgba(0,80,72,0.20) 0%, rgba(0,60,55,0.14) 50%, rgba(0,80,72,0.10) 100%)",
-          border: "1px solid rgba(45,212,191,0.28)",
-          color: "#2dd4bf",
+            "linear-gradient(135deg, rgba(14,50,90,0.22) 0%, rgba(10,38,70,0.15) 50%, rgba(14,50,90,0.12) 100%)",
+          border: "1px solid rgba(125,211,252,0.28)",
+          color: "#7dd3fc",
           textDecoration: "none",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           boxShadow:
-            "inset 0 1px 0 rgba(45,212,191,0.14), 0 0 14px rgba(45,212,191,0.06)",
+            "inset 0 1px 0 rgba(186,230,253,0.14), 0 0 14px rgba(56,189,248,0.07)",
         }}
       >
-        {/* sonar rings — emit from center, expand and fade */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          {[0, 0.75, 1.5].map((delay) => (
-            <div
-              key={delay}
-              className="absolute rounded-full"
-              style={{
-                width: 7, height: 7,
-                border: "1px solid rgba(45,212,191,0.65)",
-                animation: `sonarRing 2.2s ease-out ${delay}s infinite`,
-              }}
-            />
-          ))}
+        {/* rotating aperture conic sweep */}
+        <div className="absolute inset-0 pointer-events-none rounded-md overflow-hidden">
+          <div
+            style={{
+              position: "absolute",
+              inset: -4,
+              background:
+                "conic-gradient(from 0deg, transparent 0deg, rgba(186,230,253,0.12) 55deg, rgba(125,211,252,0.22) 90deg, rgba(186,230,253,0.12) 125deg, transparent 180deg, transparent 360deg)",
+              animation: "lensAperture 4s linear infinite",
+            }}
+          />
         </div>
+
+        {/* lens glint — tiny bright spark that pulses */}
+        <div
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            width: 3, height: 3,
+            top: "28%", left: "28%",
+            background: "rgba(224,242,254,0.95)",
+            filter: "blur(1px)",
+            animation: "lensGlint 2.8s ease-in-out infinite",
+          }}
+        />
 
         {/* top gleam */}
         <div
           className="absolute top-0 inset-x-3 h-px pointer-events-none"
           style={{
             background:
-              "linear-gradient(90deg, transparent, rgba(45,212,191,0.52), transparent)",
+              "linear-gradient(90deg, transparent, rgba(186,230,253,0.55), transparent)",
           }}
         />
 
-        {/* depth glow pulse */}
+        {/* depth glow */}
         <div
           className="absolute inset-0 pointer-events-none rounded-md"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 50%, rgba(45,212,191,0.08) 0%, transparent 68%)",
+              "radial-gradient(ellipse at 50% 50%, rgba(56,189,248,0.09) 0%, transparent 68%)",
             animation: "glassGlow 4s ease-in-out infinite",
           }}
         />
 
-        <Activity
+        <Aperture
           className="w-3.5 h-3.5 relative z-10 shrink-0"
-          style={{ filter: "drop-shadow(0 0 5px rgba(45,212,191,0.70))" }}
+          style={{ filter: "drop-shadow(0 0 5px rgba(125,211,252,0.75))" }}
         />
         <span
           className="relative z-10 whitespace-nowrap"
-          style={{ textShadow: "0 0 10px rgba(45,212,191,0.38)" }}
+          style={{ textShadow: "0 0 10px rgba(125,211,252,0.40)" }}
         >
-          Pulse
+          Lens
         </span>
       </a>
     </>
