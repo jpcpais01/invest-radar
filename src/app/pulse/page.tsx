@@ -146,7 +146,8 @@ function MiniBar({ value, max }: { value: number; max: number }) {
 function ScatterPlot({ items }: { items: TickerStats[] }) {
   if (items.length < 2) return null;
   const VW = 680, VH = 340;
-  const ML = 66, MR = 20, MT = 28, MB = 44;
+  // No external margins — axis labels live inside the plot
+  const ML = 4, MR = 4, MT = 4, MB = 4;
   const PW = VW - ML - MR, PH = VH - MT - MB;
 
   const vols = items.map(d => d.vol), rets = items.map(d => d.ret);
@@ -165,18 +166,22 @@ function ScatterPlot({ items }: { items: TickerStats[] }) {
 
   return (
     <svg viewBox={`0 0 ${VW} ${VH}`} width="100%" style={{ overflow: "visible" }}>
+      {/* quadrant fills */}
       {qy > 0 && (
         <>
           <rect x={ML}  y={MT}  width={qx - ML}      height={qy - MT}      fill="rgba(45,212,191,0.04)" />
           <rect x={qx}  y={MT}  width={ML + PW - qx} height={qy - MT}      fill="rgba(251,191,36,0.035)" />
           <rect x={ML}  y={qy}  width={qx - ML}      height={MT + PH - qy} fill="rgba(255,255,255,0.012)" />
           <rect x={qx}  y={qy}  width={ML + PW - qx} height={MT + PH - qy} fill="rgba(248,113,113,0.04)" />
-          <text x={ML+7}  y={MT+13} fontSize="7" fill="rgba(45,212,191,0.36)"  fontFamily="monospace" letterSpacing="1.5">SWEET SPOT</text>
-          <text x={qx+7}  y={MT+13} fontSize="7" fill="rgba(251,191,36,0.36)"  fontFamily="monospace" letterSpacing="1.5">HIGH MOMENTUM</text>
-          <text x={ML+7}  y={MT+PH-7} fontSize="7" fill="rgba(100,100,100,0.36)" fontFamily="monospace" letterSpacing="1.5">DEFENSIVE</text>
-          <text x={qx+7}  y={MT+PH-7} fontSize="7" fill="rgba(248,113,113,0.36)" fontFamily="monospace" letterSpacing="1.5">RISK ZONE</text>
+          {/* quadrant labels — inside, near corners */}
+          <text x={ML+8}  y={MT+14} fontSize="7" fill="rgba(45,212,191,0.35)"  fontFamily="monospace" letterSpacing="1.5">SWEET SPOT</text>
+          <text x={qx+8}  y={MT+14} fontSize="7" fill="rgba(251,191,36,0.35)"  fontFamily="monospace" letterSpacing="1.5">HIGH MOMENTUM</text>
+          <text x={ML+8}  y={MT+PH-8} fontSize="7" fill="rgba(100,100,100,0.35)" fontFamily="monospace" letterSpacing="1.5">DEFENSIVE</text>
+          <text x={qx+8}  y={MT+PH-8} fontSize="7" fill="rgba(248,113,113,0.35)" fontFamily="monospace" letterSpacing="1.5">RISK ZONE</text>
         </>
       )}
+
+      {/* grid lines */}
       {Array.from({ length: xTicks + 1 }, (_, i) => {
         const v = vlo + (i / xTicks) * (vhi - vlo);
         return <line key={i} x1={mx(v)} y1={MT} x2={mx(v)} y2={MT+PH} stroke="#161616" strokeWidth="1" />;
@@ -185,23 +190,54 @@ function ScatterPlot({ items }: { items: TickerStats[] }) {
         const r = rlo + (i / yTicks) * (rhi - rlo);
         return <line key={i} x1={ML} y1={my(r)} x2={ML+PW} y2={my(r)} stroke="#161616" strokeWidth="1" />;
       })}
+
+      {/* border */}
       <rect x={ML} y={MT} width={PW} height={PH} fill="none" stroke="#2a2a2a" strokeWidth="1" rx="2" />
+
+      {/* quadrant dividers */}
       {qy > 0 && (
         <>
           <line x1={ML} y1={qy} x2={ML+PW} y2={qy} stroke="#3a3a3a" strokeWidth="1" strokeDasharray="4,4" />
           <line x1={qx} y1={MT} x2={qx} y2={MT+PH} stroke="#3a3a3a" strokeWidth="1" strokeDasharray="4,4" />
         </>
       )}
+
+      {/* ── X-axis tick labels — inside, along the bottom edge ── */}
       {Array.from({ length: xTicks + 1 }, (_, i) => {
         const v = vlo + (i / xTicks) * (vhi - vlo);
-        return <text key={i} x={mx(v)} y={MT+PH+17} textAnchor="middle" fontSize="9" fill="#3a3a3a" fontFamily="monospace">{v.toFixed(0)}%</text>;
+        const x = mx(v);
+        const label = `${v.toFixed(0)}%`;
+        return (
+          <g key={i}>
+            <rect x={x - 12} y={MT+PH-16} width={24} height={12} rx="2" fill="rgba(8,8,8,0.72)" />
+            <text x={x} y={MT+PH-7} textAnchor="middle" fontSize="8" fill="#4a4a4a" fontFamily="monospace">{label}</text>
+          </g>
+        );
       })}
+
+      {/* ── Y-axis tick labels — inside, along the left edge ── */}
       {Array.from({ length: yTicks + 1 }, (_, i) => {
         const r = rlo + (i / yTicks) * (rhi - rlo);
-        return <text key={i} x={ML-6} y={my(r)+3.5} textAnchor="end" fontSize="9" fill="#3a3a3a" fontFamily="monospace">{r >= 0 ? "+" : ""}{r.toFixed(1)}%</text>;
+        const y = my(r);
+        const label = `${r >= 0 ? "+" : ""}${r.toFixed(1)}%`;
+        const w = label.length * 5.6 + 6;
+        return (
+          <g key={i}>
+            <rect x={ML+4} y={y-9} width={w} height={12} rx="2" fill="rgba(8,8,8,0.72)" />
+            <text x={ML+7} y={y+2} textAnchor="start" fontSize="8" fill="#4a4a4a" fontFamily="monospace">{label}</text>
+          </g>
+        );
       })}
-      <text x={ML+PW/2} y={VH-2} textAnchor="middle" fontSize="10" fill="#4a4a4a" fontFamily="system-ui">Annualised Volatility →</text>
-      <text x={11} y={MT+PH/2} textAnchor="middle" fontSize="10" fill="#4a4a4a" fontFamily="system-ui" transform={`rotate(-90,11,${MT+PH/2})`}>1M Return →</text>
+
+      {/* ── Axis labels — ghost text inside chart ── */}
+      <text x={ML+PW/2} y={MT+PH-4} textAnchor="middle" fontSize="9" fill="rgba(74,74,74,0.55)" fontFamily="system-ui">Annualised Vol →</text>
+      <text
+        x={ML+14} y={MT+PH/2}
+        textAnchor="middle" fontSize="9" fill="rgba(74,74,74,0.55)" fontFamily="system-ui"
+        transform={`rotate(-90,${ML+14},${MT+PH/2})`}
+      >1M Return →</text>
+
+      {/* dots */}
       {items.map((d) => {
         const x = mx(d.vol), y = my(d.ret);
         const pos = d.ret >= 0;
