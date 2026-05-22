@@ -19,8 +19,8 @@ function WatchlistChip({
       const res = await fetch(`/api/market/quote/${ticker}`);
       return res.json();
     },
-    refetchInterval: 30000,
-    staleTime: 15000,
+    refetchInterval: 10_000,
+    staleTime: 10_000,
   });
 
   const price = data?.price as number | undefined;
