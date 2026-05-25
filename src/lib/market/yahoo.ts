@@ -104,14 +104,16 @@ export async function getEarnings(ticker: string): Promise<EarningsEvent[]> {
       yf.quoteSummary(ticker, { modules: ["earningsHistory"] }).catch(() => null),
     ]);
 
-    // Build beat/miss lookup from earningsHistory
-    const beatMap = new Map<string, boolean | undefined>();
+    // Build beat/miss and estimate lookups from earningsHistory
+    const beatMap     = new Map<string, boolean | undefined>();
+    const estimateMap = new Map<string, number>();
     for (const e of (summary as any)?.earningsHistory?.history ?? []) {
       const quarter = e.quarter;
       if (!quarter) continue;
       const date = new Date(quarter).toISOString().split("T")[0];
-      const actual = typeof e.epsActual === "number" ? e.epsActual : undefined;
+      const actual   = typeof e.epsActual   === "number" ? e.epsActual   : undefined;
       const estimate = typeof e.epsEstimate === "number" ? e.epsEstimate : undefined;
+      if (estimate != null) estimateMap.set(date, estimate);
       if (actual != null && estimate != null) beatMap.set(date, actual > estimate);
     }
 
@@ -122,7 +124,7 @@ export async function getEarnings(ticker: string): Promise<EarningsEvent[]> {
           ? q.date.toISOString().split("T")[0]
           : String(q.date).split("T")[0];
         const epsActual = q.dilutedEPS ?? q.basicEPS;
-        return { date, epsActual, beat: beatMap.get(date) };
+        return { date, epsActual, epsEstimate: estimateMap.get(date), beat: beatMap.get(date) };
       })
       .filter((e) => e.date)
       .sort((a, b) => a.date.localeCompare(b.date));
