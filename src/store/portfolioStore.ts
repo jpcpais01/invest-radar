@@ -7,7 +7,7 @@ export interface Position {
   ticker: string;
   name?: string;
   shares: number;
-  avgCost: number; // per share cost basis
+  avgBuyPrice: number; // average price paid per share
 }
 
 interface PortfolioStore {

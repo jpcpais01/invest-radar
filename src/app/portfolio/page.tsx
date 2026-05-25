@@ -440,9 +440,9 @@ function PositionModal({
   const [ticker,    setTicker]    = useState(initial?.ticker ?? "");
   const [shares,    setShares]    = useState(initial ? String(initial.shares) : "");
   const [costMode,  setCostMode]  = useState<"per-share" | "total">("per-share");
-  const [perShare,  setPerShare]  = useState(initial ? String(initial.avgCost) : "");
+  const [perShare,  setPerShare]  = useState(initial ? String(initial.avgBuyPrice) : "");
   const [totalInv,  setTotalInv]  = useState(
-    initial ? String((initial.avgCost * initial.shares).toFixed(2)) : ""
+    initial ? String((initial.avgBuyPrice * initial.shares).toFixed(2)) : ""
   );
   const [selName,   setSelName]   = useState(initial?.name ?? "");
   const [results,   setResults]   = useState<{ symbol: string; name: string }[]>([]);
@@ -472,13 +472,13 @@ function PositionModal({
   };
 
   const sharesNum = Number(shares);
-  const avgCost = costMode === "per-share"
+  const avgBuyPrice = costMode === "per-share"
     ? Number(perShare)
     : (sharesNum > 0 ? Number(totalInv) / sharesNum : 0);
-  const totalCost = costMode === "per-share"
+  const totalInvested = costMode === "per-share"
     ? sharesNum * Number(perShare)
     : Number(totalInv);
-  const valid = ticker.length > 0 && sharesNum > 0 && avgCost > 0;
+  const valid = ticker.length > 0 && sharesNum > 0 && avgBuyPrice > 0;
 
   const switchMode = (next: "per-share" | "total") => {
     if (next === "total" && Number(perShare) > 0 && sharesNum > 0) {
@@ -494,7 +494,7 @@ function PositionModal({
     onSave({
       ticker:  ticker.toUpperCase(),
       shares:  sharesNum,
-      avgCost,
+      avgBuyPrice,
       name:    selName || undefined,
     });
     onClose();
@@ -568,7 +568,7 @@ function PositionModal({
           {/* cost input with per-share / total toggle */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className={LBL} style={{ margin: 0 }}>Cost</span>
+              <span className={LBL} style={{ margin: 0 }}>Avg Buy Price</span>
               <div className="flex items-center gap-0.5 rounded-md border border-[#141420] p-0.5"
                 style={{ background: "#080810" }}>
                 <button type="button" onClick={() => switchMode("per-share")}
@@ -595,19 +595,19 @@ function PositionModal({
           </div>
 
           {/* computed summary row */}
-          {totalCost > 0 && (
+          {totalInvested > 0 && (
             <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#141420]"
               style={{ background: "#080810" }}>
               {costMode === "per-share" ? (
                 <>
                   <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">Total invested</span>
-                  <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">{fmt$(totalCost)}</span>
+                  <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">{fmt$(totalInvested)}</span>
                 </>
               ) : (
                 <>
-                  <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">Price per share</span>
+                  <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">Avg buy price / share</span>
                   <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">
-                    {avgCost > 0 ? fmt$(avgCost) : "—"}
+                    {avgBuyPrice > 0 ? fmt$(avgBuyPrice) : "—"}
                   </span>
                 </>
               )}
@@ -768,27 +768,27 @@ export default function PortfolioPage() {
     const rows = positions.map((p) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const q        = quoteMap.get(p.ticker) as any;
-      const price    = q?.price    ?? p.avgCost;  // fallback to cost while loading
+      const price    = q?.price    ?? p.avgBuyPrice;  // fallback while loading
       const mktVal   = price * p.shares;
-      const costVal  = p.avgCost * p.shares;
-      const pnl      = mktVal - costVal;
-      const pnlPct   = costVal > 0 ? (pnl / costVal) * 100 : 0;
+      const buyVal   = p.avgBuyPrice * p.shares;
+      const pnl      = mktVal - buyVal;
+      const pnlPct   = buyVal > 0 ? (pnl / buyVal) * 100 : 0;
       // q.change is absolute $ change per share; multiply by shares for position change
       const dayChg    = (q?.change ?? 0) * p.shares;
       // q.changePercent is already a percentage (e.g. 1.5 means +1.5%)
       const dayChgPct = q?.changePercent ?? 0;
       const name      = q?.name ?? p.name ?? p.ticker;
       return {
-        id: p.id, ticker: p.ticker, shares: p.shares, avgCost: p.avgCost,
-        name, price, mktVal, costVal, pnl, pnlPct, dayChg, dayChgPct,
+        id: p.id, ticker: p.ticker, shares: p.shares, avgBuyPrice: p.avgBuyPrice,
+        name, price, mktVal, buyVal, pnl, pnlPct, dayChg, dayChgPct,
         weight: 0,
       };
     });
 
     const totalValue   = rows.reduce((s, r) => s + r.mktVal, 0);
-    const totalCost    = rows.reduce((s, r) => s + r.costVal, 0);
-    const totalPnl     = totalValue - totalCost;
-    const totalPnlPct  = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+    const totalInvested = rows.reduce((s, r) => s + r.buyVal, 0);
+    const totalPnl      = totalValue - totalInvested;
+    const totalPnlPct   = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
     const dayPnl       = rows.reduce((s, r) => s + r.dayChg, 0);
     // Yesterday's value = today's value minus today's gain/loss
     const prevValue    = totalValue - dayPnl;
@@ -804,7 +804,7 @@ export default function PortfolioPage() {
     const worst  = sorted.at(-1) ?? null;
 
     return {
-      rows: finalRows, totalValue, totalCost,
+      rows: finalRows, totalValue, totalInvested,
       totalPnl, totalPnlPct, dayPnl, dayPnlPct,
       best, worst,
     };
@@ -961,8 +961,8 @@ export default function PortfolioPage() {
             trend={quotesLoading ? "neutral" : metrics.dayPnl >= 0 ? "up" : "down"}
           />
           <StatCard
-            label="Cost Basis"
-            main={fmt$(metrics.totalCost)}
+            label="Total Invested"
+            main={fmt$(metrics.totalInvested)}
             trend="neutral"
           />
         </div>
@@ -1014,7 +1014,7 @@ export default function PortfolioPage() {
             <div className="flex items-center gap-4 px-4 pt-2">
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-0.5 rounded"
-                  style={{ background: portfolioSeries.length && portfolioSeries.at(-1)!.value >= metrics.totalCost ? "#34d399" : "#f87171" }} />
+                  style={{ background: portfolioSeries.length && portfolioSeries.at(-1)!.value >= metrics.totalInvested ? "#34d399" : "#f87171" }} />
                 <span className="text-[8px] text-[#3a3a4a]">Portfolio</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -1026,7 +1026,7 @@ export default function PortfolioPage() {
             <PLChart
               series={portfolioSeries}
               spySeries={spySeries}
-              costBasis={metrics.totalCost}
+              costBasis={metrics.totalInvested}
               tf={chartTf}
             />
           </div>
@@ -1087,7 +1087,7 @@ export default function PortfolioPage() {
                   {[
                     { label: "Ticker",       align: "left"  },
                     { label: "Shares",       align: "right" },
-                    { label: "Cost/Share",   align: "right" },
+                    { label: "Avg Buy Price", align: "right" },
                     { label: "Price",        align: "right" },
                     { label: "Market Value", align: "right" },
                     { label: "Day Chg",      align: "right" },
@@ -1134,7 +1134,7 @@ export default function PortfolioPage() {
                     {/* avg cost */}
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-[10px] font-mono text-[#767676]">
-                        {fmt$(row.avgCost)}
+                        {fmt$(row.avgBuyPrice)}
                       </span>
                     </td>
 
@@ -1205,7 +1205,7 @@ export default function PortfolioPage() {
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => { setEditPos({ id: row.id, ticker: row.ticker, shares: row.shares, avgCost: row.avgCost, name: row.name }); setShowModal(true); }}
+                          onClick={() => { setEditPos({ id: row.id, ticker: row.ticker, shares: row.shares, avgBuyPrice: row.avgBuyPrice, name: row.name }); setShowModal(true); }}
                           className="w-6 h-6 rounded flex items-center justify-center text-[#2a2a3a] hover:text-[#767676] hover:bg-[#161620] transition-colors">
                           <Pencil className="w-3 h-3" />
                         </button>
@@ -1262,7 +1262,7 @@ export default function PortfolioPage() {
           onSave={(p) => {
             if (editPos) {
               updatePosition(editPos.id, {
-                shares: p.shares, avgCost: p.avgCost, name: p.name,
+                shares: p.shares, avgBuyPrice: p.avgBuyPrice, name: p.name
               });
             } else {
               addPosition(p);
