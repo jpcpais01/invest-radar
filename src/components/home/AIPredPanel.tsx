@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect, useCallback, useMemo, useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { OHLCVBar } from "@/types/market";
+import { OHLCVBar, EarningsEvent } from "@/types/market";
 
 interface Props { ticker: string }
 
@@ -58,12 +58,19 @@ function evenIdxs(total: number, n: number): number[] {
 const MG = { top: 12, right: 60, bottom: 22, left: 0 };
 const CHART_H = 240;
 
+interface EarningsMarker {
+  idx: number;
+  eps: number;
+  beat: boolean | undefined;
+}
+
 interface ChartProps {
   bars: OHLCVBar[];
   tf: TFOption;
+  earnings?: EarningsMarker[];
 }
 
-function PriceChart({ bars, tf }: ChartProps) {
+function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -246,6 +253,48 @@ function PriceChart({ bars, tf }: ChartProps) {
           >{fmtDateTick(bars[i]?.time ?? 0, tf)}</text>
         ))}
 
+        {/* ── Earnings markers ── */}
+        {earnings.map((m, i) => {
+          if (m.idx < 0 || m.idx >= bars.length) return null;
+          const x   = xS(m.idx);
+          const py  = yS(bars[m.idx].close);
+          const col = m.beat === true ? "#4ade80" : m.beat === false ? "#f87171" : "#94a3b8";
+          const rgb = m.beat === true ? "74,222,128" : m.beat === false ? "248,113,113" : "148,163,184";
+          const lbl = `${m.eps >= 0 ? "+" : ""}$${Math.abs(m.eps).toFixed(2)}`;
+          // alternate label rows to avoid collisions between adjacent quarters
+          const labelY = priceTopY + 6 + (i % 2 === 0 ? 0 : 18);
+          const lblW   = lbl.length * 5.8 + 10;
+          return (
+            <g key={i}>
+              {/* vertical guide */}
+              <line
+                x1={x.toFixed(1)} y1={priceTopY}
+                x2={x.toFixed(1)} y2={priceBotY}
+                stroke={`rgba(${rgb},0.12)`} strokeWidth="1" strokeDasharray="3,4"
+              />
+              {/* price dot */}
+              <circle cx={x.toFixed(1)} cy={py.toFixed(1)} r="5"
+                fill={`rgba(${rgb},0.14)`} stroke={col} strokeWidth="1"
+              />
+              <circle cx={x.toFixed(1)} cy={py.toFixed(1)} r="2"
+                fill={col} style={{ filter: `drop-shadow(0 0 3px rgba(${rgb},0.7))` }}
+              />
+              {/* EPS pill at top */}
+              <rect
+                x={(x - lblW / 2).toFixed(1)} y={labelY}
+                width={lblW} height={13} rx="3"
+                fill="rgba(5,6,16,0.88)"
+                stroke={`rgba(${rgb},0.45)`} strokeWidth="0.75"
+              />
+              <text
+                x={x.toFixed(1)} y={(labelY + 9).toFixed(1)}
+                textAnchor="middle" fontSize="7.5" fontFamily="ui-monospace,monospace"
+                fontWeight="600" fill={col}
+              >{lbl}</text>
+            </g>
+          );
+        })}
+
         {/* Crosshair */}
         {crosshair && (() => {
           const { cx, cy, bar } = crosshair;
@@ -297,9 +346,12 @@ function PriceChart({ bars, tf }: ChartProps) {
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
+const EPS_TFS = new Set<TFOption>(["1Y", "2Y", "5Y"]);
+
 export default function AIPredPanel({ ticker }: Props) {
   const [tf, setTf] = useState<TFOption>("1Y");
   const isIntraday  = INTRADAY_TFS.has(tf);
+  const showEps     = EPS_TFS.has(tf);
 
   const { data, isLoading } = useQuery<{ bars: OHLCVBar[] }>({
     queryKey: ["price-panel", ticker, tf],
@@ -307,6 +359,13 @@ export default function AIPredPanel({ ticker }: Props) {
       fetch(`/api/market/history/${encodeURIComponent(ticker)}?tf=${tf}`).then(r => r.json()),
     staleTime: 5 * 60_000,
     refetchInterval: () => isIntraday && isMarketOpen() ? 60_000 : false,
+  });
+
+  const { data: earningsData } = useQuery<{ earnings: EarningsEvent[] }>({
+    queryKey: ["earnings", ticker],
+    queryFn:  () => fetch(`/api/market/earnings/${encodeURIComponent(ticker)}`).then(r => r.json()),
+    staleTime: 60 * 60_000,
+    enabled: showEps,
   });
 
   const bars = data?.bars ?? [];
@@ -319,6 +378,25 @@ export default function AIPredPanel({ ticker }: Props) {
   const periodLow  = bars.length ? Math.min(...bars.map(b => b.low))  : 0;
   const isUp       = periodPct >= 0;
   const marketOpen = isMarketOpen();
+
+  // Map earnings events → bar indices for overlay
+  const earningsMarkers = useMemo<EarningsMarker[]>(() => {
+    if (!showEps || !earningsData?.earnings || !bars.length) return [];
+    const maxGap = 10 * 24 * 3600; // 10 days tolerance
+    return earningsData.earnings
+      .filter(e => e.epsActual != null)
+      .map(e => {
+        const ts = new Date(e.date).getTime() / 1000;
+        let closest = -1, minDiff = Infinity;
+        bars.forEach((b, i) => {
+          const d = Math.abs(b.time - ts);
+          if (d < minDiff) { minDiff = d; closest = i; }
+        });
+        if (closest === -1 || minDiff > maxGap) return null;
+        return { idx: closest, eps: e.epsActual!, beat: e.beat };
+      })
+      .filter((m): m is EarningsMarker => m !== null);
+  }, [showEps, earningsData, bars]);
 
   return (
     <div
@@ -373,7 +451,7 @@ export default function AIPredPanel({ ticker }: Props) {
           <p className="text-[9px] text-[#252535]">Loading…</p>
         </div>
       ) : bars.length > 0 ? (
-        <PriceChart bars={bars} tf={tf} />
+        <PriceChart bars={bars} tf={tf} earnings={earningsMarkers} />
       ) : (
         <div className="flex items-center justify-center" style={{ height: CHART_H }}>
           <p className="text-[9px] text-[#252535]">No data</p>
