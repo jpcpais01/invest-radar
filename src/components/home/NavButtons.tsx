@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch, Aperture } from "lucide-react";
+import { Sparkles, LineChart, Terminal, FlaskConical, X, ScanSearch, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ─── shared keyframes ────────────────────────────────────────────────────── */
@@ -55,16 +55,10 @@ const KEYFRAMES = `
     100% { transform: translateY(-21px) scale(1.05); opacity: 0; }
   }
 
-  /* Lens aperture — conic sweep rotates like an iris opening */
-  @keyframes lensAperture {
-    0%   { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  /* Lens glint — small bright spot pulses */
-  @keyframes lensGlint {
-    0%, 100% { opacity: 0.0; transform: scale(0.6); }
-    50%       { opacity: 0.9; transform: scale(1.2); }
+  /* Portfolio bars — animate like a live bar chart */
+  @keyframes pfBar {
+    0%, 100% { transform: scaleY(0.38); }
+    50%       { transform: scaleY(1.00); }
   }
 `;
 
@@ -471,58 +465,58 @@ export function StrategyBtn() {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   LENS — sky-blue glass with rotating aperture iris sweep
+   PORTFOLIO — emerald glass with animated live bar-chart bars
    ════════════════════════════════════════════════════════════════════════════ */
-export function LensBtn({ className }: { className?: string } = {}) {
+const PF_BARS = [
+  { h: "55%", delay: "0.0s"  },
+  { h: "80%", delay: "0.35s" },
+  { h: "40%", delay: "0.70s" },
+  { h: "90%", delay: "0.15s" },
+  { h: "65%", delay: "0.55s" },
+];
+
+export function PortfolioBtn({ className }: { className?: string } = {}) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
       <a
-        href="/pulse"
+        href="/portfolio"
         className={cn("relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium shrink-0", className)}
         style={{
           background:
-            "linear-gradient(135deg, rgba(14,50,90,0.22) 0%, rgba(10,38,70,0.15) 50%, rgba(14,50,90,0.12) 100%)",
-          border: "1px solid rgba(125,211,252,0.28)",
-          color: "#7dd3fc",
+            "linear-gradient(135deg, rgba(5,46,22,0.28) 0%, rgba(6,78,59,0.18) 50%, rgba(5,46,22,0.14) 100%)",
+          border: "1px solid rgba(52,211,153,0.30)",
+          color: "#34d399",
           textDecoration: "none",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           boxShadow:
-            "inset 0 1px 0 rgba(186,230,253,0.14), 0 0 14px rgba(56,189,248,0.07)",
+            "inset 0 1px 0 rgba(110,231,183,0.14), 0 0 14px rgba(52,211,153,0.07)",
         }}
       >
-        {/* rotating aperture conic sweep */}
-        <div className="absolute inset-0 pointer-events-none rounded-md overflow-hidden">
-          <div
-            style={{
-              position: "absolute",
-              inset: -4,
-              background:
-                "conic-gradient(from 0deg, transparent 0deg, rgba(186,230,253,0.12) 55deg, rgba(125,211,252,0.22) 90deg, rgba(186,230,253,0.12) 125deg, transparent 180deg, transparent 360deg)",
-              animation: "lensAperture 4s linear infinite",
-            }}
-          />
+        {/* animated bar-chart background */}
+        <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-px pb-0 pointer-events-none overflow-hidden"
+          style={{ height: "100%" }}>
+          {PF_BARS.map((b, i) => (
+            <div key={i}
+              style={{
+                width: 3,
+                height: b.h,
+                background: "rgba(52,211,153,0.22)",
+                borderRadius: "1px 1px 0 0",
+                animation: `pfBar 2.4s ease-in-out ${b.delay} infinite`,
+                transformOrigin: "bottom",
+              }}
+            />
+          ))}
         </div>
-
-        {/* lens glint — tiny bright spark that pulses */}
-        <div
-          className="absolute pointer-events-none rounded-full"
-          style={{
-            width: 3, height: 3,
-            top: "28%", left: "28%",
-            background: "rgba(224,242,254,0.95)",
-            filter: "blur(1px)",
-            animation: "lensGlint 2.8s ease-in-out infinite",
-          }}
-        />
 
         {/* top gleam */}
         <div
           className="absolute top-0 inset-x-3 h-px pointer-events-none"
           style={{
             background:
-              "linear-gradient(90deg, transparent, rgba(186,230,253,0.55), transparent)",
+              "linear-gradient(90deg, transparent, rgba(110,231,183,0.55), transparent)",
           }}
         />
 
@@ -531,20 +525,20 @@ export function LensBtn({ className }: { className?: string } = {}) {
           className="absolute inset-0 pointer-events-none rounded-md"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 50%, rgba(56,189,248,0.09) 0%, transparent 68%)",
+              "radial-gradient(ellipse at 50% 50%, rgba(52,211,153,0.09) 0%, transparent 68%)",
             animation: "glassGlow 4s ease-in-out infinite",
           }}
         />
 
-        <Aperture
+        <Briefcase
           className="w-3.5 h-3.5 relative z-10 shrink-0"
-          style={{ filter: "drop-shadow(0 0 5px rgba(125,211,252,0.75))" }}
+          style={{ filter: "drop-shadow(0 0 5px rgba(52,211,153,0.70))" }}
         />
         <span
           className="relative z-10 whitespace-nowrap"
-          style={{ textShadow: "0 0 10px rgba(125,211,252,0.40)" }}
+          style={{ textShadow: "0 0 10px rgba(52,211,153,0.40)" }}
         >
-          Lens
+          Portfolio
         </span>
       </a>
     </>

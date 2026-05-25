@@ -1,0 +1,1196 @@
+"use client";
+import {
+  useState, useEffect, useRef, useCallback, useMemo, useId,
+} from "react";
+import { useQueries } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
+import {
+  usePortfolioStore, Position,
+} from "@/store/portfolioStore";
+import {
+  Plus, X, Pencil, Trash2, Briefcase, ArrowLeft,
+  TrendingUp, TrendingDown,
+} from "lucide-react";
+
+// ─── types ────────────────────────────────────────────────────────────────────
+interface Bar { time: number; open: number; high: number; low: number; close: number; volume: number }
+
+// ─── palette ──────────────────────────────────────────────────────────────────
+const PALETTE = [
+  "#34d399", "#60a5fa", "#f59e0b", "#f87171",
+  "#a78bfa", "#fb7185", "#38bdf8", "#facc15",
+  "#c084fc", "#4ade80", "#e879f9", "#2dd4bf",
+];
+
+// ─── chart time-frames ────────────────────────────────────────────────────────
+const CHART_TFS = ["1W", "1M", "3M", "6M", "1Y"] as const;
+type ChartTF = (typeof CHART_TFS)[number];
+const TF_DAYS: Record<ChartTF, number> = {
+  "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365,
+};
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+function fmt$(v: number, digits = 2): string {
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3)
+    return `${sign}$${abs.toLocaleString("en-US", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    })}`;
+  return `${sign}$${abs.toFixed(digits)}`;
+}
+
+function fmtPct(v: number, showPlus = true): string {
+  return `${v >= 0 && showPlus ? "+" : ""}${v.toFixed(2)}%`;
+}
+
+function col(v: number): string {
+  return v >= 0 ? "#4ade80" : "#f87171";
+}
+
+function evenIdxs(total: number, n: number): number[] {
+  if (total <= n) return Array.from({ length: total }, (_, i) => i);
+  const out = new Set([0, total - 1]);
+  const step = (total - 1) / (n - 1);
+  for (let i = 1; i < n - 1; i++) out.add(Math.round(i * step));
+  return [...out].sort((a, b) => a - b);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  P&L Chart
+// ─────────────────────────────────────────────────────────────────────────────
+const MG = { top: 18, right: 10, bottom: 30, left: 10 };
+const CH = 270;
+
+interface PLPoint { time: number; value: number }
+interface SPYPoint { time: number; norm: number }
+
+function PLChart({
+  series, spySeries, costBasis, tf,
+}: {
+  series: PLPoint[];
+  spySeries: SPYPoint[];
+  costBasis: number;
+  tf: ChartTF;
+}) {
+  const uid     = useId().replace(/:/g, "");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [size, setSize]   = useState<{ w: number; h: number } | null>(null);
+  const [mouseX, setMouseX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const ro = new ResizeObserver(([e]) =>
+      setSize({ w: e.contentRect.width, h: e.contentRect.height })
+    );
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const { w, h } = size ?? { w: 0, h: 0 };
+  const cW = Math.max(1, w - MG.left - MG.right);
+  const cH = Math.max(1, h - MG.top - MG.bottom);
+  const n  = series.length;
+
+  const [minV, maxV] = useMemo(() => {
+    if (!n) return [0, 1];
+    const vals = [...series.map((s) => s.value), costBasis];
+    if (spySeries.length) vals.push(...spySeries.map((s) => s.norm));
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const pad = (hi - lo) * 0.09 || Math.abs(hi) * 0.05 || 1;
+    return [lo - pad, hi + pad];
+  }, [series, spySeries, costBasis, n]);
+
+  const xS = useCallback(
+    (i: number) => MG.left + (n <= 1 ? cW / 2 : (i / (n - 1)) * cW),
+    [n, cW]
+  );
+  const yS = useCallback(
+    (v: number) => MG.top + cH - ((v - minV) / (maxV - minV)) * cH,
+    [cH, minV, maxV]
+  );
+
+  const lastVal  = series.at(-1)?.value ?? 0;
+  const firstVal = series[0]?.value ?? costBasis;
+  const isUp     = lastVal >= costBasis;
+  const lineCol  = isUp ? "#34d399" : "#f87171";
+
+  const priceLine = useMemo(() => {
+    if (n < 2) return "";
+    return "M" + series.map((s, i) => `${xS(i).toFixed(1)},${yS(s.value).toFixed(1)}`).join(" L");
+  }, [series, xS, yS, n]);
+
+  const areaPath = useMemo(() => {
+    if (!priceLine || !n) return "";
+    return `${priceLine} L${xS(n - 1).toFixed(1)},${(MG.top + cH).toFixed(1)} L${MG.left},${(MG.top + cH).toFixed(1)} Z`;
+  }, [priceLine, xS, n, cH]);
+
+  const spyPath = useMemo(() => {
+    if (spySeries.length < 2) return "";
+    return "M" + spySeries.map((s, i) => {
+      const x = MG.left + (i / (spySeries.length - 1)) * cW;
+      return `${x.toFixed(1)},${yS(s.norm).toFixed(1)}`;
+    }).join(" L");
+  }, [spySeries, cW, yS]);
+
+  const costY = useMemo(() => yS(costBasis), [yS, costBasis]);
+
+  const xTicks = useMemo(() => evenIdxs(n, 5), [n]);
+
+  const crosshair = useMemo(() => {
+    if (mouseX === null || !n || cW <= 0) return null;
+    const ratio = Math.max(0, Math.min(1, (mouseX - MG.left) / cW));
+    const idx   = Math.round(ratio * (n - 1));
+    const pt    = series[idx];
+    if (!pt) return null;
+    const si = Math.min(
+      Math.round(ratio * (spySeries.length - 1)),
+      spySeries.length - 1
+    );
+    return {
+      idx, pt, spyPt: spySeries[si] ?? null,
+      cx: xS(idx), cy: yS(pt.value),
+    };
+  }, [mouseX, series, n, cW, xS, yS, spySeries]);
+
+  if (!size || cW <= 0 || cH <= 0) {
+    return (
+      <div ref={wrapRef} style={{ height: CH }}
+        className="flex items-center justify-center text-[10px] text-[#2a2a3a]">
+        {!n ? "Fetching price history…" : ""}
+      </div>
+    );
+  }
+
+  const fmtTick = (ts: number) => {
+    const d = new Date(ts * 1000);
+    if (tf === "1W") return d.toLocaleDateString("en-US", { weekday: "short" });
+    if (tf === "1M") return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  };
+
+  const tipW  = 148;
+  const tipH  = spySeries.length ? 92 : 78;
+
+  return (
+    <div ref={wrapRef} style={{ height: CH }}>
+      <svg width={w} height={h} style={{ display: "block", userSelect: "none" }}
+        onMouseMove={(e) => {
+          const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+          setMouseX(x >= MG.left && x <= w - MG.right ? x : null);
+        }}
+        onMouseLeave={() => setMouseX(null)}
+      >
+        <defs>
+          <linearGradient id={`${uid}ag`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={lineCol} stopOpacity="0.24" />
+            <stop offset="75%"  stopColor={lineCol} stopOpacity="0.05" />
+            <stop offset="100%" stopColor={lineCol} stopOpacity="0"    />
+          </linearGradient>
+          <filter id={`${uid}gf`} x="-30%" y="-100%" width="160%" height="300%">
+            <feGaussianBlur stdDeviation="4" />
+          </filter>
+          <clipPath id={`${uid}cp`}>
+            <rect x={MG.left} y={MG.top} width={cW} height={cH} />
+          </clipPath>
+        </defs>
+
+        {/* grid */}
+        {[0.25, 0.5, 0.75].map((t, i) => (
+          <line key={i}
+            x1={MG.left} y1={(MG.top + cH * (1 - t)).toFixed(1)}
+            x2={w - MG.right} y2={(MG.top + cH * (1 - t)).toFixed(1)}
+            stroke="rgba(255,255,255,0.025)" strokeWidth="1"
+          />
+        ))}
+
+        {/* cost-basis reference */}
+        {costBasis > 0 && (
+          <>
+            <line
+              x1={MG.left} y1={costY.toFixed(1)}
+              x2={w - MG.right} y2={costY.toFixed(1)}
+              stroke="rgba(255,255,255,0.14)" strokeWidth="1" strokeDasharray="5,6"
+            />
+            <text x={MG.left + 5} y={costY - 5}
+              fill="rgba(255,255,255,0.20)" fontSize="7.5"
+              fontFamily="ui-monospace,monospace">Cost basis · {fmt$(costBasis)}</text>
+          </>
+        )}
+
+        {/* area */}
+        {areaPath && (
+          <path d={areaPath} fill={`url(#${uid}ag)`} clipPath={`url(#${uid}cp)`} />
+        )}
+
+        {/* glow */}
+        <path d={priceLine} fill="none"
+          stroke={lineCol} strokeOpacity="0.20" strokeWidth="9"
+          filter={`url(#${uid}gf)`} clipPath={`url(#${uid}cp)`}
+        />
+
+        {/* SPY comparison */}
+        {spyPath && (
+          <path d={spyPath} fill="none"
+            stroke="rgba(148,163,184,0.32)" strokeWidth="1.3" strokeDasharray="4,5"
+            clipPath={`url(#${uid}cp)`}
+          />
+        )}
+
+        {/* portfolio line */}
+        <path d={priceLine} fill="none"
+          stroke={lineCol} strokeWidth="1.9" strokeLinecap="round"
+          clipPath={`url(#${uid}cp)`}
+        />
+
+        {/* x-axis labels */}
+        {xTicks.map((i) => (
+          <text key={i}
+            x={xS(i).toFixed(1)} y={MG.top + cH + 18}
+            fill="rgba(255,255,255,0.18)" fontSize="8.5"
+            fontFamily="ui-sans-serif,sans-serif" textAnchor="middle"
+          >{fmtTick(series[i]?.time ?? 0)}</text>
+        ))}
+
+        {/* SPY label at end */}
+        {spyPath && spySeries.length > 0 && (() => {
+          const last = spySeries.at(-1)!;
+          const x = MG.left + cW;
+          const y = yS(last.norm);
+          return (
+            <text x={x - 24} y={y - 5}
+              fill="rgba(148,163,184,0.45)" fontSize="7.5"
+              fontFamily="ui-monospace,monospace">SPY</text>
+          );
+        })()}
+
+        {/* crosshair */}
+        {crosshair && (() => {
+          const { cx, cy, pt, spyPt } = crosshair;
+          const tipX = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
+          const tipY = MG.top + 4;
+          const pnl     = pt.value - costBasis;
+          const pnlPct  = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+          const portRet = firstVal > 0 ? ((pt.value - firstVal) / firstVal) * 100 : 0;
+          const spyRet  = spyPt && firstVal > 0
+            ? ((spyPt.norm - firstVal) / firstVal) * 100 : null;
+          const d = new Date(pt.time * 1000);
+          const ds = d.toLocaleDateString("en-US", {
+            weekday: "short", month: "short", day: "numeric",
+          });
+          return (
+            <>
+              <line x1={cx.toFixed(1)} y1={MG.top} x2={cx.toFixed(1)} y2={MG.top + cH}
+                stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+              />
+              <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="5.5"
+                fill={lineCol} fillOpacity="0.15"
+              />
+              <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="2.5"
+                fill={lineCol} fillOpacity="0.92"
+              />
+              <g transform={`translate(${tipX.toFixed(1)},${tipY})`}>
+                <rect rx="8" width={tipW} height={tipH}
+                  fill="rgba(4,5,14,0.96)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
+                />
+                <text x="10" y="14" fill="rgba(255,255,255,0.28)" fontSize="8"
+                  fontFamily="ui-sans-serif,sans-serif">{ds}</text>
+                <line x1="10" y1="19" x2={tipW - 10} y2="19"
+                  stroke="rgba(255,255,255,0.06)" strokeWidth="1"
+                />
+                {([
+                  ["Value", fmt$(pt.value), "#e0e0f0"],
+                  ["P&L",  `${pnl >= 0 ? "+" : ""}${fmt$(pnl)}`, col(pnl)],
+                  ["Ret",  fmtPct(portRet), col(portRet)],
+                ] as [string, string, string][]).map(([label, val, color], i) => (
+                  <text key={label} x="10" y={31 + i * 14}
+                    fontSize="9.5" fontFamily="ui-monospace,monospace">
+                    <tspan fill="rgba(255,255,255,0.22)">{label.padEnd(6)}</tspan>
+                    <tspan fill={color}>{val}</tspan>
+                  </text>
+                ))}
+                {spyRet !== null && (
+                  <text x="10" y={31 + 3 * 14} fontSize="9.5" fontFamily="ui-monospace,monospace">
+                    <tspan fill="rgba(255,255,255,0.22)">{"SPY   "}</tspan>
+                    <tspan fill="rgba(148,163,184,0.75)">{fmtPct(spyRet)}</tspan>
+                  </text>
+                )}
+              </g>
+            </>
+          );
+        })()}
+      </svg>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Allocation Donut
+// ─────────────────────────────────────────────────────────────────────────────
+interface Slice { ticker: string; value: number; color: string; pct: number }
+
+function AllocationDonut({ slices }: { slices: Slice[] }) {
+  const [hov, setHov] = useState<string | null>(null);
+  const R  = 68;
+  const ir = 46;
+  const cx = 88;
+  const cy = 88;
+
+  const paths = useMemo(() => {
+    let cur = -Math.PI / 2;
+    return slices.map((sl) => {
+      const sweep = (sl.pct / 100) * Math.PI * 2;
+      const sa = cur;
+      const ea = cur + sweep;
+      cur = ea;
+      const la = sweep > Math.PI ? 1 : 0;
+      const cos = (a: number, r: number) => cx + r * Math.cos(a);
+      const sin = (a: number, r: number) => cy + r * Math.sin(a);
+      const d = [
+        `M${cos(sa, R).toFixed(2)} ${sin(sa, R).toFixed(2)}`,
+        `A${R} ${R} 0 ${la} 1 ${cos(ea, R).toFixed(2)} ${sin(ea, R).toFixed(2)}`,
+        `L${cos(ea, ir).toFixed(2)} ${sin(ea, ir).toFixed(2)}`,
+        `A${ir} ${ir} 0 ${la} 0 ${cos(sa, ir).toFixed(2)} ${sin(sa, ir).toFixed(2)}`,
+        "Z",
+      ].join(" ");
+      return { ...sl, d, mid: (sa + ea) / 2 };
+    });
+  }, [slices]);
+
+  return (
+    <svg width={176} height={176} style={{ overflow: "visible", display: "block", margin: "0 auto" }}>
+      {paths.map((p) => {
+        const isH  = hov === p.ticker;
+        const fade = hov && !isH;
+        return (
+          <path key={p.ticker} d={p.d}
+            fill={p.color}
+            fillOpacity={fade ? 0.30 : 0.88}
+            stroke="#0c0c10" strokeWidth="2.5"
+            style={{
+              transformOrigin: `${cx}px ${cy}px`,
+              transform: isH ? "scale(1.05)" : "scale(1)",
+              transition: "all 0.14s ease",
+              cursor: "pointer",
+            }}
+            onMouseEnter={() => setHov(p.ticker)}
+            onMouseLeave={() => setHov(null)}
+          />
+        );
+      })}
+      {/* center */}
+      <text x={cx} y={cy - 8} textAnchor="middle"
+        fill={hov ? PALETTE[slices.findIndex((s) => s.ticker === hov) % PALETTE.length] : "#e0e0f0"}
+        fontSize="13" fontWeight="700" fontFamily="ui-monospace,monospace">
+        {hov ?? slices.length}
+      </text>
+      <text x={cx} y={cy + 8} textAnchor="middle"
+        fill="#3a3a4a" fontSize="8" fontFamily="ui-sans-serif,sans-serif">
+        {hov
+          ? `${slices.find((s) => s.ticker === hov)?.pct.toFixed(1)}%`
+          : (slices.length === 1 ? "position" : "positions")}
+      </text>
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Add / Edit Position Modal
+// ─────────────────────────────────────────────────────────────────────────────
+function PositionModal({
+  initial, onSave, onClose,
+}: {
+  initial?: Position;
+  onSave: (p: Omit<Position, "id">) => void;
+  onClose: () => void;
+}) {
+  const [ticker,   setTicker]   = useState(initial?.ticker ?? "");
+  const [shares,   setShares]   = useState(initial ? String(initial.shares) : "");
+  const [avgCost,  setAvgCost]  = useState(initial ? String(initial.avgCost) : "");
+  const [selName,  setSelName]  = useState(initial?.name ?? "");
+  const [results,  setResults]  = useState<{ symbol: string; name: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [dropOpen, setDropOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const doSearch = (v: string) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!v) { setResults([]); return; }
+    timerRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const r = await fetch(`/api/market/search?q=${encodeURIComponent(v)}`);
+        const d = await r.json();
+        setResults(d.results ?? []);
+        setDropOpen(true);
+      } finally { setSearching(false); }
+    }, 280);
+  };
+
+  const pick = (r: { symbol: string; name: string }) => {
+    setTicker(r.symbol);
+    setSelName(r.name);
+    setResults([]);
+    setDropOpen(false);
+  };
+
+  const cost  = Number(shares) * Number(avgCost);
+  const valid = ticker.length > 0 && Number(shares) > 0 && Number(avgCost) > 0;
+
+  const save = () => {
+    if (!valid) return;
+    onSave({
+      ticker:  ticker.toUpperCase(),
+      shares:  Number(shares),
+      avgCost: Number(avgCost),
+      name:    selName || undefined,
+    });
+    onClose();
+  };
+
+  const Field = ({
+    label, value, onChange, placeholder, type = "text", disabled = false,
+  }: {
+    label: string; value: string;
+    onChange: (v: string) => void;
+    placeholder: string; type?: string; disabled?: boolean;
+  }) => (
+    <div>
+      <label className="block text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold mb-1.5">
+        {label}
+      </label>
+      <input
+        type={type} value={value} disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-[#080810] border border-[#1a1a26] rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#f0f0f0] placeholder-[#252535] outline-none focus:border-[#34d39960] transition-colors disabled:opacity-40"
+      />
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}>
+      <div className="w-full max-w-sm rounded-2xl border border-[#1a1a26] overflow-hidden shadow-2xl"
+        style={{ background: "#0b0b12" }}>
+
+        {/* header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#141420]">
+          <span className="text-[13px] font-semibold text-[#e0e0f0]">
+            {initial ? "Edit Position" : "Add Position"}
+          </span>
+          <button onClick={onClose}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#2a2a3a] hover:text-[#767676] hover:bg-[#161620] transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* body */}
+        <div className="p-5 flex flex-col gap-4">
+
+          {/* ticker with search */}
+          <div>
+            <label className="block text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold mb-1.5">
+              Ticker Symbol
+            </label>
+            <div className="relative">
+              <input
+                value={ticker}
+                disabled={!!initial}
+                onChange={(e) => {
+                  const v = e.target.value.toUpperCase();
+                  setTicker(v);
+                  setSelName("");
+                  doSearch(v);
+                }}
+                onBlur={() => setTimeout(() => setDropOpen(false), 160)}
+                onFocus={() => results.length && setDropOpen(true)}
+                placeholder="AAPL"
+                className="w-full bg-[#080810] border border-[#1a1a26] rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#f0f0f0] placeholder-[#252535] outline-none focus:border-[#34d39960] transition-colors disabled:opacity-40"
+              />
+              {searching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border border-[#34d399] border-t-transparent animate-spin" />
+              )}
+
+              {/* autocomplete dropdown */}
+              {dropOpen && results.length > 0 && (
+                <div className="absolute z-10 top-full mt-1 left-0 right-0 rounded-xl border border-[#1a1a26] overflow-hidden shadow-2xl"
+                  style={{ background: "#0d0d16" }}>
+                  {results.slice(0, 6).map((r) => (
+                    <button key={r.symbol}
+                      onMouseDown={() => pick(r)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#13131e] transition-colors text-left">
+                      <span className="text-[11px] font-mono font-bold text-[#34d399] w-16 shrink-0">
+                        {r.symbol}
+                      </span>
+                      <span className="text-[10px] text-[#767676] truncate">{r.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {selName && (
+              <p className="mt-1.5 text-[10px] text-[#34d399] font-medium truncate">{selName}</p>
+            )}
+          </div>
+
+          {/* shares + avg cost */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Shares" value={shares} onChange={setShares} placeholder="100" type="number" />
+            <Field label="Avg Cost ($)" value={avgCost} onChange={setAvgCost} placeholder="150.00" type="number" />
+          </div>
+
+          {/* cost-basis preview */}
+          {cost > 0 && (
+            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#141420]"
+              style={{ background: "#080810" }}>
+              <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">
+                Total cost basis
+              </span>
+              <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">
+                {fmt$(cost)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* footer */}
+        <div className="px-5 pb-5 flex gap-2.5">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-[#1a1a26] text-[11px] font-medium text-[#2a2a3a] hover:text-[#767676] hover:border-[#252535] transition-colors">
+            Cancel
+          </button>
+          <button onClick={save} disabled={!valid}
+            className="flex-1 py-2.5 rounded-xl text-[11px] font-semibold transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+            style={{
+              background: valid
+                ? "linear-gradient(135deg, rgba(52,211,153,0.22), rgba(16,185,129,0.13))"
+                : undefined,
+              border: valid ? "1px solid rgba(52,211,153,0.40)" : "1px solid #1a1a26",
+              color: valid ? "#34d399" : "#2a2a3a",
+            }}>
+            {initial ? "Save Changes" : "Add Position"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Hero stat card
+// ─────────────────────────────────────────────────────────────────────────────
+function StatCard({
+  label, main, sub, trend,
+}: {
+  label: string;
+  main: string;
+  sub?: string;
+  trend?: "up" | "down" | "neutral";
+}) {
+  const mainColor =
+    trend === "up"   ? "#4ade80" :
+    trend === "down" ? "#f87171" : "#e0e0f0";
+  const subColor =
+    trend === "up"   ? "rgba(74,222,128,0.55)" :
+    trend === "down" ? "rgba(248,113,113,0.55)" : "#3a3a4a";
+
+  return (
+    <div className="rounded-xl border border-[#1a1a22] px-4 py-4"
+      style={{ background: "#0c0c10" }}>
+      <div className="text-[8px] uppercase tracking-widest text-[#252535] font-semibold mb-2">
+        {label}
+      </div>
+      <div className="text-[19px] font-bold font-mono tabular-nums leading-none"
+        style={{ color: mainColor }}>
+        {main}
+      </div>
+      {sub && (
+        <div className="mt-1 text-[10px] font-mono tabular-nums"
+          style={{ color: subColor }}>
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Page header
+// ─────────────────────────────────────────────────────────────────────────────
+function PageHeader({ onAdd }: { onAdd: () => void }) {
+  return (
+    <header className="sticky top-0 z-40 border-b border-[#141414]"
+      style={{ background: "rgba(8,8,8,0.94)", backdropFilter: "blur(14px)" }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+        <a href="/"
+          className="flex items-center gap-1.5 text-[#2a2a3a] hover:text-[#767676] transition-colors shrink-0">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-medium hidden sm:block">Home</span>
+        </a>
+        <div className="w-px h-4 bg-[#1e1e1e] shrink-0" />
+        <div className="flex items-center gap-2">
+          <Briefcase className="w-4 h-4 text-[#34d399]"
+            style={{ filter: "drop-shadow(0 0 5px rgba(52,211,153,0.45))" }} />
+          <span className="text-[13px] font-semibold text-[#e0e0f0] tracking-wide">Portfolio</span>
+        </div>
+        <div className="flex-1" />
+        <button onClick={onAdd}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+          style={{
+            background: "linear-gradient(135deg, rgba(52,211,153,0.18), rgba(16,185,129,0.10))",
+            border: "1px solid rgba(52,211,153,0.35)",
+            color: "#34d399",
+          }}>
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Position</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Main page
+// ─────────────────────────────────────────────────────────────────────────────
+export default function PortfolioPage() {
+  const { positions, addPosition, updatePosition, removePosition } =
+    usePortfolioStore();
+
+  const [chartTf, setChartTf]   = useState<ChartTF>("3M");
+  const [showModal, setShowModal] = useState(false);
+  const [editPos, setEditPos]    = useState<Position | null>(null);
+
+  // ── live quotes ─────────────────────────────────────────────────────────────
+  const quoteResults = useQueries({
+    queries: positions.map((p) => ({
+      queryKey:        ["pf-quote", p.ticker],
+      queryFn:         () =>
+        fetch(`/api/market/quote/${encodeURIComponent(p.ticker)}`).then((r) => r.json()),
+      staleTime:       30_000,
+      refetchInterval: 30_000,
+    })),
+  });
+
+  // ── price history (all positions + SPY) ─────────────────────────────────────
+  const allTickers = useMemo(
+    () => [...new Set([...positions.map((p) => p.ticker), "SPY"])],
+    [positions]
+  );
+
+  const histResults = useQueries({
+    queries: allTickers.map((ticker) => ({
+      queryKey:  ["pf-hist", ticker],
+      queryFn:   () =>
+        fetch(`/api/market/history/${encodeURIComponent(ticker)}?tf=1Y`).then(
+          (r) => r.json()
+        ) as Promise<{ bars: Bar[] }>,
+      staleTime: 5 * 60_000,
+      enabled:   positions.length > 0,
+    })),
+  });
+
+  // ── portfolio metrics ────────────────────────────────────────────────────────
+  const metrics = useMemo(() => {
+    const rows = positions.map((p, i) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const q = quoteResults[i]?.data as any;
+      const price     = q?.price ?? p.avgCost;
+      const mktVal    = price * p.shares;
+      const costVal   = p.avgCost * p.shares;
+      const pnl       = mktVal - costVal;
+      const pnlPct    = costVal > 0 ? (pnl / costVal) * 100 : 0;
+      const dayChg    = (q?.change ?? 0) * p.shares;
+      const dayChgPct = q?.changePercent ?? 0;
+      const name      = q?.name ?? p.name ?? p.ticker;
+      return {
+        id: p.id, ticker: p.ticker, shares: p.shares, avgCost: p.avgCost,
+        name, price, mktVal, costVal, pnl, pnlPct, dayChg, dayChgPct,
+        weight: 0, // filled below
+      };
+    });
+
+    const totalValue = rows.reduce((s, r) => s + r.mktVal, 0);
+    const totalCost  = rows.reduce((s, r) => s + r.costVal, 0);
+    const totalPnl   = totalValue - totalCost;
+    const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+    const dayPnl     = rows.reduce((s, r) => s + r.dayChg, 0);
+    const dayPnlPct  = totalValue > 0 ? (dayPnl / Math.max(totalValue - dayPnl, 1)) * 100 : 0;
+
+    const finalRows = rows.map((r) => ({
+      ...r,
+      weight: totalValue > 0 ? (r.mktVal / totalValue) * 100 : 0,
+    }));
+
+    // best / worst by total return
+    const sorted = [...finalRows].sort((a, b) => b.pnlPct - a.pnlPct);
+    const best  = sorted[0] ?? null;
+    const worst = sorted.at(-1) ?? null;
+
+    return {
+      rows: finalRows, totalValue, totalCost,
+      totalPnl, totalPnlPct, dayPnl, dayPnlPct,
+      best, worst,
+    };
+  }, [positions, quoteResults]);
+
+  // ── P&L time series ──────────────────────────────────────────────────────────
+  const { portfolioSeries, spySeries } = useMemo(() => {
+    if (!positions.length) return { portfolioSeries: [], spySeries: [] };
+
+    const daysBack = TF_DAYS[chartTf];
+    const cutoff   = Date.now() / 1000 - daysBack * 86400;
+
+    // Build ticker → index in allTickers
+    const tickerIdx: Record<string, number> = {};
+    allTickers.forEach((t, i) => { tickerIdx[t] = i; });
+
+    // Sorted bars per position ticker
+    const positionBars: Bar[][] = positions.map(
+      (p) => (histResults[tickerIdx[p.ticker]]?.data?.bars ?? [])
+        .filter((b) => b.time >= cutoff)
+        .sort((a, b) => a.time - b.time)
+    );
+
+    // Collect all unique timestamps from position tickers
+    const allTimes = new Set<number>();
+    positionBars.forEach((bars) => bars.forEach((b) => allTimes.add(b.time)));
+    if (!allTimes.size) return { portfolioSeries: [], spySeries: [] };
+    const times = [...allTimes].sort((a, b) => a - b);
+
+    // For a given ticker index + time, find the last close ≤ time
+    const getPrice = (tiIdx: number, time: number): number | null => {
+      const bars: Bar[] = histResults[tiIdx]?.data?.bars ?? [];
+      let best: number | null = null;
+      for (const b of bars) {
+        if (b.time <= time) best = b.close;
+        else break;
+      }
+      return best;
+    };
+
+    const portfolioSeries: PLPoint[] = [];
+    for (const time of times) {
+      let value = 0;
+      let ok    = true;
+      for (const p of positions) {
+        const price = getPrice(tickerIdx[p.ticker], time);
+        if (price == null) { ok = false; break; }
+        value += price * p.shares;
+      }
+      if (ok) portfolioSeries.push({ time, value });
+    }
+
+    // SPY normalised to portfolio's first value
+    const spyIdx     = tickerIdx["SPY"];
+    const spyRawBars: Bar[] = (histResults[spyIdx]?.data?.bars ?? [])
+      .filter((b) => b.time >= cutoff)
+      .sort((a, b) => a.time - b.time);
+    const startPort = portfolioSeries[0]?.value ?? 1;
+    const startSpy  = spyRawBars[0]?.close ?? 1;
+    const spySeries: SPYPoint[] = spyRawBars.map((b) => ({
+      time: b.time,
+      norm: startPort * (b.close / startSpy),
+    }));
+
+    return { portfolioSeries, spySeries };
+  }, [positions, histResults, allTickers, chartTf]);
+
+  // ── allocation slices ────────────────────────────────────────────────────────
+  const slices = useMemo<Slice[]>(() =>
+    metrics.rows
+      .filter((r) => r.mktVal > 0)
+      .sort((a, b) => b.mktVal - a.mktVal)
+      .map((r, i) => ({
+        ticker: r.ticker,
+        value:  r.mktVal,
+        color:  PALETTE[i % PALETTE.length],
+        pct:    r.weight,
+      })),
+    [metrics.rows]
+  );
+
+  // ── empty state ──────────────────────────────────────────────────────────────
+  if (!positions.length) {
+    return (
+      <div className="min-h-screen" style={{ background: "#080808" }}>
+        <PageHeader onAdd={() => setShowModal(true)} />
+        <div className="flex items-center justify-center"
+          style={{ minHeight: "calc(100vh - 56px)" }}>
+          <div className="flex flex-col items-center gap-6 text-center max-w-xs px-6">
+            <div className="w-16 h-16 rounded-2xl border border-[#1a1a26] flex items-center justify-center"
+              style={{
+                background: "rgba(52,211,153,0.04)",
+                boxShadow:  "0 0 40px rgba(52,211,153,0.06)",
+              }}>
+              <Briefcase className="w-7 h-7 text-[#34d399]"
+                style={{ filter: "drop-shadow(0 0 8px rgba(52,211,153,0.45))" }} />
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold text-[#e0e0f0] mb-2">
+                Your portfolio is empty
+              </p>
+              <p className="text-[12px] text-[#3a3a4a] leading-relaxed">
+                Add your positions to track P&amp;L, allocation, and performance
+                vs the market in real time.
+              </p>
+            </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:scale-105"
+              style={{
+                background: "linear-gradient(135deg, rgba(52,211,153,0.22), rgba(16,185,129,0.12))",
+                border:     "1px solid rgba(52,211,153,0.38)",
+                color:      "#34d399",
+              }}>
+              <Plus className="w-4 h-4" />
+              Add your first position
+            </button>
+          </div>
+        </div>
+        {showModal && (
+          <PositionModal
+            onSave={(p) => addPosition(p)}
+            onClose={() => setShowModal(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ── main render ──────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen"
+      style={{ background: "#080808", scrollbarWidth: "thin", scrollbarColor: "#1e1e1e transparent" }}>
+      <PageHeader onAdd={() => setShowModal(true)} />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24">
+
+        {/* ── hero stats ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <StatCard
+            label="Portfolio Value"
+            main={fmt$(metrics.totalValue)}
+          />
+          <StatCard
+            label="Total P&L"
+            main={`${metrics.totalPnl >= 0 ? "+" : ""}${fmt$(metrics.totalPnl)}`}
+            sub={fmtPct(metrics.totalPnlPct)}
+            trend={metrics.totalPnl >= 0 ? "up" : "down"}
+          />
+          <StatCard
+            label="Today's Change"
+            main={`${metrics.dayPnl >= 0 ? "+" : ""}${fmt$(metrics.dayPnl)}`}
+            sub={fmtPct(metrics.dayPnlPct)}
+            trend={metrics.dayPnl >= 0 ? "up" : "down"}
+          />
+          <StatCard
+            label="Cost Basis"
+            main={fmt$(metrics.totalCost)}
+            trend="neutral"
+          />
+        </div>
+
+        {/* ── P&L chart + allocation ── */}
+        <div className="grid lg:grid-cols-[1fr_296px] gap-4 mb-4">
+
+          {/* chart card */}
+          <div className="rounded-xl border border-[#1a1a22] overflow-hidden"
+            style={{ background: "#0c0c10" }}>
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-[#181820]">
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
+                  Portfolio P&amp;L
+                </span>
+                {/* best / worst pills */}
+                {metrics.best && metrics.best.ticker !== metrics.worst?.ticker && (
+                  <div className="hidden sm:flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 text-[8.5px] font-mono px-1.5 py-0.5 rounded"
+                      style={{ background: "rgba(74,222,128,0.08)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.18)" }}>
+                      <TrendingUp className="w-2.5 h-2.5" />
+                      {metrics.best.ticker} {fmtPct(metrics.best.pnlPct)}
+                    </span>
+                    {metrics.worst && (
+                      <span className="flex items-center gap-1 text-[8.5px] font-mono px-1.5 py-0.5 rounded"
+                        style={{ background: "rgba(248,113,113,0.08)", color: "#f87171", border: "1px solid rgba(248,113,113,0.18)" }}>
+                        <TrendingDown className="w-2.5 h-2.5" />
+                        {metrics.worst.ticker} {fmtPct(metrics.worst.pnlPct)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* time-frame selector */}
+              <div className="flex items-center gap-0.5">
+                {CHART_TFS.map((t) => (
+                  <button key={t} onClick={() => setChartTf(t)}
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
+                      chartTf === t
+                        ? "text-[#ddddf0] bg-[#ffffff0d] border border-[#ffffff18]"
+                        : "text-[#282838] hover:text-[#585870]"
+                    )}>{t}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* SPY legend */}
+            <div className="flex items-center gap-4 px-4 pt-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-0.5 rounded"
+                  style={{ background: portfolioSeries.length && portfolioSeries.at(-1)!.value >= metrics.totalCost ? "#34d399" : "#f87171" }} />
+                <span className="text-[8px] text-[#3a3a4a]">Portfolio</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-0 border-t border-dashed border-[#4a5568]" />
+                <span className="text-[8px] text-[#3a3a4a]">SPY</span>
+              </div>
+            </div>
+
+            <PLChart
+              series={portfolioSeries}
+              spySeries={spySeries}
+              costBasis={metrics.totalCost}
+              tf={chartTf}
+            />
+          </div>
+
+          {/* allocation card */}
+          <div className="rounded-xl border border-[#1a1a22] overflow-hidden"
+            style={{ background: "#0c0c10" }}>
+            <div className="px-4 pt-3 pb-2.5 border-b border-[#181820]">
+              <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
+                Allocation
+              </span>
+            </div>
+            <div className="p-4 flex flex-col items-center gap-4">
+              {slices.length > 0 && <AllocationDonut slices={slices} />}
+              {/* legend */}
+              <div className="w-full flex flex-col gap-2">
+                {slices.map((s, i) => (
+                  <div key={s.ticker} className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-sm shrink-0"
+                      style={{ background: s.color }} />
+                    <span className="text-[10px] font-mono text-[#767676] w-12 shrink-0">
+                      {s.ticker}
+                    </span>
+                    <div className="flex-1 h-1 rounded-full bg-[#111118] overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${s.pct}%`,
+                          background: s.color,
+                          opacity: 0.65,
+                        }} />
+                    </div>
+                    <span className="text-[9.5px] font-mono text-[#3a3a4a] w-9 text-right shrink-0">
+                      {s.pct.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── positions table ── */}
+        <div className="rounded-xl border border-[#1a1a22] overflow-hidden"
+          style={{ background: "#0c0c10" }}>
+          <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-[#181820]">
+            <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
+              Positions
+            </span>
+            <span className="text-[9px] text-[#252535]">
+              {positions.length} holding{positions.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px]">
+              <thead>
+                <tr className="border-b border-[#111116]">
+                  {[
+                    { label: "Ticker",       align: "left"  },
+                    { label: "Shares",       align: "right" },
+                    { label: "Avg Cost",     align: "right" },
+                    { label: "Price",        align: "right" },
+                    { label: "Market Value", align: "right" },
+                    { label: "Day Chg",      align: "right" },
+                    { label: "Total P&L",    align: "right" },
+                    { label: "Weight",       align: "right" },
+                    { label: "",             align: "right" },
+                  ].map(({ label, align }, i) => (
+                    <th key={i}
+                      className="px-4 py-2.5 text-[8px] font-semibold uppercase tracking-widest text-[#222232]"
+                      style={{ textAlign: align as "left" | "right" }}>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.rows.map((row, i) => (
+                  <tr key={row.id}
+                    className="border-b border-[#0d0d11] last:border-0 hover:bg-[#0e0e16] transition-colors group">
+
+                    {/* ticker + name */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-1.5 h-1.5 rounded-sm shrink-0"
+                          style={{ background: PALETTE[i % PALETTE.length] }} />
+                        <div>
+                          <div className="text-[11px] font-mono font-bold text-[#e0e0f0]">
+                            {row.ticker}
+                          </div>
+                          <div className="text-[8.5px] text-[#2a2a3a] truncate max-w-[96px]">
+                            {row.name}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* shares */}
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="text-[10px] font-mono text-[#767676]">
+                        {row.shares.toLocaleString()}
+                      </span>
+                    </td>
+
+                    {/* avg cost */}
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="text-[10px] font-mono text-[#767676]">
+                        {fmt$(row.avgCost)}
+                      </span>
+                    </td>
+
+                    {/* price */}
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="text-[11px] font-mono font-medium text-[#e0e0f0]">
+                        {fmt$(row.price)}
+                      </span>
+                    </td>
+
+                    {/* market value */}
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="text-[11px] font-mono text-[#c0c0cc]">
+                        {fmt$(row.mktVal)}
+                      </span>
+                    </td>
+
+                    {/* day change */}
+                    <td className="px-4 py-3.5 text-right">
+                      <div style={{ color: col(row.dayChg) }}>
+                        <div className="text-[10px] font-mono">
+                          {row.dayChg >= 0 ? "+" : ""}{fmt$(row.dayChg)}
+                        </div>
+                        <div className="text-[8.5px]">
+                          {fmtPct(row.dayChgPct)}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* total P&L */}
+                    <td className="px-4 py-3.5 text-right">
+                      <div style={{ color: col(row.pnl) }}>
+                        <div className="text-[10px] font-mono font-medium">
+                          {row.pnl >= 0 ? "+" : ""}{fmt$(row.pnl)}
+                        </div>
+                        <div className="text-[8.5px]">
+                          {fmtPct(row.pnlPct)}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* weight */}
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] font-mono text-[#767676]">
+                          {row.weight.toFixed(1)}%
+                        </span>
+                        <div className="w-12 h-0.5 rounded-full bg-[#141420]">
+                          <div className="h-full rounded-full"
+                            style={{
+                              width: `${row.weight}%`,
+                              background: PALETTE[i % PALETTE.length],
+                              opacity: 0.6,
+                            }} />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* actions (hover) */}
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => { setEditPos({ id: row.id, ticker: row.ticker, shares: row.shares, avgCost: row.avgCost, name: row.name }); setShowModal(true); }}
+                          className="w-6 h-6 rounded flex items-center justify-center text-[#2a2a3a] hover:text-[#767676] hover:bg-[#161620] transition-colors">
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => removePosition(row.id)}
+                          className="w-6 h-6 rounded flex items-center justify-center text-[#2a2a3a] hover:text-[#f87171] hover:bg-[rgba(248,113,113,0.10)] transition-colors">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+
+              {/* totals footer */}
+              <tfoot>
+                <tr className="border-t border-[#181820]">
+                  <td colSpan={4} className="px-4 py-3 text-[9px] uppercase tracking-widest text-[#252535] font-semibold">
+                    Total
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-[11px] text-[#c0c0cc]">
+                    {fmt$(metrics.totalValue)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div style={{ color: col(metrics.dayPnl) }}
+                      className="text-[10px] font-mono font-medium">
+                      {metrics.dayPnl >= 0 ? "+" : ""}{fmt$(metrics.dayPnl)}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div style={{ color: col(metrics.totalPnl) }}>
+                      <div className="text-[10px] font-mono font-bold">
+                        {metrics.totalPnl >= 0 ? "+" : ""}{fmt$(metrics.totalPnl)}
+                      </div>
+                      <div className="text-[8.5px]">
+                        {fmtPct(metrics.totalPnlPct)}
+                      </div>
+                    </div>
+                  </td>
+                  <td colSpan={2} className="px-4 py-3 text-right font-mono text-[10px] text-[#2a2a3a]">
+                    100%
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      {/* modal */}
+      {showModal && (
+        <PositionModal
+          initial={editPos ?? undefined}
+          onSave={(p) => {
+            if (editPos) {
+              updatePosition(editPos.id, {
+                shares: p.shares, avgCost: p.avgCost, name: p.name,
+              });
+            } else {
+              addPosition(p);
+            }
+            setEditPos(null);
+          }}
+          onClose={() => { setShowModal(false); setEditPos(null); }}
+        />
+      )}
+    </div>
+  );
+}
