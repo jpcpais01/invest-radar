@@ -9,7 +9,7 @@ import {
 } from "@/store/portfolioStore";
 import {
   Plus, X, Pencil, Trash2, Briefcase, ArrowLeft,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Activity, AlertTriangle, Shield,
 } from "lucide-react";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -395,6 +395,73 @@ function AllocationDonut({ slices }: { slices: Slice[] }) {
           : (slices.length === 1 ? "position" : "positions")}
       </text>
     </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Analytics mini-stat card
+// ─────────────────────────────────────────────────────────────────────────────
+function AnalyticsStat({
+  label, value, sub, valueColor,
+}: { label: string; value: string; sub?: string; valueColor?: string }) {
+  return (
+    <div className="rounded-xl border border-[#161620] px-3.5 py-3" style={{ background: "#090910" }}>
+      <div className="text-[7.5px] uppercase tracking-widest text-[#252535] font-semibold mb-2">
+        {label}
+      </div>
+      <div className="text-[15px] font-bold font-mono tabular-nums leading-none"
+        style={{ color: valueColor ?? "#c0c0cc" }}>
+        {value}
+      </div>
+      {sub && (
+        <div className="mt-1.5 text-[8.5px] text-[#2a2a3a] font-mono">{sub}</div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Position P&L diverging bars
+// ─────────────────────────────────────────────────────────────────────────────
+function PnLBars({ rows }: {
+  rows: { id: string; ticker: string; pnlPct: number; pnl: number }[];
+}) {
+  const sorted = [...rows].sort((a, b) => b.pnlPct - a.pnlPct);
+  const maxAbs = Math.max(...rows.map((r) => Math.abs(r.pnlPct)), 1);
+  return (
+    <div className="flex flex-col gap-3.5">
+      {sorted.map((r) => {
+        const barW  = (Math.abs(r.pnlPct) / maxAbs) * 100;
+        const isPos = r.pnlPct >= 0;
+        return (
+          <div key={r.id} className="flex items-center gap-3 group">
+            <span className="text-[10px] font-mono font-semibold text-[#555568] w-12 shrink-0 group-hover:text-[#c0c0cc] transition-colors">
+              {r.ticker}
+            </span>
+            <div className="flex-1 relative h-5 flex items-center">
+              <div className="absolute left-1/2 top-1.5 bottom-1.5 w-px bg-[#1e1e2a]" />
+              <div
+                className="absolute h-3 rounded-sm transition-all duration-500"
+                style={{
+                  width: `${barW / 2}%`,
+                  background: isPos
+                    ? "linear-gradient(90deg,rgba(52,211,153,0.45),rgba(74,222,128,0.85))"
+                    : "linear-gradient(270deg,rgba(248,113,113,0.45),rgba(248,113,113,0.85))",
+                  ...(isPos ? { left: "50%" } : { right: "50%" }),
+                }}
+              />
+            </div>
+            <span className="text-[10px] font-mono w-14 text-right shrink-0 tabular-nums"
+              style={{ color: col(r.pnlPct) }}>
+              {fmtPct(r.pnlPct)}
+            </span>
+            <span className="text-[9px] font-mono w-20 text-right shrink-0 text-[#2a2a3a] tabular-nums">
+              {r.pnl >= 0 ? "+" : ""}{fmt$(r.pnl)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -887,6 +954,132 @@ export default function PortfolioPage() {
     [metrics.rows]
   );
 
+  // ── performance analytics ────────────────────────────────────────────────────
+  const analysis = useMemo(() => {
+    if (portfolioSeries.length < 5) return null;
+
+    const portRets: number[] = [];
+    for (let i = 1; i < portfolioSeries.length; i++) {
+      portRets.push(
+        (portfolioSeries[i].value - portfolioSeries[i - 1].value) / portfolioSeries[i - 1].value
+      );
+    }
+    const mean     = portRets.reduce((s, r) => s + r, 0) / portRets.length;
+    const variance = portRets.reduce((s, r) => s + (r - mean) ** 2, 0) / portRets.length;
+    const dailyVol  = Math.sqrt(variance);
+    const annualVol = dailyVol * Math.sqrt(252) * 100;
+
+    let peak = portfolioSeries[0].value;
+    let maxDD = 0;
+    for (const pt of portfolioSeries) {
+      if (pt.value > peak) peak = pt.value;
+      const dd = (pt.value - peak) / peak;
+      if (dd < maxDD) maxDD = dd;
+    }
+
+    const portReturn =
+      ((portfolioSeries.at(-1)!.value - portfolioSeries[0].value) / portfolioSeries[0].value) * 100;
+
+    let spyReturn: number | null = null;
+    let spyVol: number | null    = null;
+    if (spySeries.length >= 5) {
+      spyReturn = ((spySeries.at(-1)!.norm - spySeries[0].norm) / spySeries[0].norm) * 100;
+      const spyRets: number[] = [];
+      for (let i = 1; i < spySeries.length; i++) {
+        spyRets.push((spySeries[i].norm - spySeries[i - 1].norm) / spySeries[i - 1].norm);
+      }
+      const sM = spyRets.reduce((s, r) => s + r, 0) / spyRets.length;
+      const sV = spyRets.reduce((s, r) => s + (r - sM) ** 2, 0) / spyRets.length;
+      spyVol = Math.sqrt(sV) * Math.sqrt(252) * 100;
+    }
+
+    const alpha    = spyReturn != null ? portReturn - spyReturn : null;
+    const sharpe   = dailyVol > 0 ? (mean / dailyVol) * Math.sqrt(252) : 0;
+    const bestDay  = Math.max(...portRets) * 100;
+    const worstDay = Math.min(...portRets) * 100;
+
+    return { annualVol, maxDD: maxDD * 100, portReturn, spyReturn, spyVol, alpha, sharpe, bestDay, worstDay };
+  }, [portfolioSeries, spySeries]);
+
+  // ── auto insights ─────────────────────────────────────────────────────────────
+  const insights = useMemo(() => {
+    const list: { type: "good" | "warn" | "info"; text: string }[] = [];
+
+    // Alpha vs SPY
+    if (analysis?.alpha != null) {
+      if (analysis.alpha > 1) {
+        list.push({ type: "good", text: `Beating SPY by +${analysis.alpha.toFixed(1)}% over ${chartTf}` });
+      } else if (analysis.alpha < -2) {
+        list.push({ type: "warn", text: `Trailing SPY by ${Math.abs(analysis.alpha).toFixed(1)}% over ${chartTf}` });
+      } else {
+        list.push({ type: "info", text: `Tracking close to SPY (${analysis.alpha >= 0 ? "+" : ""}${analysis.alpha.toFixed(1)}% vs benchmark) over ${chartTf}` });
+      }
+    }
+
+    // Win rate
+    const profitable = metrics.rows.filter((r) => r.pnl > 0).length;
+    const total = metrics.rows.length;
+    if (total > 0) {
+      const rate = (profitable / total) * 100;
+      list.push({
+        type: rate >= 60 ? "good" : rate >= 40 ? "info" : "warn",
+        text: `${profitable} of ${total} position${total !== 1 ? "s" : ""} in the green — ${rate.toFixed(0)}% win rate`,
+      });
+    }
+
+    // Top performer
+    if (metrics.best && metrics.best.pnlPct > 15) {
+      list.push({
+        type: "good",
+        text: `${metrics.best.name ?? metrics.best.ticker} is your top performer at ${fmtPct(metrics.best.pnlPct)}`,
+      });
+    }
+
+    // Biggest drag
+    if (metrics.worst && metrics.worst.pnlPct < -10) {
+      list.push({
+        type: "warn",
+        text: `${metrics.worst.ticker} is dragging at ${fmtPct(metrics.worst.pnlPct)} — worth reviewing this position`,
+      });
+    }
+
+    // Concentration risk
+    const topByWeight = [...metrics.rows].sort((a, b) => b.weight - a.weight)[0];
+    if (topByWeight && topByWeight.weight > 40) {
+      list.push({
+        type: "warn",
+        text: `Concentration risk: ${topByWeight.ticker} accounts for ${topByWeight.weight.toFixed(0)}% of your portfolio`,
+      });
+    }
+
+    // Volatility vs SPY
+    if (analysis?.annualVol != null && analysis.spyVol != null) {
+      const ratio = analysis.annualVol / analysis.spyVol;
+      if (ratio > 1.4) {
+        list.push({
+          type: "warn",
+          text: `Portfolio volatility (${analysis.annualVol.toFixed(1)}%) is ${((ratio - 1) * 100).toFixed(0)}% higher than SPY — consider diversifying`,
+        });
+      } else if (ratio < 0.8) {
+        list.push({
+          type: "good",
+          text: `Low volatility: ${analysis.annualVol.toFixed(1)}% vs SPY ${analysis.spyVol.toFixed(1)}% — well-diversified portfolio`,
+        });
+      }
+    }
+
+    // Sharpe callout
+    if (analysis?.sharpe != null) {
+      if (analysis.sharpe >= 1.5) {
+        list.push({ type: "good", text: `Strong risk-adjusted returns: Sharpe ratio of ${analysis.sharpe.toFixed(2)}` });
+      } else if (analysis.sharpe < 0) {
+        list.push({ type: "warn", text: `Negative Sharpe ratio (${analysis.sharpe.toFixed(2)}) — returns aren't compensating for risk taken` });
+      }
+    }
+
+    return list.slice(0, 6);
+  }, [metrics, analysis, chartTf]);
+
   // ── empty state ──────────────────────────────────────────────────────────────
   if (!positions.length) {
     return (
@@ -1064,6 +1257,146 @@ export default function PortfolioPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── analytics strip ── */}
+        {analysis && (
+          <div className="grid grid-cols-3 lg:grid-cols-6 gap-2.5 mb-4">
+            <AnalyticsStat
+              label={`${chartTf} Return`}
+              value={`${analysis.portReturn >= 0 ? "+" : ""}${analysis.portReturn.toFixed(2)}%`}
+              sub={analysis.spyReturn != null
+                ? `SPY ${analysis.spyReturn >= 0 ? "+" : ""}${analysis.spyReturn.toFixed(1)}%`
+                : undefined}
+              valueColor={col(analysis.portReturn)}
+            />
+            <AnalyticsStat
+              label="Alpha"
+              value={analysis.alpha != null
+                ? `${analysis.alpha >= 0 ? "+" : ""}${analysis.alpha.toFixed(2)}%`
+                : "—"}
+              sub="vs S&P 500"
+              valueColor={analysis.alpha != null ? col(analysis.alpha) : "#c0c0cc"}
+            />
+            <AnalyticsStat
+              label="Ann. Volatility"
+              value={`${analysis.annualVol.toFixed(1)}%`}
+              sub={analysis.spyVol != null ? `SPY ${analysis.spyVol.toFixed(1)}%` : undefined}
+              valueColor={
+                analysis.spyVol != null && analysis.annualVol > analysis.spyVol * 1.3
+                  ? "#f59e0b" : "#c0c0cc"
+              }
+            />
+            <AnalyticsStat
+              label="Max Drawdown"
+              value={`${analysis.maxDD.toFixed(1)}%`}
+              valueColor={analysis.maxDD < -20 ? "#f87171" : analysis.maxDD < -10 ? "#f59e0b" : "#c0c0cc"}
+            />
+            <AnalyticsStat
+              label="Sharpe Ratio"
+              value={analysis.sharpe.toFixed(2)}
+              sub={
+                analysis.sharpe >= 1.5 ? "excellent"
+                  : analysis.sharpe >= 1 ? "good"
+                  : analysis.sharpe >= 0.5 ? "fair" : "poor"
+              }
+              valueColor={
+                analysis.sharpe >= 1.5 ? "#4ade80"
+                  : analysis.sharpe >= 1 ? "#a3e635"
+                  : analysis.sharpe >= 0 ? "#f59e0b" : "#f87171"
+              }
+            />
+            <AnalyticsStat
+              label="Win Rate"
+              value={`${((metrics.rows.filter((r) => r.pnl > 0).length /
+                Math.max(metrics.rows.length, 1)) * 100).toFixed(0)}%`}
+              sub={`${metrics.rows.filter((r) => r.pnl > 0).length} / ${metrics.rows.length} positions`}
+              valueColor={
+                metrics.rows.filter((r) => r.pnl > 0).length /
+                  Math.max(metrics.rows.length, 1) >= 0.5
+                  ? "#4ade80" : "#f87171"
+              }
+            />
+          </div>
+        )}
+
+        {/* ── position returns + insights ── */}
+        <div className="grid lg:grid-cols-[1fr_320px] gap-4 mb-4">
+
+          {/* position P&L bars */}
+          <div className="rounded-xl border border-[#1a1a22] overflow-hidden" style={{ background: "#0c0c10" }}>
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-[#181820]">
+              <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
+                Position Returns
+              </span>
+              <span className="text-[8.5px] text-[#252535] font-mono uppercase tracking-wider">
+                Unrealized P&amp;L
+              </span>
+            </div>
+            <div className="p-4 sm:p-5">
+              {quotesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-[10px] text-[#2a2a3a]">Loading prices…</span>
+                </div>
+              ) : (
+                <PnLBars rows={metrics.rows} />
+              )}
+            </div>
+          </div>
+
+          {/* insights */}
+          <div className="rounded-xl border border-[#1a1a22] overflow-hidden" style={{ background: "#0c0c10" }}>
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-[#181820]">
+              <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
+                Insights
+              </span>
+              <Activity className="w-3.5 h-3.5 text-[#252535]" />
+            </div>
+            <div className="p-4 flex flex-col gap-2">
+              {insights.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <Shield className="w-5 h-5 text-[#1e1e2a]" />
+                  <p className="text-[10px] text-[#2a2a3a]">
+                    Waiting for market data…
+                  </p>
+                </div>
+              ) : insights.map((ins, i) => (
+                <div key={i}
+                  className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg"
+                  style={{
+                    background: ins.type === "good"
+                      ? "rgba(74,222,128,0.05)"
+                      : ins.type === "warn"
+                      ? "rgba(245,158,11,0.05)"
+                      : "rgba(192,192,204,0.04)",
+                    border: `1px solid ${
+                      ins.type === "good"
+                        ? "rgba(74,222,128,0.12)"
+                        : ins.type === "warn"
+                        ? "rgba(245,158,11,0.13)"
+                        : "rgba(192,192,204,0.06)"
+                    }`,
+                  }}>
+                  {ins.type === "good" ? (
+                    <TrendingUp className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "rgba(74,222,128,0.65)" }} />
+                  ) : ins.type === "warn" ? (
+                    <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "rgba(245,158,11,0.75)" }} />
+                  ) : (
+                    <Activity className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "#3a3a4a" }} />
+                  )}
+                  <span className="text-[10px] leading-relaxed" style={{
+                    color: ins.type === "good"
+                      ? "rgba(74,222,128,0.75)"
+                      : ins.type === "warn"
+                      ? "rgba(245,158,11,0.80)"
+                      : "#4a4a5a",
+                  }}>
+                    {ins.text}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
