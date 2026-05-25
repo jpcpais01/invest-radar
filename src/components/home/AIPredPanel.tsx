@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect, useCallback, useMemo, useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { OHLCVBar, EarningsEvent } from "@/types/market";
+import { OHLCVBar } from "@/types/market";
 
 interface Props { ticker: string }
 
@@ -58,19 +58,12 @@ function evenIdxs(total: number, n: number): number[] {
 const MG = { top: 12, right: 60, bottom: 22, left: 0 };
 const CHART_H = 240;
 
-interface EarningsMarker {
-  idx: number;
-  eps: number;
-  beat: boolean | undefined;
-}
-
 interface ChartProps {
   bars: OHLCVBar[];
   tf: TFOption;
-  earnings?: EarningsMarker[];
 }
 
-function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
+function PriceChart({ bars, tf }: ChartProps) {
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -139,47 +132,14 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
   const yTicks    = useMemo(() => Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)), [minP, maxP]);
   const xTickIdxs = useMemo(() => evenIdxs(n, 5), [n]);
 
-  // EPS secondary scale — sorted markers within bar range
-  const sortedEarnings = useMemo(
-    () => [...earnings].filter(m => m.idx >= 0 && m.idx < bars.length).sort((a, b) => a.idx - b.idx),
-    [earnings, bars.length]
-  );
-  const [minEps, maxEps] = useMemo(() => {
-    if (!sortedEarnings.length) return [0, 1];
-    const vals = sortedEarnings.map(m => m.eps);
-    const lo = Math.min(...vals), hi = Math.max(...vals);
-    const pad = (hi - lo) * 0.25 || Math.abs(hi || 1) * 0.25;
-    return [lo - pad, hi + pad];
-  }, [sortedEarnings]);
-  const epsY = useCallback(
-    (v: number) => {
-      // occupy the middle 75% of chart height so EPS doesn't crowd price extremes
-      const top = priceTopY + priceH * 0.12;
-      const bot = priceTopY + priceH * 0.88;
-      return bot - ((v - minEps) / (maxEps - minEps)) * (bot - top);
-    },
-    [priceTopY, priceH, minEps, maxEps]
-  );
-  const epsLinePath = useMemo(() => {
-    if (sortedEarnings.length < 2) return "";
-    return "M" + sortedEarnings.map(m => `${xS(m.idx).toFixed(1)},${epsY(m.eps).toFixed(1)}`).join(" L");
-  }, [sortedEarnings, xS, epsY]);
-
   // Crosshair
   const crosshair = useMemo(() => {
     if (mouseX === null || cW <= 0 || !bars.length) return null;
     const ratio = Math.max(0, Math.min(1, (mouseX - MG.left) / cW));
     const idx   = Math.round(ratio * (n - 1));
     const bar   = bars[idx];
-    // nearest EPS point for tooltip
-    let nearestEps: EarningsMarker | null = null;
-    let bestDist = Infinity;
-    for (const m of sortedEarnings) {
-      const d = Math.abs(m.idx - idx);
-      if (d < bestDist) { bestDist = d; nearestEps = m; }
-    }
-    return { idx, bar, cx: xS(idx), cy: yS(bar.close), nearestEps: bestDist <= 15 ? nearestEps : null };
-  }, [mouseX, bars, n, cW, xS, yS, sortedEarnings]);
+    return { idx, bar, cx: xS(idx), cy: yS(bar.close) };
+  }, [mouseX, bars, n, cW, xS, yS]);
 
   if (!size || cW <= 0 || priceH <= 0) {
     return <div ref={wrapRef} style={{ height: CHART_H, background: "#0c0c10" }} />;
@@ -286,57 +246,11 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
           >{fmtDateTick(bars[i]?.time ?? 0, tf)}</text>
         ))}
 
-        {/* ── EPS line plot ── */}
-        {sortedEarnings.length >= 2 && (
-          <g clipPath={`url(#${uid}pc)`}>
-            {/* subtle glow behind line */}
-            <path d={epsLinePath} fill="none"
-              stroke="rgba(251,191,36,0.18)" strokeWidth="6"
-              strokeLinecap="round" strokeLinejoin="round"
-            />
-            {/* main EPS line */}
-            <path d={epsLinePath} fill="none"
-              stroke="rgba(251,191,36,0.65)" strokeWidth="1.4"
-              strokeLinecap="round" strokeLinejoin="round"
-              strokeDasharray="5,3"
-            />
-          </g>
-        )}
-        {/* EPS dots — outside clip so they render even at edges */}
-        {sortedEarnings.map((m, i) => {
-          const x   = xS(m.idx);
-          const y   = epsY(m.eps);
-          const col = m.beat === true ? "#4ade80" : m.beat === false ? "#f87171" : "#fbbf24";
-          return (
-            <g key={i}>
-              <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="4.5"
-                fill="rgba(251,191,36,0.12)" stroke={col} strokeWidth="1.2"
-              />
-              <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="2"
-                fill={col} style={{ filter: `drop-shadow(0 0 3px ${col})` }}
-              />
-            </g>
-          );
-        })}
-        {/* EPS axis label */}
-        {sortedEarnings.length > 0 && (
-          <text
-            x={w - MG.right + 5}
-            y={epsY(sortedEarnings[sortedEarnings.length - 1].eps)}
-            fill="rgba(251,191,36,0.45)" fontSize="7.5"
-            fontFamily="ui-monospace,monospace" dominantBaseline="middle"
-          >EPS</text>
-        )}
-
         {/* Crosshair */}
         {crosshair && (() => {
-          const { cx, cy, bar, nearestEps } = crosshair;
-          const tipX    = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
-          const tipY    = priceTopY + 6;
-          const tipHdyn = nearestEps != null ? tipH + 14 : tipH;
-          const epsCol  = nearestEps?.beat === true ? "#4ade80" : nearestEps?.beat === false ? "#f87171" : "#fbbf24";
-          // EPS crosshair dot
-          const epsCy   = nearestEps != null ? epsY(nearestEps.eps) : null;
+          const { cx, cy, bar } = crosshair;
+          const tipX = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
+          const tipY = priceTopY + 6;
           return (
             <>
               <line x1={cx.toFixed(1)} y1={priceTopY} x2={cx.toFixed(1)} y2={priceBotY}
@@ -344,15 +258,9 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
               />
               <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="5.5" fill={lineColor} fillOpacity="0.12" />
               <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="2.5" fill={lineColor} fillOpacity="0.90" />
-              {epsCy != null && (
-                <>
-                  <circle cx={cx.toFixed(1)} cy={epsCy.toFixed(1)} r="4" fill="rgba(251,191,36,0.15)" stroke={epsCol} strokeWidth="1" />
-                  <circle cx={cx.toFixed(1)} cy={epsCy.toFixed(1)} r="1.8" fill={epsCol} />
-                </>
-              )}
 
               <g transform={`translate(${tipX.toFixed(1)},${tipY})`}>
-                <rect rx="7" width={tipW} height={tipHdyn}
+                <rect rx="7" width={tipW} height={tipH}
                   fill="rgba(5,6,16,0.94)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
                 />
                 <text x="10" y="14" fill="rgba(255,255,255,0.30)" fontSize="8"
@@ -378,15 +286,6 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
                   <tspan fill="rgba(255,255,255,0.22)">V </tspan>
                   <tspan fill="rgba(180,190,230,0.55)">{fmtVol(bar.volume)}</tspan>
                 </text>
-                {nearestEps != null && (
-                  <text x="10" y={31 + 5 * 14} fontSize="9" fontFamily="ui-monospace,monospace">
-                    <tspan fill="rgba(255,255,255,0.22)">EPS </tspan>
-                    <tspan fill={epsCol}>
-                      {nearestEps.eps >= 0 ? "+" : ""}${Math.abs(nearestEps.eps).toFixed(2)}
-                      {nearestEps.beat === true ? " ✓" : nearestEps.beat === false ? " ✗" : ""}
-                    </tspan>
-                  </text>
-                )}
               </g>
             </>
           );
@@ -398,12 +297,9 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
-const EPS_TFS = new Set<TFOption>(["1Y", "2Y", "5Y"]);
-
 export default function AIPredPanel({ ticker }: Props) {
   const [tf, setTf] = useState<TFOption>("1Y");
   const isIntraday  = INTRADAY_TFS.has(tf);
-  const showEps     = EPS_TFS.has(tf);
 
   const { data, isLoading } = useQuery<{ bars: OHLCVBar[] }>({
     queryKey: ["price-panel", ticker, tf],
@@ -411,13 +307,6 @@ export default function AIPredPanel({ ticker }: Props) {
       fetch(`/api/market/history/${encodeURIComponent(ticker)}?tf=${tf}`).then(r => r.json()),
     staleTime: 5 * 60_000,
     refetchInterval: () => isIntraday && isMarketOpen() ? 60_000 : false,
-  });
-
-  const { data: earningsData } = useQuery<{ earnings: EarningsEvent[] }>({
-    queryKey: ["earnings", ticker],
-    queryFn:  () => fetch(`/api/market/earnings/${encodeURIComponent(ticker)}`).then(r => r.json()),
-    staleTime: 24 * 60 * 60_000,
-    enabled: showEps,
   });
 
   const bars = data?.bars ?? [];
@@ -430,25 +319,6 @@ export default function AIPredPanel({ ticker }: Props) {
   const periodLow  = bars.length ? Math.min(...bars.map(b => b.low))  : 0;
   const isUp       = periodPct >= 0;
   const marketOpen = isMarketOpen();
-
-  // Map earnings events → bar indices for overlay
-  const earningsMarkers = useMemo<EarningsMarker[]>(() => {
-    if (!showEps || !earningsData?.earnings || !bars.length) return [];
-    const maxGap = 10 * 24 * 3600; // 10 days tolerance
-    return earningsData.earnings
-      .filter(e => e.epsActual != null)
-      .map(e => {
-        const ts = new Date(e.date).getTime() / 1000;
-        let closest = -1, minDiff = Infinity;
-        bars.forEach((b, i) => {
-          const d = Math.abs(b.time - ts);
-          if (d < minDiff) { minDiff = d; closest = i; }
-        });
-        if (closest === -1 || minDiff > maxGap) return null;
-        return { idx: closest, eps: e.epsActual!, beat: e.beat };
-      })
-      .filter((m): m is EarningsMarker => m !== null);
-  }, [showEps, earningsData, bars]);
 
   return (
     <div
@@ -503,7 +373,7 @@ export default function AIPredPanel({ ticker }: Props) {
           <p className="text-[9px] text-[#252535]">Loading…</p>
         </div>
       ) : bars.length > 0 ? (
-        <PriceChart bars={bars} tf={tf} earnings={earningsMarkers} />
+        <PriceChart bars={bars} tf={tf} />
       ) : (
         <div className="flex items-center justify-center" style={{ height: CHART_H }}>
           <p className="text-[9px] text-[#252535]">No data</p>
