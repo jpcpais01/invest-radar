@@ -700,47 +700,63 @@ export default function PortfolioPage() {
   });
 
   // ── portfolio metrics ────────────────────────────────────────────────────────
+  const quotesLoading = quoteResults.some((q) => q.isLoading);
+
   const metrics = useMemo(() => {
-    const rows = positions.map((p, i) => {
+    // Build ticker → quote map keyed by ticker symbol (not by array index) so
+    // add/remove operations can never point to the wrong ticker's data.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const quoteMap = new Map<string, any>();
+    positions.forEach((p, i) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const q = quoteResults[i]?.data as any;
-      const price     = q?.price ?? p.avgCost;
-      const mktVal    = price * p.shares;
-      const costVal   = p.avgCost * p.shares;
-      const pnl       = mktVal - costVal;
-      const pnlPct    = costVal > 0 ? (pnl / costVal) * 100 : 0;
+      const d = quoteResults[i]?.data as any;
+      if (d?.price != null && !quoteMap.has(p.ticker)) quoteMap.set(p.ticker, d);
+    });
+
+    const rows = positions.map((p) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const q        = quoteMap.get(p.ticker) as any;
+      const price    = q?.price    ?? p.avgCost;  // fallback to cost while loading
+      const mktVal   = price * p.shares;
+      const costVal  = p.avgCost * p.shares;
+      const pnl      = mktVal - costVal;
+      const pnlPct   = costVal > 0 ? (pnl / costVal) * 100 : 0;
+      // q.change is absolute $ change per share; multiply by shares for position change
       const dayChg    = (q?.change ?? 0) * p.shares;
+      // q.changePercent is already a percentage (e.g. 1.5 means +1.5%)
       const dayChgPct = q?.changePercent ?? 0;
       const name      = q?.name ?? p.name ?? p.ticker;
       return {
         id: p.id, ticker: p.ticker, shares: p.shares, avgCost: p.avgCost,
         name, price, mktVal, costVal, pnl, pnlPct, dayChg, dayChgPct,
-        weight: 0, // filled below
+        weight: 0,
       };
     });
 
-    const totalValue = rows.reduce((s, r) => s + r.mktVal, 0);
-    const totalCost  = rows.reduce((s, r) => s + r.costVal, 0);
-    const totalPnl   = totalValue - totalCost;
-    const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
-    const dayPnl     = rows.reduce((s, r) => s + r.dayChg, 0);
-    const dayPnlPct  = totalValue > 0 ? (dayPnl / Math.max(totalValue - dayPnl, 1)) * 100 : 0;
+    const totalValue   = rows.reduce((s, r) => s + r.mktVal, 0);
+    const totalCost    = rows.reduce((s, r) => s + r.costVal, 0);
+    const totalPnl     = totalValue - totalCost;
+    const totalPnlPct  = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+    const dayPnl       = rows.reduce((s, r) => s + r.dayChg, 0);
+    // Yesterday's value = today's value minus today's gain/loss
+    const prevValue    = totalValue - dayPnl;
+    const dayPnlPct    = prevValue > 0 ? (dayPnl / prevValue) * 100 : 0;
 
     const finalRows = rows.map((r) => ({
       ...r,
       weight: totalValue > 0 ? (r.mktVal / totalValue) * 100 : 0,
     }));
 
-    // best / worst by total return
     const sorted = [...finalRows].sort((a, b) => b.pnlPct - a.pnlPct);
-    const best  = sorted[0] ?? null;
-    const worst = sorted.at(-1) ?? null;
+    const best   = sorted[0] ?? null;
+    const worst  = sorted.at(-1) ?? null;
 
     return {
       rows: finalRows, totalValue, totalCost,
       totalPnl, totalPnlPct, dayPnl, dayPnlPct,
       best, worst,
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positions, quoteResults]);
 
   // ── P&L time series ──────────────────────────────────────────────────────────
@@ -878,19 +894,19 @@ export default function PortfolioPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
           <StatCard
             label="Portfolio Value"
-            main={fmt$(metrics.totalValue)}
+            main={quotesLoading ? "—" : fmt$(metrics.totalValue)}
           />
           <StatCard
             label="Total P&L"
-            main={`${metrics.totalPnl >= 0 ? "+" : ""}${fmt$(metrics.totalPnl)}`}
-            sub={fmtPct(metrics.totalPnlPct)}
-            trend={metrics.totalPnl >= 0 ? "up" : "down"}
+            main={quotesLoading ? "—" : `${metrics.totalPnl >= 0 ? "+" : ""}${fmt$(metrics.totalPnl)}`}
+            sub={quotesLoading ? "loading…" : fmtPct(metrics.totalPnlPct)}
+            trend={quotesLoading ? "neutral" : metrics.totalPnl >= 0 ? "up" : "down"}
           />
           <StatCard
             label="Today's Change"
-            main={`${metrics.dayPnl >= 0 ? "+" : ""}${fmt$(metrics.dayPnl)}`}
-            sub={fmtPct(metrics.dayPnlPct)}
-            trend={metrics.dayPnl >= 0 ? "up" : "down"}
+            main={quotesLoading ? "—" : `${metrics.dayPnl >= 0 ? "+" : ""}${fmt$(metrics.dayPnl)}`}
+            sub={quotesLoading ? "loading…" : fmtPct(metrics.dayPnlPct)}
+            trend={quotesLoading ? "neutral" : metrics.dayPnl >= 0 ? "up" : "down"}
           />
           <StatCard
             label="Cost Basis"
@@ -1073,39 +1089,47 @@ export default function PortfolioPage() {
                     {/* price */}
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-[11px] font-mono font-medium text-[#e0e0f0]">
-                        {fmt$(row.price)}
+                        {quotesLoading ? <span className="text-[#3a3a4a]">—</span> : fmt$(row.price)}
                       </span>
                     </td>
 
                     {/* market value */}
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-[11px] font-mono text-[#c0c0cc]">
-                        {fmt$(row.mktVal)}
+                        {quotesLoading ? <span className="text-[#3a3a4a]">—</span> : fmt$(row.mktVal)}
                       </span>
                     </td>
 
                     {/* day change */}
                     <td className="px-4 py-3.5 text-right">
-                      <div style={{ color: col(row.dayChg) }}>
-                        <div className="text-[10px] font-mono">
-                          {row.dayChg >= 0 ? "+" : ""}{fmt$(row.dayChg)}
+                      {quotesLoading ? (
+                        <span className="text-[10px] font-mono text-[#3a3a4a]">—</span>
+                      ) : (
+                        <div style={{ color: col(row.dayChg) }}>
+                          <div className="text-[10px] font-mono">
+                            {row.dayChg >= 0 ? "+" : ""}{fmt$(row.dayChg)}
+                          </div>
+                          <div className="text-[8.5px]">
+                            {fmtPct(row.dayChgPct)}
+                          </div>
                         </div>
-                        <div className="text-[8.5px]">
-                          {fmtPct(row.dayChgPct)}
-                        </div>
-                      </div>
+                      )}
                     </td>
 
                     {/* total P&L */}
                     <td className="px-4 py-3.5 text-right">
-                      <div style={{ color: col(row.pnl) }}>
-                        <div className="text-[10px] font-mono font-medium">
-                          {row.pnl >= 0 ? "+" : ""}{fmt$(row.pnl)}
+                      {quotesLoading ? (
+                        <span className="text-[10px] font-mono text-[#3a3a4a]">—</span>
+                      ) : (
+                        <div style={{ color: col(row.pnl) }}>
+                          <div className="text-[10px] font-mono font-medium">
+                            {row.pnl >= 0 ? "+" : ""}{fmt$(row.pnl)}
+                          </div>
+                          <div className="text-[8.5px]">
+                            {fmtPct(row.pnlPct)}
+                          </div>
                         </div>
-                        <div className="text-[8.5px]">
-                          {fmtPct(row.pnlPct)}
-                        </div>
-                      </div>
+                      )}
                     </td>
 
                     {/* weight */}
