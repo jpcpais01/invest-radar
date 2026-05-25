@@ -104,28 +104,44 @@ export async function getEarnings(ticker: string): Promise<EarningsEvent[]> {
       yf.quoteSummary(ticker, { modules: ["earningsHistory"] }).catch(() => null),
     ]);
 
-    // Build beat/miss and estimate lookups from earningsHistory
+    // Build lookups from earningsHistory (4 most recent quarters)
+    // Use its epsActual as the canonical value — it matches analyst consensus figures
+    // and is consistent with the estimate and beat/miss data from the same source.
     const beatMap     = new Map<string, boolean | undefined>();
     const estimateMap = new Map<string, number>();
+    const actualMap   = new Map<string, number>();
     for (const e of (summary as any)?.earningsHistory?.history ?? []) {
       const quarter = e.quarter;
       if (!quarter) continue;
       const date = new Date(quarter).toISOString().split("T")[0];
       const actual   = typeof e.epsActual   === "number" ? e.epsActual   : undefined;
       const estimate = typeof e.epsEstimate === "number" ? e.epsEstimate : undefined;
+      if (actual   != null) actualMap.set(date, actual);
       if (estimate != null) estimateMap.set(date, estimate);
       if (actual != null && estimate != null) beatMap.set(date, actual > estimate);
     }
 
-    return ((tsData as any[]) ?? [])
+    // fundamentalsTimeSeries fills in older quarters beyond earningsHistory's 4-quarter cap.
+    // For quarters already in earningsHistory, prefer its epsActual for consistency.
+    const tsEntries = ((tsData as any[]) ?? [])
       .filter((q: any) => q.dilutedEPS != null || q.basicEPS != null)
       .map((q: any) => {
         const date = q.date instanceof Date
           ? q.date.toISOString().split("T")[0]
           : String(q.date).split("T")[0];
-        const epsActual = q.dilutedEPS ?? q.basicEPS;
+        const epsActual = actualMap.get(date) ?? q.dilutedEPS ?? q.basicEPS;
         return { date, epsActual, epsEstimate: estimateMap.get(date), beat: beatMap.get(date) };
-      })
+      });
+
+    // Also include any earningsHistory quarters not covered by fundamentalsTimeSeries
+    const tsDates = new Set(tsEntries.map(e => e.date));
+    for (const [date, epsActual] of actualMap) {
+      if (!tsDates.has(date)) {
+        tsEntries.push({ date, epsActual, epsEstimate: estimateMap.get(date), beat: beatMap.get(date) });
+      }
+    }
+
+    return tsEntries
       .filter((e) => e.date)
       .sort((a, b) => a.date.localeCompare(b.date));
   } catch {
