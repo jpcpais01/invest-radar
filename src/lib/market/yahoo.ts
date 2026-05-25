@@ -90,35 +90,41 @@ export async function getFundamentals(ticker: string): Promise<Fundamentals> {
 
 export async function getEarnings(ticker: string): Promise<EarningsEvent[]> {
   try {
-    // Use chart events — goes back years, unlike earningsHistory which caps at 4 quarters
     const period1 = new Date();
     period1.setFullYear(period1.getFullYear() - 6);
-    const result: any = await yf.chart(ticker, {
-      period1,
-      period2: new Date(),
-      interval: "1mo",
-    });
-    const events: any[] = Object.values(result?.events?.earnings ?? {});
-    return events
-      .map((e: any) => {
-        const date = e.date
-          ? new Date(e.date).toISOString().split("T")[0]
-          : "";
-        const epsActual: number | undefined =
-          typeof e.epsActual === "number" ? e.epsActual : undefined;
-        const epsEstimate: number | undefined =
-          typeof e.epsEstimate === "number" ? e.epsEstimate : undefined;
-        return {
-          date,
-          epsEstimate,
-          epsActual,
-          beat:
-            epsActual != null && epsEstimate != null
-              ? epsActual > epsEstimate
-              : undefined,
-        };
+
+    // fundamentalsTimeSeries gives actual EPS per quarter (5 quarters back)
+    // earningsHistory gives beat/miss vs estimate for the 4 most recent quarters
+    const [tsData, summary] = await Promise.all([
+      yf.fundamentalsTimeSeries(ticker, {
+        module: "financials",
+        type: "quarterly",
+        period1,
+      } as any).catch(() => [] as any[]),
+      yf.quoteSummary(ticker, { modules: ["earningsHistory"] }).catch(() => null),
+    ]);
+
+    // Build beat/miss lookup from earningsHistory
+    const beatMap = new Map<string, boolean | undefined>();
+    for (const e of (summary as any)?.earningsHistory?.history ?? []) {
+      const quarter = e.quarter;
+      if (!quarter) continue;
+      const date = new Date(quarter).toISOString().split("T")[0];
+      const actual = typeof e.epsActual === "number" ? e.epsActual : undefined;
+      const estimate = typeof e.epsEstimate === "number" ? e.epsEstimate : undefined;
+      if (actual != null && estimate != null) beatMap.set(date, actual > estimate);
+    }
+
+    return ((tsData as any[]) ?? [])
+      .filter((q: any) => q.dilutedEPS != null || q.basicEPS != null)
+      .map((q: any) => {
+        const date = q.date instanceof Date
+          ? q.date.toISOString().split("T")[0]
+          : String(q.date).split("T")[0];
+        const epsActual = q.dilutedEPS ?? q.basicEPS;
+        return { date, epsActual, beat: beatMap.get(date) };
       })
-      .filter((e) => e.date && e.epsActual != null)
+      .filter((e) => e.date)
       .sort((a, b) => a.date.localeCompare(b.date));
   } catch {
     return [];
