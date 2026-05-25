@@ -139,14 +139,47 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
   const yTicks    = useMemo(() => Array.from({ length: 4 }, (_, i) => minP + (maxP - minP) * ((i + 0.5) / 4)), [minP, maxP]);
   const xTickIdxs = useMemo(() => evenIdxs(n, 5), [n]);
 
+  // EPS secondary scale — sorted markers within bar range
+  const sortedEarnings = useMemo(
+    () => [...earnings].filter(m => m.idx >= 0 && m.idx < bars.length).sort((a, b) => a.idx - b.idx),
+    [earnings, bars.length]
+  );
+  const [minEps, maxEps] = useMemo(() => {
+    if (!sortedEarnings.length) return [0, 1];
+    const vals = sortedEarnings.map(m => m.eps);
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const pad = (hi - lo) * 0.25 || Math.abs(hi || 1) * 0.25;
+    return [lo - pad, hi + pad];
+  }, [sortedEarnings]);
+  const epsY = useCallback(
+    (v: number) => {
+      // occupy the middle 75% of chart height so EPS doesn't crowd price extremes
+      const top = priceTopY + priceH * 0.12;
+      const bot = priceTopY + priceH * 0.88;
+      return bot - ((v - minEps) / (maxEps - minEps)) * (bot - top);
+    },
+    [priceTopY, priceH, minEps, maxEps]
+  );
+  const epsLinePath = useMemo(() => {
+    if (sortedEarnings.length < 2) return "";
+    return "M" + sortedEarnings.map(m => `${xS(m.idx).toFixed(1)},${epsY(m.eps).toFixed(1)}`).join(" L");
+  }, [sortedEarnings, xS, epsY]);
+
   // Crosshair
   const crosshair = useMemo(() => {
     if (mouseX === null || cW <= 0 || !bars.length) return null;
     const ratio = Math.max(0, Math.min(1, (mouseX - MG.left) / cW));
     const idx   = Math.round(ratio * (n - 1));
     const bar   = bars[idx];
-    return { idx, bar, cx: xS(idx), cy: yS(bar.close) };
-  }, [mouseX, bars, n, cW, xS, yS]);
+    // nearest EPS point for tooltip
+    let nearestEps: EarningsMarker | null = null;
+    let bestDist = Infinity;
+    for (const m of sortedEarnings) {
+      const d = Math.abs(m.idx - idx);
+      if (d < bestDist) { bestDist = d; nearestEps = m; }
+    }
+    return { idx, bar, cx: xS(idx), cy: yS(bar.close), nearestEps: bestDist <= 15 ? nearestEps : null };
+  }, [mouseX, bars, n, cW, xS, yS, sortedEarnings]);
 
   if (!size || cW <= 0 || priceH <= 0) {
     return <div ref={wrapRef} style={{ height: CHART_H, background: "#0c0c10" }} />;
@@ -253,53 +286,57 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
           >{fmtDateTick(bars[i]?.time ?? 0, tf)}</text>
         ))}
 
-        {/* ── Earnings markers ── */}
-        {earnings.map((m, i) => {
-          if (m.idx < 0 || m.idx >= bars.length) return null;
+        {/* ── EPS line plot ── */}
+        {sortedEarnings.length >= 2 && (
+          <g clipPath={`url(#${uid}pc)`}>
+            {/* subtle glow behind line */}
+            <path d={epsLinePath} fill="none"
+              stroke="rgba(251,191,36,0.18)" strokeWidth="6"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+            {/* main EPS line */}
+            <path d={epsLinePath} fill="none"
+              stroke="rgba(251,191,36,0.65)" strokeWidth="1.4"
+              strokeLinecap="round" strokeLinejoin="round"
+              strokeDasharray="5,3"
+            />
+          </g>
+        )}
+        {/* EPS dots — outside clip so they render even at edges */}
+        {sortedEarnings.map((m, i) => {
           const x   = xS(m.idx);
-          const py  = yS(bars[m.idx].close);
-          const col = m.beat === true ? "#4ade80" : m.beat === false ? "#f87171" : "#94a3b8";
-          const rgb = m.beat === true ? "74,222,128" : m.beat === false ? "248,113,113" : "148,163,184";
-          const lbl = `${m.eps >= 0 ? "+" : ""}$${Math.abs(m.eps).toFixed(2)}`;
-          // alternate label rows to avoid collisions between adjacent quarters
-          const labelY = priceTopY + 6 + (i % 2 === 0 ? 0 : 18);
-          const lblW   = lbl.length * 5.8 + 10;
+          const y   = epsY(m.eps);
+          const col = m.beat === true ? "#4ade80" : m.beat === false ? "#f87171" : "#fbbf24";
           return (
             <g key={i}>
-              {/* vertical guide */}
-              <line
-                x1={x.toFixed(1)} y1={priceTopY}
-                x2={x.toFixed(1)} y2={priceBotY}
-                stroke={`rgba(${rgb},0.12)`} strokeWidth="1" strokeDasharray="3,4"
+              <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="4.5"
+                fill="rgba(251,191,36,0.12)" stroke={col} strokeWidth="1.2"
               />
-              {/* price dot */}
-              <circle cx={x.toFixed(1)} cy={py.toFixed(1)} r="5"
-                fill={`rgba(${rgb},0.14)`} stroke={col} strokeWidth="1"
+              <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="2"
+                fill={col} style={{ filter: `drop-shadow(0 0 3px ${col})` }}
               />
-              <circle cx={x.toFixed(1)} cy={py.toFixed(1)} r="2"
-                fill={col} style={{ filter: `drop-shadow(0 0 3px rgba(${rgb},0.7))` }}
-              />
-              {/* EPS pill at top */}
-              <rect
-                x={(x - lblW / 2).toFixed(1)} y={labelY}
-                width={lblW} height={13} rx="3"
-                fill="rgba(5,6,16,0.88)"
-                stroke={`rgba(${rgb},0.45)`} strokeWidth="0.75"
-              />
-              <text
-                x={x.toFixed(1)} y={(labelY + 9).toFixed(1)}
-                textAnchor="middle" fontSize="7.5" fontFamily="ui-monospace,monospace"
-                fontWeight="600" fill={col}
-              >{lbl}</text>
             </g>
           );
         })}
+        {/* EPS axis label */}
+        {sortedEarnings.length > 0 && (
+          <text
+            x={w - MG.right + 5}
+            y={epsY(sortedEarnings[sortedEarnings.length - 1].eps)}
+            fill="rgba(251,191,36,0.45)" fontSize="7.5"
+            fontFamily="ui-monospace,monospace" dominantBaseline="middle"
+          >EPS</text>
+        )}
 
         {/* Crosshair */}
         {crosshair && (() => {
-          const { cx, cy, bar } = crosshair;
-          const tipX = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
-          const tipY = priceTopY + 6;
+          const { cx, cy, bar, nearestEps } = crosshair;
+          const tipX    = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
+          const tipY    = priceTopY + 6;
+          const tipHdyn = nearestEps != null ? tipH + 14 : tipH;
+          const epsCol  = nearestEps?.beat === true ? "#4ade80" : nearestEps?.beat === false ? "#f87171" : "#fbbf24";
+          // EPS crosshair dot
+          const epsCy   = nearestEps != null ? epsY(nearestEps.eps) : null;
           return (
             <>
               <line x1={cx.toFixed(1)} y1={priceTopY} x2={cx.toFixed(1)} y2={priceBotY}
@@ -307,9 +344,15 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
               />
               <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="5.5" fill={lineColor} fillOpacity="0.12" />
               <circle cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="2.5" fill={lineColor} fillOpacity="0.90" />
+              {epsCy != null && (
+                <>
+                  <circle cx={cx.toFixed(1)} cy={epsCy.toFixed(1)} r="4" fill="rgba(251,191,36,0.15)" stroke={epsCol} strokeWidth="1" />
+                  <circle cx={cx.toFixed(1)} cy={epsCy.toFixed(1)} r="1.8" fill={epsCol} />
+                </>
+              )}
 
               <g transform={`translate(${tipX.toFixed(1)},${tipY})`}>
-                <rect rx="7" width={tipW} height={tipH}
+                <rect rx="7" width={tipW} height={tipHdyn}
                   fill="rgba(5,6,16,0.94)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
                 />
                 <text x="10" y="14" fill="rgba(255,255,255,0.30)" fontSize="8"
@@ -335,6 +378,15 @@ function PriceChart({ bars, tf, earnings = [] }: ChartProps) {
                   <tspan fill="rgba(255,255,255,0.22)">V </tspan>
                   <tspan fill="rgba(180,190,230,0.55)">{fmtVol(bar.volume)}</tspan>
                 </text>
+                {nearestEps != null && (
+                  <text x="10" y={31 + 5 * 14} fontSize="9" fontFamily="ui-monospace,monospace">
+                    <tspan fill="rgba(255,255,255,0.22)">EPS </tspan>
+                    <tspan fill={epsCol}>
+                      {nearestEps.eps >= 0 ? "+" : ""}${Math.abs(nearestEps.eps).toFixed(2)}
+                      {nearestEps.beat === true ? " ✓" : nearestEps.beat === false ? " ✗" : ""}
+                    </tspan>
+                  </text>
+                )}
               </g>
             </>
           );
