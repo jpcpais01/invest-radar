@@ -416,7 +416,7 @@ export default function AIPredPanel({ ticker }: Props) {
   const { data: earningsData } = useQuery<{ earnings: EarningsEvent[] }>({
     queryKey: ["earnings", ticker],
     queryFn:  () => fetch(`/api/market/earnings/${encodeURIComponent(ticker)}`).then(r => r.json()),
-    staleTime: 60 * 60_000,
+    staleTime: 24 * 60 * 60_000,
     enabled: showEps,
   });
 

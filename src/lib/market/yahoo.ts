@@ -90,16 +90,19 @@ export async function getFundamentals(ticker: string): Promise<Fundamentals> {
 
 export async function getEarnings(ticker: string): Promise<EarningsEvent[]> {
   try {
-    const summary: any = await yf.quoteSummary(ticker, {
-      modules: ["earningsHistory"],
+    // Use chart events — goes back years, unlike earningsHistory which caps at 4 quarters
+    const period1 = new Date();
+    period1.setFullYear(period1.getFullYear() - 6);
+    const result: any = await yf.chart(ticker, {
+      period1,
+      period2: new Date(),
+      interval: "1mo",
     });
-    const history: any[] = summary?.earningsHistory?.history ?? [];
-    return history
+    const events: any[] = Object.values(result?.events?.earnings ?? {});
+    return events
       .map((e: any) => {
-        // v3: quarter is an ISO string or Date, epsActual/epsEstimate are plain numbers
-        const quarter = e.quarter;
-        const date = quarter
-          ? new Date(quarter).toISOString().split("T")[0]
+        const date = e.date
+          ? new Date(e.date).toISOString().split("T")[0]
           : "";
         const epsActual: number | undefined =
           typeof e.epsActual === "number" ? e.epsActual : undefined;
@@ -115,7 +118,7 @@ export async function getEarnings(ticker: string): Promise<EarningsEvent[]> {
               : undefined,
         };
       })
-      .filter((e) => e.date)
+      .filter((e) => e.date && e.epsActual != null)
       .sort((a, b) => a.date.localeCompare(b.date));
   } catch {
     return [];
