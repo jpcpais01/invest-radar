@@ -6,7 +6,7 @@ import { OHLCVBar } from "@/types/market";
 
 interface Props { ticker: string }
 
-const TF_OPTIONS = ["1D", "7D", "1M", "3M", "6M", "1Y", "2Y"] as const;
+const TF_OPTIONS = ["1D", "7D", "1M", "3M", "6M", "1Y", "2Y", "5Y"] as const;
 type TFOption = typeof TF_OPTIONS[number];
 const INTRADAY_TFS = new Set<TFOption>(["1D", "7D"]);
 
@@ -28,7 +28,7 @@ function fmtDateTick(ts: number, tf: TFOption): string {
   if (INTRADAY_TFS.has(tf)) {
     return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   }
-  if (tf === "2Y") return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  if (tf === "2Y" || tf === "5Y") return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 function fmtTooltipDate(ts: number, tf: TFOption): string {
