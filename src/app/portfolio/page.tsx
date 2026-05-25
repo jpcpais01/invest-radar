@@ -399,6 +399,35 @@ function AllocationDonut({ slices }: { slices: Slice[] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Reusable labelled input — defined at MODULE level so React never remounts it
+// ─────────────────────────────────────────────────────────────────────────────
+const INP = "w-full bg-[#080810] border border-[#1a1a26] rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#f0f0f0] placeholder-[#252535] outline-none focus:border-[#34d39960] transition-colors disabled:opacity-40";
+const LBL = "block text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold mb-1.5";
+
+function ModalField({
+  label, value, onChange, placeholder, type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className={LBL}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={INP}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Add / Edit Position Modal
 // ─────────────────────────────────────────────────────────────────────────────
 function PositionModal({
@@ -408,13 +437,13 @@ function PositionModal({
   onSave: (p: Omit<Position, "id">) => void;
   onClose: () => void;
 }) {
-  const [ticker,   setTicker]   = useState(initial?.ticker ?? "");
-  const [shares,   setShares]   = useState(initial ? String(initial.shares) : "");
-  const [avgCost,  setAvgCost]  = useState(initial ? String(initial.avgCost) : "");
-  const [selName,  setSelName]  = useState(initial?.name ?? "");
-  const [results,  setResults]  = useState<{ symbol: string; name: string }[]>([]);
+  const [ticker,    setTicker]    = useState(initial?.ticker ?? "");
+  const [shares,    setShares]    = useState(initial ? String(initial.shares) : "");
+  const [avgCost,   setAvgCost]   = useState(initial ? String(initial.avgCost) : "");
+  const [selName,   setSelName]   = useState(initial?.name ?? "");
+  const [results,   setResults]   = useState<{ symbol: string; name: string }[]>([]);
   const [searching, setSearching] = useState(false);
-  const [dropOpen, setDropOpen] = useState(false);
+  const [dropOpen,  setDropOpen]  = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const doSearch = (v: string) => {
@@ -452,26 +481,6 @@ function PositionModal({
     onClose();
   };
 
-  const Field = ({
-    label, value, onChange, placeholder, type = "text", disabled = false,
-  }: {
-    label: string; value: string;
-    onChange: (v: string) => void;
-    placeholder: string; type?: string; disabled?: boolean;
-  }) => (
-    <div>
-      <label className="block text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold mb-1.5">
-        {label}
-      </label>
-      <input
-        type={type} value={value} disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-[#080810] border border-[#1a1a26] rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#f0f0f0] placeholder-[#252535] outline-none focus:border-[#34d39960] transition-colors disabled:opacity-40"
-      />
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}>
@@ -492,11 +501,9 @@ function PositionModal({
         {/* body */}
         <div className="p-5 flex flex-col gap-4">
 
-          {/* ticker with search */}
+          {/* ticker with autocomplete */}
           <div>
-            <label className="block text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold mb-1.5">
-              Ticker Symbol
-            </label>
+            <label className={LBL}>Ticker Symbol</label>
             <div className="relative">
               <input
                 value={ticker}
@@ -510,13 +517,11 @@ function PositionModal({
                 onBlur={() => setTimeout(() => setDropOpen(false), 160)}
                 onFocus={() => results.length && setDropOpen(true)}
                 placeholder="AAPL"
-                className="w-full bg-[#080810] border border-[#1a1a26] rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#f0f0f0] placeholder-[#252535] outline-none focus:border-[#34d39960] transition-colors disabled:opacity-40"
+                className={INP}
               />
               {searching && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border border-[#34d399] border-t-transparent animate-spin" />
               )}
-
-              {/* autocomplete dropdown */}
               {dropOpen && results.length > 0 && (
                 <div className="absolute z-10 top-full mt-1 left-0 right-0 rounded-xl border border-[#1a1a26] overflow-hidden shadow-2xl"
                   style={{ background: "#0d0d16" }}>
@@ -538,10 +543,10 @@ function PositionModal({
             )}
           </div>
 
-          {/* shares + avg cost */}
+          {/* shares + avg cost — use ModalField (module-level) to avoid remount */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Shares" value={shares} onChange={setShares} placeholder="100" type="number" />
-            <Field label="Avg Cost ($)" value={avgCost} onChange={setAvgCost} placeholder="150.00" type="number" />
+            <ModalField label="Shares" value={shares} onChange={setShares} placeholder="100" type="number" />
+            <ModalField label="Avg Cost ($)" value={avgCost} onChange={setAvgCost} placeholder="150.00" type="number" />
           </div>
 
           {/* cost-basis preview */}
