@@ -69,12 +69,13 @@ interface PLPoint { time: number; value: number }
 interface SPYPoint { time: number; norm: number }
 
 function PLChart({
-  series, spySeries, costBasis, tf,
+  series, spySeries, costBasis, tf, mode,
 }: {
   series: PLPoint[];
   spySeries: SPYPoint[];
   costBasis: number;
   tf: ChartTF;
+  mode: "$" | "%";
 }) {
   const uid     = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -118,6 +119,7 @@ function PLChart({
   const firstVal = series[0]?.value ?? costBasis;
   const isUp     = lastVal >= costBasis;
   const lineCol  = isUp ? "#34d399" : "#f87171";
+  const fmtV     = (v: number) => mode === "%" ? `${v >= 0 ? "+" : ""}${v.toFixed(2)}%` : fmt$(v);
 
   const priceLine = useMemo(() => {
     if (n < 2) return "";
@@ -173,8 +175,8 @@ function PLChart({
     return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
   };
 
-  const tipW  = 148;
-  const tipH  = spySeries.length ? 92 : 78;
+  const tipW  = 152;
+  const tipH  = mode === "%" ? (spySeries.length ? 68 : 52) : (spySeries.length ? 92 : 78);
 
   return (
     <div ref={wrapRef} style={{ height: CH }}>
@@ -208,8 +210,8 @@ function PLChart({
           />
         ))}
 
-        {/* cost-basis reference */}
-        {costBasis > 0 && (
+        {/* cost-basis / break-even reference */}
+        {(costBasis > 0 || mode === "%") && (
           <>
             <line
               x1={MG.left} y1={costY.toFixed(1)}
@@ -218,7 +220,9 @@ function PLChart({
             />
             <text x={MG.left + 5} y={costY - 5}
               fill="rgba(255,255,255,0.20)" fontSize="7.5"
-              fontFamily="ui-monospace,monospace">Cost basis · {fmt$(costBasis)}</text>
+              fontFamily="ui-monospace,monospace">
+              {mode === "%" ? "Break-even" : `Cost basis · ${fmt$(costBasis)}`}
+            </text>
           </>
         )}
 
@@ -273,15 +277,30 @@ function PLChart({
           const { cx, cy, pt, spyPt } = crosshair;
           const tipX = cx + tipW + 14 > w - MG.right ? cx - tipW - 8 : cx + 8;
           const tipY = MG.top + 4;
-          const pnl     = pt.value - costBasis;
-          const pnlPct  = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
-          const portRet = firstVal > 0 ? ((pt.value - firstVal) / firstVal) * 100 : 0;
-          const spyRet  = spyPt && firstVal > 0
-            ? ((spyPt.norm - firstVal) / firstVal) * 100 : null;
-          const d = new Date(pt.time * 1000);
-          const ds = d.toLocaleDateString("en-US", {
-            weekday: "short", month: "short", day: "numeric",
-          });
+          const d    = new Date(pt.time * 1000);
+          const ds   = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
+          // rows differ by mode
+          let tipRows: [string, string, string][];
+          let spyLabel: string | null = null;
+          if (mode === "%") {
+            tipRows = [
+              ["Return", fmtV(pt.value), col(pt.value)],
+            ];
+            if (spyPt != null) spyLabel = fmtV(spyPt.norm);
+          } else {
+            const pnl     = pt.value - costBasis;
+            const portRet = firstVal > 0 ? ((pt.value - firstVal) / firstVal) * 100 : 0;
+            const spyRet  = spyPt && firstVal > 0
+              ? ((spyPt.norm - firstVal) / firstVal) * 100 : null;
+            tipRows = [
+              ["Value", fmt$(pt.value), "#e0e0f0"],
+              ["P&L",  `${pnl >= 0 ? "+" : ""}${fmt$(pnl)}`, col(pnl)],
+              ["Ret",  fmtPct(portRet), col(portRet)],
+            ];
+            if (spyRet !== null) spyLabel = fmtPct(spyRet);
+          }
+
           return (
             <>
               <line x1={cx.toFixed(1)} y1={MG.top} x2={cx.toFixed(1)} y2={MG.top + cH}
@@ -302,21 +321,17 @@ function PLChart({
                 <line x1="10" y1="19" x2={tipW - 10} y2="19"
                   stroke="rgba(255,255,255,0.06)" strokeWidth="1"
                 />
-                {([
-                  ["Value", fmt$(pt.value), "#e0e0f0"],
-                  ["P&L",  `${pnl >= 0 ? "+" : ""}${fmt$(pnl)}`, col(pnl)],
-                  ["Ret",  fmtPct(portRet), col(portRet)],
-                ] as [string, string, string][]).map(([label, val, color], i) => (
+                {tipRows.map(([label, val, color], i) => (
                   <text key={label} x="10" y={31 + i * 14}
                     fontSize="9.5" fontFamily="ui-monospace,monospace">
-                    <tspan fill="rgba(255,255,255,0.22)">{label.padEnd(6)}</tspan>
+                    <tspan fill="rgba(255,255,255,0.22)">{label.padEnd(7)}</tspan>
                     <tspan fill={color}>{val}</tspan>
                   </text>
                 ))}
-                {spyRet !== null && (
-                  <text x="10" y={31 + 3 * 14} fontSize="9.5" fontFamily="ui-monospace,monospace">
-                    <tspan fill="rgba(255,255,255,0.22)">{"SPY   "}</tspan>
-                    <tspan fill="rgba(148,163,184,0.75)">{fmtPct(spyRet)}</tspan>
+                {spyLabel !== null && (
+                  <text x="10" y={31 + tipRows.length * 14} fontSize="9.5" fontFamily="ui-monospace,monospace">
+                    <tspan fill="rgba(255,255,255,0.22)">{"SPY    "}</tspan>
+                    <tspan fill="rgba(148,163,184,0.75)">{spyLabel}</tspan>
                   </text>
                 )}
               </g>
@@ -462,6 +477,41 @@ function PnLBars({ rows }: {
         );
       })}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Mini sparkline (30-day) — shown per position in the table
+// ─────────────────────────────────────────────────────────────────────────────
+function MiniSparkline({ bars }: { bars: Bar[] }) {
+  if (bars.length < 3) return (
+    <div className="w-16 h-5 rounded-sm bg-[#111118] opacity-30" />
+  );
+  const prices = bars.map((b) => b.close);
+  const lo  = Math.min(...prices);
+  const hi  = Math.max(...prices);
+  const rng = hi - lo || lo * 0.01 || 1;
+  const W = 64, H = 20, PAD = 2;
+  const isUp = prices.at(-1)! >= prices[0];
+  const stroke = isUp ? "#4ade80" : "#f87171";
+  const d = prices.map((p, i) => {
+    const x = (i / (prices.length - 1)) * W;
+    const y = PAD + (H - PAD * 2) * (1 - (p - lo) / rng);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const dotY = (PAD + (H - PAD * 2) * (1 - (prices.at(-1)! - lo) / rng)).toFixed(1);
+  return (
+    <svg width={W} height={H} style={{ display: "block", overflow: "visible" }}>
+      <defs>
+        <linearGradient id={`sp${isUp ? "u" : "d"}${Math.random().toString(36).slice(2, 6)}`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0.8" />
+        </linearGradient>
+      </defs>
+      <path d={d} fill="none" stroke={stroke} strokeWidth="1.3"
+        strokeOpacity="0.70" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={W} cy={dotY} r="1.8" fill={stroke} fillOpacity="0.9" />
+    </svg>
   );
 }
 
@@ -785,9 +835,10 @@ export default function PortfolioPage() {
   const { positions, addPosition, updatePosition, removePosition } =
     usePortfolioStore();
 
-  const [chartTf, setChartTf]   = useState<ChartTF>("3M");
+  const [chartTf,   setChartTf]   = useState<ChartTF>("3M");
+  const [chartMode, setChartMode] = useState<"$" | "%">("$");
   const [showModal, setShowModal] = useState(false);
-  const [editPos, setEditPos]    = useState<Position | null>(null);
+  const [editPos, setEditPos]     = useState<Position | null>(null);
 
   // ── live quotes ─────────────────────────────────────────────────────────────
   const quoteResults = useQueries({
@@ -954,6 +1005,65 @@ export default function PortfolioPage() {
     [metrics.rows]
   );
 
+  // ── 30-day price history map (for sparklines) ───────────────────────────────
+  const histMap = useMemo(() => {
+    const map = new Map<string, Bar[]>();
+    const cutoff = Date.now() / 1000 - 30 * 86400;
+    allTickers.forEach((t, i) => {
+      const bars = (histResults[i]?.data?.bars ?? [])
+        .filter((b) => b.time >= cutoff)
+        .sort((a, b) => a.time - b.time);
+      map.set(t, bars);
+    });
+    return map;
+  }, [allTickers, histResults]);
+
+  // ── chart display series ($ vs % mode) ──────────────────────────────────────
+  const displaySeries = useMemo<PLPoint[]>(() => {
+    if (chartMode === "%" && portfolioSeries.length > 0) {
+      const first = portfolioSeries[0].value;
+      if (first <= 0) return portfolioSeries;
+      return portfolioSeries.map((pt) => ({
+        time: pt.time,
+        value: ((pt.value - first) / first) * 100,
+      }));
+    }
+    return portfolioSeries;
+  }, [portfolioSeries, chartMode]);
+
+  const displaySpySeries = useMemo<SPYPoint[]>(() => {
+    if (chartMode === "%" && spySeries.length > 0 && portfolioSeries.length > 0) {
+      const firstPort = portfolioSeries[0].value;
+      if (firstPort <= 0) return spySeries;
+      return spySeries.map((pt) => ({
+        time: pt.time,
+        norm: ((pt.norm - firstPort) / firstPort) * 100,
+      }));
+    }
+    return spySeries;
+  }, [spySeries, portfolioSeries, chartMode]);
+
+  // ── monthly returns heatmap ──────────────────────────────────────────────────
+  const monthlyReturns = useMemo(() => {
+    if (portfolioSeries.length < 5) return [];
+    const byMonth = new Map<string, { first: number; last: number; year: number; month: number }>();
+    for (const pt of portfolioSeries) {
+      const d    = new Date(pt.time * 1000);
+      const key  = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+      const ex   = byMonth.get(key);
+      if (!ex) byMonth.set(key, { first: pt.value, last: pt.value, year: d.getFullYear(), month: d.getMonth() });
+      else ex.last = pt.value;
+    }
+    return [...byMonth.values()]
+      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+      .map(({ first, last, year, month }) => ({
+        key: `${year}-${month}`,
+        label: new Date(year, month).toLocaleDateString("en-US", { month: "short" }),
+        year,
+        ret: first > 0 ? ((last - first) / first) * 100 : 0,
+      }));
+  }, [portfolioSeries]);
+
   // ── performance analytics ────────────────────────────────────────────────────
   const analysis = useMemo(() => {
     if (portfolioSeries.length < 5) return null;
@@ -1080,6 +1190,48 @@ export default function PortfolioPage() {
     return list.slice(0, 6);
   }, [metrics, analysis, chartTf]);
 
+  // ── portfolio health grade ───────────────────────────────────────────────────
+  const portfolioGrade = useMemo(() => {
+    let score = 50;
+    const total = metrics.rows.length;
+    const profitable = metrics.rows.filter((r) => r.pnl > 0).length;
+
+    // Win rate: ±20 pts
+    if (total > 0) score += ((profitable / total) - 0.5) * 40;
+
+    // Sharpe: ±25 pts
+    if (analysis?.sharpe != null) {
+      score += Math.max(-15, Math.min(25, analysis.sharpe * 12));
+    }
+
+    // Concentration risk: penalty up to -15 pts
+    const topW = [...metrics.rows].sort((a, b) => b.weight - a.weight)[0]?.weight ?? 0;
+    score -= Math.max(0, (topW - 30) / 70 * 15);
+
+    // Alpha: ±15 pts
+    if (analysis?.alpha != null) {
+      score += Math.max(-15, Math.min(15, analysis.alpha * 1.5));
+    }
+
+    // Diversification bonus: +5 per tier
+    if (total >= 5) score += 5;
+    if (total >= 10) score += 5;
+
+    score = Math.max(0, Math.min(100, score));
+    const grade =
+      score >= 90 ? "A+" : score >= 82 ? "A" :
+      score >= 74 ? "B+" : score >= 66 ? "B" :
+      score >= 58 ? "C+" : score >= 50 ? "C" :
+      score >= 40 ? "D" : "F";
+
+    const gradeColor =
+      grade.startsWith("A") ? "#4ade80" :
+      grade.startsWith("B") ? "#a3e635" :
+      grade.startsWith("C") ? "#f59e0b" : "#f87171";
+
+    return { score: Math.round(score), grade, gradeColor };
+  }, [metrics, analysis]);
+
   // ── empty state ──────────────────────────────────────────────────────────────
   if (!positions.length) {
     return (
@@ -1172,7 +1324,7 @@ export default function PortfolioPage() {
                   Portfolio P&amp;L
                 </span>
                 {/* best / worst pills */}
-                {metrics.best && metrics.best.ticker !== metrics.worst?.ticker && (
+                {!quotesLoading && metrics.best && metrics.best.ticker !== metrics.worst?.ticker && (
                   <div className="hidden sm:flex items-center gap-1.5">
                     <span className="flex items-center gap-1 text-[8.5px] font-mono px-1.5 py-0.5 rounded"
                       style={{ background: "rgba(74,222,128,0.08)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.18)" }}>
@@ -1189,17 +1341,31 @@ export default function PortfolioPage() {
                   </div>
                 )}
               </div>
-              {/* time-frame selector */}
-              <div className="flex items-center gap-0.5">
-                {CHART_TFS.map((t) => (
-                  <button key={t} onClick={() => setChartTf(t)}
-                    className={cn(
-                      "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
-                      chartTf === t
-                        ? "text-[#ddddf0] bg-[#ffffff0d] border border-[#ffffff18]"
-                        : "text-[#282838] hover:text-[#585870]"
-                    )}>{t}</button>
-                ))}
+              <div className="flex items-center gap-2">
+                {/* $ / % mode toggle */}
+                <div className="flex items-center border border-[#1e1e2a] rounded-md p-0.5 bg-[#090910]">
+                  {(["$", "%"] as const).map((m) => (
+                    <button key={m} onClick={() => setChartMode(m)}
+                      className={cn(
+                        "px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all",
+                        chartMode === m
+                          ? "bg-[#1a1a26] text-[#c0c0cc]"
+                          : "text-[#282838] hover:text-[#585870]"
+                      )}>{m}</button>
+                  ))}
+                </div>
+                {/* time-frame selector */}
+                <div className="flex items-center gap-0.5">
+                  {CHART_TFS.map((t) => (
+                    <button key={t} onClick={() => setChartTf(t)}
+                      className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
+                        chartTf === t
+                          ? "text-[#ddddf0] bg-[#ffffff0d] border border-[#ffffff18]"
+                          : "text-[#282838] hover:text-[#585870]"
+                      )}>{t}</button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -1217,10 +1383,11 @@ export default function PortfolioPage() {
             </div>
 
             <PLChart
-              series={portfolioSeries}
-              spySeries={spySeries}
-              costBasis={metrics.totalInvested}
+              series={displaySeries}
+              spySeries={displaySpySeries}
+              costBasis={chartMode === "%" ? 0 : metrics.totalInvested}
               tf={chartTf}
+              mode={chartMode}
             />
           </div>
 
@@ -1235,23 +1402,21 @@ export default function PortfolioPage() {
             <div className="p-4 flex flex-col items-center gap-4">
               {slices.length > 0 && <AllocationDonut slices={slices} />}
               {/* legend */}
-              <div className="w-full flex flex-col gap-2">
-                {slices.map((s, i) => (
+              <div className="w-full flex flex-col gap-2.5">
+                {slices.map((s) => (
                   <div key={s.ticker} className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-sm shrink-0"
-                      style={{ background: s.color }} />
-                    <span className="text-[10px] font-mono text-[#767676] w-12 shrink-0">
+                    <div className="w-2 h-2 rounded-sm shrink-0" style={{ background: s.color }} />
+                    <span className="text-[10px] font-mono text-[#767676] w-10 shrink-0">
                       {s.ticker}
                     </span>
                     <div className="flex-1 h-1 rounded-full bg-[#111118] overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700"
-                        style={{
-                          width: `${s.pct}%`,
-                          background: s.color,
-                          opacity: 0.65,
-                        }} />
+                        style={{ width: `${s.pct}%`, background: s.color, opacity: 0.65 }} />
                     </div>
-                    <span className="text-[9.5px] font-mono text-[#3a3a4a] w-9 text-right shrink-0">
+                    <span className="text-[9px] font-mono text-[#2a2a3a] w-14 text-right shrink-0 tabular-nums">
+                      {fmt$(s.value)}
+                    </span>
+                    <span className="text-[9px] font-mono text-[#3a3a4a] w-9 text-right shrink-0 tabular-nums">
                       {s.pct.toFixed(1)}%
                     </span>
                   </div>
@@ -1263,7 +1428,7 @@ export default function PortfolioPage() {
 
         {/* ── analytics strip ── */}
         {analysis && (
-          <div className="grid grid-cols-3 lg:grid-cols-6 gap-2.5 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
             <AnalyticsStat
               label={`${chartTf} Return`}
               value={`${analysis.portReturn >= 0 ? "+" : ""}${analysis.portReturn.toFixed(2)}%`}
@@ -1319,6 +1484,68 @@ export default function PortfolioPage() {
                   ? "#4ade80" : "#f87171"
               }
             />
+            <AnalyticsStat
+              label="Best Day"
+              value={`+${analysis.bestDay.toFixed(2)}%`}
+              sub={`over ${chartTf}`}
+              valueColor="#4ade80"
+            />
+            <AnalyticsStat
+              label="Worst Day"
+              value={`${analysis.worstDay.toFixed(2)}%`}
+              sub={`over ${chartTf}`}
+              valueColor={analysis.worstDay < -3 ? "#f87171" : "#f59e0b"}
+            />
+          </div>
+        )}
+
+        {/* ── monthly returns heatmap ── */}
+        {monthlyReturns.length > 1 && (
+          <div className="rounded-xl border border-[#1a1a22] overflow-hidden mb-4"
+            style={{ background: "#0c0c10" }}>
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-[#181820]">
+              <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
+                Monthly Returns
+              </span>
+              <span className="text-[8.5px] text-[#252535] font-mono uppercase tracking-wider">
+                Portfolio performance by month
+              </span>
+            </div>
+            <div className="px-4 py-4 overflow-x-auto">
+              <div className="flex gap-2 min-w-max">
+                {monthlyReturns.map(({ key, label, year, ret }) => {
+                  const intensity = Math.min(Math.abs(ret) / 8, 1);
+                  const isPos     = ret >= 0;
+                  const bg        = isPos
+                    ? `rgba(74,222,128,${0.07 + intensity * 0.35})`
+                    : `rgba(248,113,113,${0.07 + intensity * 0.35})`;
+                  const border    = isPos
+                    ? `rgba(74,222,128,${0.12 + intensity * 0.32})`
+                    : `rgba(248,113,113,${0.12 + intensity * 0.32})`;
+                  const textCol   = isPos
+                    ? `rgba(74,222,128,${0.55 + intensity * 0.45})`
+                    : `rgba(248,113,113,${0.55 + intensity * 0.45})`;
+                  return (
+                    <div key={key}
+                      className="flex flex-col items-center gap-1.5 group cursor-default select-none"
+                      title={`${label} ${year}: ${ret >= 0 ? "+" : ""}${ret.toFixed(2)}%`}>
+                      <div className="w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-transform duration-150 group-hover:scale-110"
+                        style={{ background: bg, border: `1px solid ${border}` }}>
+                        <span className="text-[9.5px] font-mono font-bold tabular-nums leading-none"
+                          style={{ color: textCol }}>
+                          {ret >= 0 ? "+" : ""}{ret.toFixed(1)}
+                        </span>
+                        <span className="text-[7px] font-mono leading-none mt-0.5"
+                          style={{ color: textCol, opacity: 0.65 }}>%</span>
+                      </div>
+                      <span className="text-[7.5px] font-mono text-[#252535] uppercase tracking-wide">
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1352,7 +1579,21 @@ export default function PortfolioPage() {
               <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
                 Insights
               </span>
-              <Activity className="w-3.5 h-3.5 text-[#252535]" />
+              {portfolioGrade.grade !== "F" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] uppercase tracking-widest text-[#252535] font-semibold">
+                    Health
+                  </span>
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg border font-bold text-[13px] font-mono"
+                    style={{
+                      background: `${portfolioGrade.gradeColor}14`,
+                      borderColor: `${portfolioGrade.gradeColor}30`,
+                      color: portfolioGrade.gradeColor,
+                    }}>
+                    {portfolioGrade.grade}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="p-4 flex flex-col gap-2">
               {insights.length === 0 ? (
@@ -1414,19 +1655,20 @@ export default function PortfolioPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px]">
+            <table className="w-full min-w-[780px]">
               <thead>
                 <tr className="border-b border-[#111116]">
                   {[
-                    { label: "Ticker",       align: "left"  },
-                    { label: "Shares",       align: "right" },
+                    { label: "Ticker",        align: "left"  },
+                    { label: "Shares",        align: "right" },
                     { label: "Avg Buy Price", align: "right" },
-                    { label: "Price",        align: "right" },
-                    { label: "Market Value", align: "right" },
-                    { label: "Day Chg",      align: "right" },
-                    { label: "Total P&L",    align: "right" },
-                    { label: "Weight",       align: "right" },
-                    { label: "",             align: "right" },
+                    { label: "Price",         align: "right" },
+                    { label: "30D",           align: "right" },
+                    { label: "Market Value",  align: "right" },
+                    { label: "Day Chg",       align: "right" },
+                    { label: "Total P&L",     align: "right" },
+                    { label: "Weight",        align: "right" },
+                    { label: "",              align: "right" },
                   ].map(({ label, align }, i) => (
                     <th key={i}
                       className="px-4 py-2.5 text-[8px] font-semibold uppercase tracking-widest text-[#222232]"
@@ -1476,6 +1718,13 @@ export default function PortfolioPage() {
                       <span className="text-[11px] font-mono font-medium text-[#e0e0f0]">
                         {quotesLoading ? <span className="text-[#3a3a4a]">—</span> : fmt$(row.price)}
                       </span>
+                    </td>
+
+                    {/* 30-day sparkline */}
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex justify-end">
+                        <MiniSparkline bars={histMap.get(row.ticker) ?? []} />
+                      </div>
                     </td>
 
                     {/* market value */}
@@ -1556,7 +1805,7 @@ export default function PortfolioPage() {
               {/* totals footer */}
               <tfoot>
                 <tr className="border-t border-[#181820]">
-                  <td colSpan={4} className="px-4 py-3 text-[9px] uppercase tracking-widest text-[#252535] font-semibold">
+                  <td colSpan={5} className="px-4 py-3 text-[9px] uppercase tracking-widest text-[#252535] font-semibold">
                     Total
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-[11px] text-[#c0c0cc]">
