@@ -415,7 +415,7 @@ function ModalField({
 }) {
   return (
     <div>
-      <label className={LBL}>{label}</label>
+      {label && <label className={LBL}>{label}</label>}
       <input
         type={type}
         value={value}
@@ -439,7 +439,11 @@ function PositionModal({
 }) {
   const [ticker,    setTicker]    = useState(initial?.ticker ?? "");
   const [shares,    setShares]    = useState(initial ? String(initial.shares) : "");
-  const [avgCost,   setAvgCost]   = useState(initial ? String(initial.avgCost) : "");
+  const [costMode,  setCostMode]  = useState<"per-share" | "total">("per-share");
+  const [perShare,  setPerShare]  = useState(initial ? String(initial.avgCost) : "");
+  const [totalInv,  setTotalInv]  = useState(
+    initial ? String((initial.avgCost * initial.shares).toFixed(2)) : ""
+  );
   const [selName,   setSelName]   = useState(initial?.name ?? "");
   const [results,   setResults]   = useState<{ symbol: string; name: string }[]>([]);
   const [searching, setSearching] = useState(false);
@@ -467,15 +471,30 @@ function PositionModal({
     setDropOpen(false);
   };
 
-  const cost  = Number(shares) * Number(avgCost);
-  const valid = ticker.length > 0 && Number(shares) > 0 && Number(avgCost) > 0;
+  const sharesNum = Number(shares);
+  const avgCost = costMode === "per-share"
+    ? Number(perShare)
+    : (sharesNum > 0 ? Number(totalInv) / sharesNum : 0);
+  const totalCost = costMode === "per-share"
+    ? sharesNum * Number(perShare)
+    : Number(totalInv);
+  const valid = ticker.length > 0 && sharesNum > 0 && avgCost > 0;
+
+  const switchMode = (next: "per-share" | "total") => {
+    if (next === "total" && Number(perShare) > 0 && sharesNum > 0) {
+      setTotalInv((Number(perShare) * sharesNum).toFixed(2));
+    } else if (next === "per-share" && Number(totalInv) > 0 && sharesNum > 0) {
+      setPerShare((Number(totalInv) / sharesNum).toFixed(4).replace(/\.?0+$/, ""));
+    }
+    setCostMode(next);
+  };
 
   const save = () => {
     if (!valid) return;
     onSave({
       ticker:  ticker.toUpperCase(),
-      shares:  Number(shares),
-      avgCost: Number(avgCost),
+      shares:  sharesNum,
+      avgCost,
       name:    selName || undefined,
     });
     onClose();
@@ -543,22 +562,55 @@ function PositionModal({
             )}
           </div>
 
-          {/* shares + avg cost — use ModalField (module-level) to avoid remount */}
-          <div className="grid grid-cols-2 gap-3">
-            <ModalField label="Shares" value={shares} onChange={setShares} placeholder="100" type="number" />
-            <ModalField label="Avg Cost ($)" value={avgCost} onChange={setAvgCost} placeholder="150.00" type="number" />
+          {/* shares */}
+          <ModalField label="Shares" value={shares} onChange={setShares} placeholder="100" type="number" />
+
+          {/* cost input with per-share / total toggle */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className={LBL} style={{ margin: 0 }}>Cost</span>
+              <div className="flex items-center gap-0.5 rounded-md border border-[#141420] p-0.5"
+                style={{ background: "#080810" }}>
+                <button type="button" onClick={() => switchMode("per-share")}
+                  className={cn(
+                    "px-2 py-0.5 rounded text-[8px] font-semibold tracking-wide transition-colors",
+                    costMode === "per-share" ? "bg-[#1a1a26] text-[#c0c0cc]" : "text-[#2a2a3a] hover:text-[#767676]"
+                  )}>
+                  Per share
+                </button>
+                <button type="button" onClick={() => switchMode("total")}
+                  className={cn(
+                    "px-2 py-0.5 rounded text-[8px] font-semibold tracking-wide transition-colors",
+                    costMode === "total" ? "bg-[#1a1a26] text-[#c0c0cc]" : "text-[#2a2a3a] hover:text-[#767676]"
+                  )}>
+                  Total invested
+                </button>
+              </div>
+            </div>
+            {costMode === "per-share" ? (
+              <ModalField label="" value={perShare} onChange={setPerShare} placeholder="150.00" type="number" />
+            ) : (
+              <ModalField label="" value={totalInv} onChange={setTotalInv} placeholder="15000.00" type="number" />
+            )}
           </div>
 
-          {/* cost-basis preview */}
-          {cost > 0 && (
+          {/* computed summary row */}
+          {totalCost > 0 && (
             <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#141420]"
               style={{ background: "#080810" }}>
-              <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">
-                Total cost basis
-              </span>
-              <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">
-                {fmt$(cost)}
-              </span>
+              {costMode === "per-share" ? (
+                <>
+                  <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">Total invested</span>
+                  <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">{fmt$(totalCost)}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">Price per share</span>
+                  <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">
+                    {avgCost > 0 ? fmt$(avgCost) : "—"}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -1035,7 +1087,7 @@ export default function PortfolioPage() {
                   {[
                     { label: "Ticker",       align: "left"  },
                     { label: "Shares",       align: "right" },
-                    { label: "Avg Cost",     align: "right" },
+                    { label: "Cost/Share",   align: "right" },
                     { label: "Price",        align: "right" },
                     { label: "Market Value", align: "right" },
                     { label: "Day Chg",      align: "right" },
