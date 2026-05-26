@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { OHLCVBar, TechnicalIndicators } from "@/types/market";
 import { cn } from "@/lib/utils";
@@ -26,13 +26,13 @@ function TechCard({ name, value, signal, sub }: { name: string; value: string; s
   return (
     <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-[#1e1e1e] bg-[#101010] px-4 py-3 min-w-[130px] hover:border-[#2c2c2c] transition-colors">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] font-semibold text-[#3a3a3a] uppercase tracking-widest">{name}</span>
+        <span className="text-[9px] font-semibold text-[#686868] uppercase tracking-widest">{name}</span>
         <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full border", SIG_CLS[signal])}>
           {signal === "strong-buy" ? "S.Buy" : signal === "strong-sell" ? "S.Sell" : signal.charAt(0).toUpperCase() + signal.slice(1)}
         </span>
       </div>
       <div className="font-mono text-lg font-bold text-[#f0f0f0] leading-none tabular-nums">{value}</div>
-      {sub && <div className="text-[9px] text-[#3a3a3a]">{sub}</div>}
+      {sub && <div className="text-[9px] text-[#686868]">{sub}</div>}
     </div>
   );
 }
@@ -101,7 +101,7 @@ export default function TechnicalsStrip({ ticker }: Props) {
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[#c0c0cc] text-[8px]">◆</span>
         <span className="text-[11px] font-semibold text-[#f0f0f0] tracking-wide">Technical Indicators</span>
-        <span className="text-[9px] text-[#3a3a3a] ml-1">Calculated on Daily Prices</span>
+        <span className="text-[9px] text-[#686868] ml-1">Calculated on Daily Prices</span>
       </div>
       {isLoading ? (
         <div className="flex gap-3 overflow-x-auto pb-1">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useTickerStore } from "@/store/tickerStore";
@@ -28,7 +28,7 @@ interface RowData {
 /* ─── sparkline SVG ─────────────────────────────────────────── */
 function Sparkline({ values, change }: { values: number[]; change: number }) {
   if (!values || values.length < 2) {
-    return <div className="w-[88px] h-[32px] flex items-center justify-center"><span className="text-[#3a3a3a] text-[9px]">—</span></div>;
+    return <div className="w-[88px] h-[32px] flex items-center justify-center"><span className="text-[#686868] text-[9px]">—</span></div>;
   }
 
   const min = Math.min(...values);
@@ -101,13 +101,13 @@ function SortTh({ label, col, sortKey, sortDir, onSort }: {
     >
       <div className="flex items-center gap-1">
         <span className={cn("text-[10px] font-semibold uppercase tracking-widest transition-colors",
-          active ? "text-[#fbbf24]" : "text-[#3a3a3a] group-hover:text-[#767676]")}
+          active ? "text-[#fbbf24]" : "text-[#686868] group-hover:text-[#767676]")}
         >{label}</span>
         {active
           ? sortDir === "desc"
             ? <ArrowDown className="w-3 h-3 text-[#fbbf24]" />
             : <ArrowUp className="w-3 h-3 text-[#fbbf24]" />
-          : <ArrowUp className="w-3 h-3 text-[#2c2c2c] group-hover:text-[#3a3a3a]" />
+          : <ArrowUp className="w-3 h-3 text-[#5a5a5a] group-hover:text-[#686868]" />
         }
       </div>
     </th>
@@ -330,7 +330,7 @@ export default function ScreenerPage() {
           {/* summary chips */}
           {isAllLoaded && loadedRows.length > 0 && (
             <div className="flex items-center gap-2 ml-auto text-[10px] font-semibold flex-wrap justify-end">
-              <span className="text-[#3a3a3a]">{watchlist.length} tickers</span>
+              <span className="text-[#686868]">{watchlist.length} tickers</span>
               <span className="w-px h-3 bg-[#2c2c2c]" />
               {isExtendedHours && (
                 <>
@@ -455,7 +455,7 @@ export default function ScreenerPage() {
                   <SortTh label="7D %"   col="week"   sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <SortTh label="1M %"   col="month"  sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <th className="px-4 py-3 text-left">
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[#3a3a3a]">1M Chart</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[#686868]">1M Chart</span>
                   </th>
                 </tr>
               </thead>
@@ -479,7 +479,7 @@ export default function ScreenerPage() {
                           {row.ticker}
                         </span>
                         {row.name && (
-                          <span className="text-[10px] text-[#3a3a3a] truncate max-w-[120px]">{row.name}</span>
+                          <span className="text-[10px] text-[#686868] truncate max-w-[120px]">{row.name}</span>
                         )}
                       </div>
                     </td>
@@ -504,7 +504,7 @@ export default function ScreenerPage() {
                               ${row.extPrice.toFixed(row.extPrice < 10 ? 3 : 2)}
                             </span>
                             {row.extChangePercent != null && (
-                              <span className="font-mono text-[9px] tabular-nums text-[#3a3a4a]">
+                              <span className="font-mono text-[9px] tabular-nums text-[#68687a]">
                                 {row.extChangePercent >= 0 ? "+" : ""}{row.extChangePercent.toFixed(2)}%
                               </span>
                             )}
@@ -544,10 +544,10 @@ export default function ScreenerPage() {
 
         {/* footer note */}
         <div className="mt-4 flex items-center justify-between">
-          <p className="text-[10px] text-[#2c2c2c]">
+          <p className="text-[10px] text-[#5a5a5a]">
             Click any row to open the ticker · Data refreshes every 10s
           </p>
-          <p className="text-[10px] text-[#2c2c2c]">
+          <p className="text-[10px] text-[#5a5a5a]">
             7D & 1M changes calculated from last trading session closes
           </p>
         </div>

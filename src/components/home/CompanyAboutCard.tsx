@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Globe, Users, MapPin, ExternalLink, PieChart, BarChart3 } from "lucide-react";
@@ -85,8 +85,8 @@ function EtfView({ data }: { data: EtfProfile }) {
       {data.sectorWeights.length > 0 && (
         <div className="mb-4">
           <div className="flex items-center gap-1.5 mb-2">
-            <PieChart className="w-3 h-3 text-[#3a3a3a]" />
-            <span className="text-[9px] uppercase tracking-widest font-semibold text-[#3a3a3a]">Sector Allocation</span>
+            <PieChart className="w-3 h-3 text-[#686868]" />
+            <span className="text-[9px] uppercase tracking-widest font-semibold text-[#686868]">Sector Allocation</span>
           </div>
 
           {/* Stacked bar */}
@@ -119,9 +119,9 @@ function EtfView({ data }: { data: EtfProfile }) {
       {data.holdings.length > 0 && (
         <div className="mb-2">
           <div className="flex items-center gap-1.5 mb-2">
-            <BarChart3 className="w-3 h-3 text-[#3a3a3a]" />
-            <span className="text-[9px] uppercase tracking-widest font-semibold text-[#3a3a3a]">Top Holdings</span>
-            <span className="ml-auto text-[9px] text-[#2c2c2c]">{data.holdings.length} positions</span>
+            <BarChart3 className="w-3 h-3 text-[#686868]" />
+            <span className="text-[9px] uppercase tracking-widest font-semibold text-[#686868]">Top Holdings</span>
+            <span className="ml-auto text-[9px] text-[#5a5a5a]">{data.holdings.length} positions</span>
           </div>
 
           <div className="space-y-1.5">
@@ -167,19 +167,19 @@ function EtfView({ data }: { data: EtfProfile }) {
       <div className="flex flex-wrap gap-x-4 gap-y-2 pt-3 border-t border-[#161616]">
         {data.aum != null && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium">AUM</span>
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium">AUM</span>
             <span className="text-[11px] font-semibold font-mono text-[#c8c8e0]">{fmtAum(data.aum)}</span>
           </div>
         )}
         {data.expenseRatio != null && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium">Expense Ratio</span>
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium">Expense Ratio</span>
             <span className="text-[11px] font-semibold font-mono text-[#c8c8e0]">{fmtPct(data.expenseRatio, 2)}</span>
           </div>
         )}
         {data.exchange && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium">Exchange</span>
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium">Exchange</span>
             <span className="text-[11px] font-semibold text-[#c8c8e0]">
               {EXCHANGE_LABELS[data.exchange] ?? data.exchange}
             </span>
@@ -231,20 +231,20 @@ function StockView({ data }: { data: Fundamentals }) {
           )}
         </div>
       ) : (
-        <p className="text-[11px] text-[#2c2c2c] mb-3">No description available.</p>
+        <p className="text-[11px] text-[#5a5a5a] mb-3">No description available.</p>
       )}
 
       {/* Quick-facts strip */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 pt-3 border-t border-[#161616]">
         {data.marketCap != null && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium">Mkt Cap</span>
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium">Mkt Cap</span>
             <span className="text-[11px] font-semibold font-mono text-[#c8c8e0]">{fmtAum(data.marketCap)}</span>
           </div>
         )}
         {data.employees != null && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium flex items-center gap-1">
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium flex items-center gap-1">
               <Users className="w-2.5 h-2.5" />Employees
             </span>
             <span className="text-[11px] font-semibold font-mono text-[#c8c8e0]">{fmtEmployees(data.employees)}</span>
@@ -252,7 +252,7 @@ function StockView({ data }: { data: Fundamentals }) {
         )}
         {data.country && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium flex items-center gap-1">
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium flex items-center gap-1">
               <MapPin className="w-2.5 h-2.5" />HQ
             </span>
             <span className="text-[11px] font-semibold text-[#c8c8e0]">{data.country}</span>
@@ -260,13 +260,13 @@ function StockView({ data }: { data: Fundamentals }) {
         )}
         {exchangeLabel && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium">Exchange</span>
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium">Exchange</span>
             <span className="text-[11px] font-semibold text-[#c8c8e0]">{exchangeLabel}</span>
           </div>
         )}
         {data.website && (
           <div className="flex flex-col gap-0.5 ml-auto">
-            <span className="text-[8px] uppercase tracking-widest text-[#2c2c2c] font-medium flex items-center gap-1">
+            <span className="text-[8px] uppercase tracking-widest text-[#5a5a5a] font-medium flex items-center gap-1">
               <Globe className="w-2.5 h-2.5" />Website
             </span>
             <a
@@ -314,8 +314,8 @@ export default function CompanyAboutCard({ ticker }: Props) {
     >
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <Building2 className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#3a3a3a]">
+        <Building2 className="w-3.5 h-3.5 text-[#686868] shrink-0" />
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#686868]">
           {isEtf ? "ETF Profile" : "About"}
         </span>
         {fund?.name && fund.name !== ticker && (
@@ -330,7 +330,7 @@ export default function CompanyAboutCard({ ticker }: Props) {
       ) : fund ? (
         <StockView data={fund} />
       ) : (
-        <p className="text-[11px] text-[#2c2c2c]">No data available.</p>
+        <p className="text-[11px] text-[#5a5a5a]">No data available.</p>
       )}
     </div>
   );

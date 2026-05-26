@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, X, RefreshCw, Lock, LockOpen, Trash2, Star, Pencil, Share2, Upload, Check, AlertCircle } from "lucide-react";
@@ -479,7 +479,7 @@ export default function WidgetCanvas() {
             copied
               ? "text-[#3fb950] bg-[#3fb95015]"
               : widgets.length === 0
-                ? "text-[#30363d] cursor-not-allowed"
+                ? "text-[#6a7480] cursor-not-allowed"
                 : "text-[#8b949e] hover:text-white hover:bg-[#161b22]"
           )}
         >
@@ -565,9 +565,9 @@ export default function WidgetCanvas() {
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
             <button onClick={() => setPickerOpen(true)} className="flex flex-col items-center gap-2 group">
               <div className="w-10 h-10 rounded-xl border-2 border-dashed border-[#21262d] group-hover:border-[#30363d] flex items-center justify-center transition-colors">
-                <Plus className="w-5 h-5 text-[#30363d] group-hover:text-[#484f58] transition-colors" />
+                <Plus className="w-5 h-5 text-[#6a7480] group-hover:text-[#484f58] transition-colors" />
               </div>
-              <p className="text-xs text-[#30363d] group-hover:text-[#484f58] transition-colors">Add a widget to get started</p>
+              <p className="text-xs text-[#6a7480] group-hover:text-[#484f58] transition-colors">Add a widget to get started</p>
             </button>
           </div>
         )}

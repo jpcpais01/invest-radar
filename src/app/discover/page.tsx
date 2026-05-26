@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
@@ -142,7 +142,7 @@ function ModelDot({ label, active }: { label: string; active: boolean }) {
   return (
     <span className={cn(
       "w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold border",
-      active ? "bg-[#1f6feb22] text-[#388bfd] border-[#1f6feb44]" : "bg-transparent text-[#21262d] border-[#21262d]"
+      active ? "bg-[#1f6feb22] text-[#388bfd] border-[#1f6feb44]" : "bg-transparent text-[#5a6570] border-[#21262d]"
     )}>{label}</span>
   );
 }
@@ -611,7 +611,7 @@ export default function DiscoverPage() {
                                 <span className={cn("inline-block px-1.5 py-0.5 rounded border text-[9px] font-semibold uppercase tracking-wide", SIGNAL_PILL[sig.signal])}>
                                   {sig.signal === "neutral" ? "—" : sig.signal === "strong-buy" ? "S.Buy" : sig.signal === "strong-sell" ? "S.Sell" : sig.signal}
                                 </span>
-                              ) : <span className="text-[#21262d]">—</span>}
+                              ) : <span className="text-[#5a6570]">—</span>}
                             </td>
                           );
                         })}

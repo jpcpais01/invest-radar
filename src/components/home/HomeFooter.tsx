@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { Download } from "lucide-react";
 
 export default function HomeFooter() {
@@ -15,13 +15,13 @@ export default function HomeFooter() {
           </div>
           <div>
             <p className="text-xs font-semibold text-[#f0f0f0] tracking-wide leading-none">Open Terminal</p>
-            <p className="text-[10px] text-[#3a3a3a] mt-0.5 leading-none">AI investment analysis</p>
+            <p className="text-[10px] text-[#686868] mt-0.5 leading-none">AI investment analysis</p>
           </div>
         </div>
 
         {/* Right side */}
         <div className="flex items-center gap-4">
-          <p className="text-[10px] text-[#2a2a2a] tabular-nums">© {new Date().getFullYear()}</p>
+          <p className="text-[10px] text-[#585858] tabular-nums">© {new Date().getFullYear()}</p>
           <button
             onClick={triggerInstall}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] hover:bg-[#141414] transition-colors text-[10px] font-semibold text-[#767676] hover:text-[#c0c0cc]"

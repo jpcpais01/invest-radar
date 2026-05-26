@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -67,7 +67,7 @@ function RangeBar({ label, range }: { label: string; range: ValRange }) {
       </div>
       <div className="flex justify-between text-[9px] text-[#484f58] font-mono">
         <span>{range.min.toFixed(1)}x</span>
-        <span className="text-[#30363d]">1Y range</span>
+        <span className="text-[#6a7480]">1Y range</span>
         <span>{range.max.toFixed(1)}x</span>
       </div>
     </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ArrowLeft, FlaskConical, RefreshCw, ChevronDown,
@@ -350,7 +350,7 @@ function SegPill({ options, active, onChange, suffix = "" }: { options: number[]
     <div className="flex rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
       {options.map(v => (
         <button key={v} onClick={() => onChange(v)} className="px-2.5 py-1.5 text-[10px] font-medium tracking-wide transition-all border-r last:border-r-0"
-          style={{ borderColor: "rgba(255,255,255,0.06)", background: active === v ? "rgba(167,139,250,0.16)" : "transparent", color: active === v ? "#c4b5fd" : "rgba(255,255,255,0.28)" }}>
+          style={{ borderColor: "rgba(255,255,255,0.06)", background: active === v ? "rgba(167,139,250,0.16)" : "transparent", color: active === v ? "#c4b5fd" : "rgba(255,255,255,0.48)" }}>
           {v}{suffix}
         </button>
       ))}
@@ -374,7 +374,7 @@ function Toggle({ on, onChange, accent = TRADING_ACCENT }: { on: boolean; onChan
   return (
     <div role="switch" aria-checked={on} onClick={e => { e.stopPropagation(); onChange(!on); }}
       style={{ width: 32, height: 18, borderRadius: 9, position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer", flexShrink: 0,
-        background: on ? `${accent}99` : "rgba(255,255,255,0.12)", border: `1px solid ${on ? `${accent}cc` : "rgba(255,255,255,0.15)"}`, transition: "all 0.15s" }}>
+        background: on ? `${accent}99` : "rgba(255,255,255,0.12)", border: `1px solid ${on ? `${accent}cc` : "rgba(255,255,255,0.38)"}`, transition: "all 0.15s" }}>
       <span style={{ position: "absolute", top: 2, left: on ? 15 : 3, width: 12, height: 12, borderRadius: "50%", transition: "left 0.2s", background: on ? "#fff" : "rgba(255,255,255,0.45)" }} />
     </div>
   );
@@ -446,7 +446,7 @@ function NumberInput({ value, min, max, onChange }: { value: number; min: number
 function Stat({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>{label}</span>
+      <span className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.46)" }}>{label}</span>
       <span className="text-sm font-semibold font-mono" style={{ color: color ?? "rgba(255,255,255,0.85)" }}>{value}</span>
       {sub && <span className="text-[9px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>{sub}</span>}
     </div>
@@ -458,7 +458,7 @@ function LogicToggle({ value, onChange }: { value: "AND" | "OR"; onChange: (v: "
     <div className="flex rounded overflow-hidden shrink-0" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
       {(["AND", "OR"] as const).map(l => (
         <button key={l} onClick={() => onChange(l)} className="px-1.5 py-0.5 text-[8px] font-bold tracking-widest border-r last:border-r-0 transition-all"
-          style={{ borderColor: "rgba(255,255,255,0.06)", background: value === l ? "rgba(167,139,250,0.18)" : "transparent", color: value === l ? "#c4b5fd" : "rgba(255,255,255,0.25)" }}>
+          style={{ borderColor: "rgba(255,255,255,0.06)", background: value === l ? "rgba(167,139,250,0.18)" : "transparent", color: value === l ? "#c4b5fd" : "rgba(255,255,255,0.46)" }}>
           {l}
         </button>
       ))}
@@ -482,8 +482,8 @@ function ConditionCard({ cond, ip, onChange, onRemove }: { cond: Condition; ip: 
           <span className="text-[9px] font-mono tabular-nums w-5 text-right" style={{ color: meta.badgeColor }}>{cond.threshold}</span>
         </div>
       )}
-      <button onClick={() => onRemove(cond.id)} className="shrink-0 p-0.5 rounded transition-colors ml-0.5" style={{ color: "rgba(255,255,255,0.18)" }}
-        onMouseEnter={e => (e.currentTarget.style.color = "rgba(239,68,68,0.65)")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.18)")}>
+      <button onClick={() => onRemove(cond.id)} className="shrink-0 p-0.5 rounded transition-colors ml-0.5" style={{ color: "rgba(255,255,255,0.40)" }}
+        onMouseEnter={e => (e.currentTarget.style.color = "rgba(239,68,68,0.65)")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.40)")}>
         <X className="w-2.5 h-2.5" />
       </button>
     </div>
@@ -508,7 +508,7 @@ function AddSignalMenu({ suggestions, accent, alignRight, onAdd }: { suggestions
       {open && (
         <div className="absolute top-full mt-1 z-50 rounded-xl overflow-hidden"
           style={{ right: 0, background: "rgba(14,14,16,0.98)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.8)", minWidth: 220 }}>
-          <div className="px-3 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.22)" }}>Signals</div>
+          <div className="px-3 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.44)" }}>Signals</div>
           {suggestions.map(t => {
             const m = COND_META[t];
             return (
@@ -595,7 +595,7 @@ function IndParamsPanel({ ip, onChange }: { ip: IndicatorParams; onChange: (patc
       {([["RSI Period","rsiPeriod",2,50],["EMA Fast","emaFast",2,100],["EMA Slow","emaSlow",2,200],["SMA Fast","smaFast",2,100],["SMA Slow","smaSlow",2,500],["BB Period","bbPeriod",2,100],["Stoch K","stochK",2,50],["Stoch D","stochD",1,20]] as [string, keyof IndicatorParams, number, number][])
         .map(([label, key, min, max]) => (
           <div key={key} className="flex items-center gap-1.5">
-            <span className="text-[9px] uppercase tracking-wide shrink-0" style={{ color: "rgba(255,255,255,0.22)" }}>{label}</span>
+            <span className="text-[9px] uppercase tracking-wide shrink-0" style={{ color: "rgba(255,255,255,0.44)" }}>{label}</span>
             <NumberInput value={ip[key]} min={min} max={max} onChange={v => onChange({ [key]: v })} />
           </div>
         ))}
@@ -625,7 +625,7 @@ function PrebuiltPicker({ value, onChange }: { value: ActivePrebuilt[]; onChange
               style={{ background: active ? `${INVEST_ACCENT}18` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? `${INVEST_ACCENT}50` : "rgba(255,255,255,0.07)"}`, cursor: "pointer" }}
               onClick={() => toggle(key)}>
               <span className="text-[11px] font-semibold leading-tight" style={{ color: active ? INVEST_ACCENT : "rgba(255,255,255,0.55)" }}>{meta.label}</span>
-              <span className="text-[9px] leading-snug" style={{ color: active ? `${INVEST_ACCENT}99` : "rgba(255,255,255,0.28)", maxWidth: 120 }}>{meta.description}</span>
+              <span className="text-[9px] leading-snug" style={{ color: active ? `${INVEST_ACCENT}99` : "rgba(255,255,255,0.48)", maxWidth: 120 }}>{meta.description}</span>
               {active && ap && (
                 <div className="flex items-center gap-1.5 mt-0.5" onClick={e => e.stopPropagation()}>
                   <span className="text-[8px] uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.3)" }}>Weight</span>
@@ -740,8 +740,8 @@ export default function StrategyBacktestPage() {
         {/* header */}
         <header className="shrink-0 z-20" style={{ background: "rgba(8,8,8,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
           <div className="px-4 md:px-5 flex items-center gap-3" style={{ height: 52 }}>
-            <button onClick={() => router.push("/")} className="flex items-center gap-1.5 transition-colors shrink-0" style={{ color: "rgba(255,255,255,0.28)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}>
+            <button onClick={() => router.push("/")} className="flex items-center gap-1.5 transition-colors shrink-0" style={{ color: "rgba(255,255,255,0.48)" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.48)")}>
               <ArrowLeft className="w-3.5 h-3.5" /><span className="text-xs hidden sm:inline">Home</span>
             </button>
             {sep}
@@ -764,7 +764,7 @@ export default function StrategyBacktestPage() {
                 <div className="flex rounded-lg overflow-hidden shrink-0" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
                   {TIMEFRAME_OPTS.map(tf => (
                     <button key={tf} onClick={() => setTimeframe(tf)} className="px-2.5 py-1.5 text-[10px] font-mono font-medium border-r last:border-r-0 transition-all"
-                      style={{ borderColor: "rgba(255,255,255,0.06)", background: timeframe === tf ? `${accent}28` : "transparent", color: timeframe === tf ? accentLight : "rgba(255,255,255,0.28)", transition: "all 0.2s" }}>
+                      style={{ borderColor: "rgba(255,255,255,0.06)", background: timeframe === tf ? `${accent}28` : "transparent", color: timeframe === tf ? accentLight : "rgba(255,255,255,0.48)", transition: "all 0.2s" }}>
                       {tf}
                     </button>
                   ))}
@@ -783,7 +783,7 @@ export default function StrategyBacktestPage() {
             </div>
             <div className="flex-1" />
             <button onClick={runBacktest} disabled={loading} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
-              style={{ background: loading ? "rgba(255,255,255,0.04)" : `${accent}22`, border: `1px solid ${loading ? "rgba(255,255,255,0.06)" : `${accent}66`}`, color: loading ? "rgba(255,255,255,0.25)" : accentLight, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+              style={{ background: loading ? "rgba(255,255,255,0.04)" : `${accent}22`, border: `1px solid ${loading ? "rgba(255,255,255,0.06)" : `${accent}66`}`, color: loading ? "rgba(255,255,255,0.46)" : accentLight, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
               {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}
               <span>{loading ? "Running…" : "Run"}</span>
             </button>
@@ -817,7 +817,7 @@ export default function StrategyBacktestPage() {
             {mode === "trading" && (<>
               <div className="flex items-center gap-2 shrink-0">
                 <Toggle on={stopAndRev} onChange={setStopAndRev} />
-                <span className="text-[10px]" style={{ color: stopAndRev ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.28)" }}>Stop & Reverse</span>
+                <span className="text-[10px]" style={{ color: stopAndRev ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.48)" }}>Stop & Reverse</span>
               </div>
               {sep}
               <div className="shrink-0" style={{ minWidth: 200 }}>
@@ -825,16 +825,16 @@ export default function StrategyBacktestPage() {
               </div>
               {sep}
             </>)}
-            <button onClick={() => setIndParamsOpen(o => !o)} className="text-[10px] px-2 py-0.5 rounded transition-colors shrink-0" style={{ color: "rgba(255,255,255,0.22)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}>
+            <button onClick={() => setIndParamsOpen(o => !o)} className="text-[10px] px-2 py-0.5 rounded transition-colors shrink-0" style={{ color: "rgba(255,255,255,0.44)" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.44)")}>
               Periods {indParamsOpen ? "▲" : "▼"}
             </button>
             <div className="flex-1" />
             {mode === "trading" && tradingResult && (
-              <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(255,255,255,0.28)" }}>{tradingResult.summary.tradeCount} trade{tradingResult.summary.tradeCount !== 1 ? "s" : ""}</span>
+              <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(255,255,255,0.48)" }}>{tradingResult.summary.tradeCount} trade{tradingResult.summary.tradeCount !== 1 ? "s" : ""}</span>
             )}
             {mode === "investing" && investResult && (
-              <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(255,255,255,0.28)" }}>{investResult.summary.nBuys} buy{investResult.summary.nBuys !== 1 ? "s" : ""}</span>
+              <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(255,255,255,0.48)" }}>{investResult.summary.nBuys} buy{investResult.summary.nBuys !== 1 ? "s" : ""}</span>
             )}
           </div>
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useRef, useState, useEffect, useMemo, useId } from "react";
 
 // ── shared shapes ────────────────────────────────────────────────────────────
@@ -226,14 +226,14 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
                 stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
               <text x={PAD.l - 8} y={t.y + 3} textAnchor="end"
                 fontSize="9" fontFamily="ui-monospace, monospace"
-                fill="rgba(255,255,255,0.28)">{t.label}</text>
+                fill="rgba(255,255,255,0.48)">{t.label}</text>
             </g>
           ))}
 
           {/* break-even baseline */}
           {geom.lo < 1 && geom.hi > 1 && (
             <line x1={PAD.l} y1={geom.y(1)} x2={geom.w - PAD.r} y2={geom.y(1)}
-              stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="3,3" />
+              stroke="rgba(255,255,255,0.40)" strokeWidth="1" strokeDasharray="3,3" />
           )}
 
           {/* shade each trade's holding period */}
@@ -250,7 +250,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
           {/* buy & hold */}
           {showBH && (
             <path d={geom.bhPath} fill="none"
-              stroke="rgba(255,255,255,0.30)" strokeWidth="1.25" strokeDasharray="4,4"
+              stroke="rgba(255,255,255,0.48)" strokeWidth="1.25" strokeDasharray="4,4"
               strokeLinecap="round" strokeLinejoin="round" />
           )}
 
@@ -368,7 +368,7 @@ export default function StrategyChart({ equityCurve, buyHoldCurve, trades, timef
             return (
               <text key={i} x={geom.x(i)} y={geom.h - 10} textAnchor={anchor}
                 fontSize="9" fontFamily="ui-monospace, monospace"
-                fill="rgba(255,255,255,0.28)">{fmtDate(ts, timeframe)}</text>
+                fill="rgba(255,255,255,0.48)">{fmtDate(ts, timeframe)}</text>
             );
           })}
 

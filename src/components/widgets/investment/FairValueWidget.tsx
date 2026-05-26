@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -140,7 +140,7 @@ export default function FairValueWidget({ ticker, id }: Props) {
               </div>
               <div className="flex justify-between text-[9px] text-[#484f58] font-mono">
                 <span>0x</span>
-                <span className="text-[#30363d]">PEG range 0–3x</span>
+                <span className="text-[#6a7480]">PEG range 0–3x</span>
                 <span>3x</span>
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function FairValueWidget({ ticker, id }: Props) {
               <span className="text-[10px] text-[#484f58]">Growth Rate ({data.growthSource})</span>
               <span className="text-[11px] font-mono text-[#e6edf3]">{data.growthRate.toFixed(1)}%</span>
             </div>
-            <p className="text-[9px] text-[#30363d] pt-1">
+            <p className="text-[9px] text-[#6a7480] pt-1">
               Fair Value = EPS × Growth Rate · Lynch PEG Model
             </p>
           </div>

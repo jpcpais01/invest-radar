@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import { Command } from "cmdk";
 import { Search, TrendingUp } from "lucide-react";
@@ -29,12 +29,12 @@ export default function CommandPalette({ open, onClose, onSelect, variant = "ter
     container:   "bg-[#101010] border-[#2c2c2c]",
     inputBorder: "border-[#1e1e1e]",
     inputText:   "text-[#f0f0f0] placeholder-[#3a3a3a]",
-    icon:        "text-[#3a3a3a]",
-    heading:     "text-[#3a3a3a]",
+    icon:        "text-[#686868]",
+    heading:     "text-[#686868]",
     item:        "hover:bg-[#161616] text-[#f0f0f0]",
     badge:       "bg-[#161616] text-[#c0c0cc]",
     accent:      "text-[#c0c0cc]",
-    muted:       "text-[#3a3a3a]",
+    muted:       "text-[#686868]",
     watchIcon:   "text-[#c0c0cc]",
   } : {
     backdrop:    "bg-black/60",

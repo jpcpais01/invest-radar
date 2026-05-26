@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -210,7 +210,7 @@ export default function PEValuationWidget({ ticker, id }: Props) {
                     </div>
                     <div className="flex justify-between text-[9px] text-[#484f58] font-mono">
                       <span>${fmt(lo)}</span>
-                      <span className="text-[#30363d]">analyst range</span>
+                      <span className="text-[#6a7480]">analyst range</span>
                       <span>${fmt(hi)}</span>
                     </div>
                   </div>
@@ -223,7 +223,7 @@ export default function PEValuationWidget({ ticker, id }: Props) {
           <div className="flex flex-col gap-1.5 pt-2 border-t border-[#21262d]">
             <Row label="Trailing EPS" value={`$${fmt(data.trailingEps)}`} />
             {data.forwardEps != null && <Row label="Forward EPS" value={`$${fmt(data.forwardEps)}`} />}
-            <p className="text-[9px] text-[#30363d] pt-0.5">
+            <p className="text-[9px] text-[#6a7480] pt-0.5">
               Fair Value = EPS × Sector Median P/E · Comparable Companies Method
             </p>
           </div>

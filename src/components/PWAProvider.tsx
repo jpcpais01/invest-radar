@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 
 const DISMISS_KEY = "pwa-prompt-dismissed";
@@ -129,7 +129,7 @@ export default function PWAProvider() {
 
         <button
           onClick={dismiss}
-          className="mt-5 w-full text-xs text-[#3a3a3a] hover:text-[#767676] transition-colors"
+          className="mt-5 w-full text-xs text-[#686868] hover:text-[#767676] transition-colors"
         >
           Not now
         </button>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import {
   useState, useEffect, useRef, useCallback, useMemo, useId,
 } from "react";
@@ -162,7 +162,7 @@ function PLChart({
   if (!size || cW <= 0 || cH <= 0) {
     return (
       <div ref={wrapRef} style={{ height: CH }}
-        className="flex items-center justify-center text-[10px] text-[#2a2a3a]">
+        className="flex items-center justify-center text-[10px] text-[#5a5a6a]">
         {!n ? "Fetching price history…" : ""}
       </div>
     );
@@ -219,7 +219,7 @@ function PLChart({
               stroke="rgba(255,255,255,0.14)" strokeWidth="1" strokeDasharray="5,6"
             />
             <text x={MG.left + 5} y={costY - 5}
-              fill="rgba(255,255,255,0.20)" fontSize="7.5"
+              fill="rgba(255,255,255,0.42)" fontSize="7.5"
               fontFamily="ui-monospace,monospace">
               {mode === "%" ? "Break-even" : `Cost basis · ${fmt$(costBasis)}`}
             </text>
@@ -255,7 +255,7 @@ function PLChart({
         {xTicks.map((i) => (
           <text key={i}
             x={xS(i).toFixed(1)} y={MG.top + cH + 18}
-            fill="rgba(255,255,255,0.18)" fontSize="8.5"
+            fill="rgba(255,255,255,0.40)" fontSize="8.5"
             fontFamily="ui-sans-serif,sans-serif" textAnchor="middle"
           >{fmtTick(series[i]?.time ?? 0)}</text>
         ))}
@@ -316,7 +316,7 @@ function PLChart({
                 <rect rx="8" width={tipW} height={tipH}
                   fill="rgba(4,5,14,0.96)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
                 />
-                <text x="10" y="14" fill="rgba(255,255,255,0.28)" fontSize="8"
+                <text x="10" y="14" fill="rgba(255,255,255,0.48)" fontSize="8"
                   fontFamily="ui-sans-serif,sans-serif">{ds}</text>
                 <line x1="10" y1="19" x2={tipW - 10} y2="19"
                   stroke="rgba(255,255,255,0.06)" strokeWidth="1"
@@ -324,13 +324,13 @@ function PLChart({
                 {tipRows.map(([label, val, color], i) => (
                   <text key={label} x="10" y={31 + i * 14}
                     fontSize="9.5" fontFamily="ui-monospace,monospace">
-                    <tspan fill="rgba(255,255,255,0.22)">{label.padEnd(7)}</tspan>
+                    <tspan fill="rgba(255,255,255,0.44)">{label.padEnd(7)}</tspan>
                     <tspan fill={color}>{val}</tspan>
                   </text>
                 ))}
                 {spyLabel !== null && (
                   <text x="10" y={31 + tipRows.length * 14} fontSize="9.5" fontFamily="ui-monospace,monospace">
-                    <tspan fill="rgba(255,255,255,0.22)">{"SPY    "}</tspan>
+                    <tspan fill="rgba(255,255,255,0.44)">{"SPY    "}</tspan>
                     <tspan fill="rgba(148,163,184,0.75)">{spyLabel}</tspan>
                   </text>
                 )}
@@ -421,7 +421,7 @@ function AnalyticsStat({
 }: { label: string; value: string; sub?: string; valueColor?: string }) {
   return (
     <div className="rounded-xl border border-[#161620] px-3.5 py-3" style={{ background: "#090910" }}>
-      <div className="text-[7.5px] uppercase tracking-widest text-[#252535] font-semibold mb-2">
+      <div className="text-[7.5px] uppercase tracking-widest text-[#5a5a6a] font-semibold mb-2">
         {label}
       </div>
       <div className="text-[15px] font-bold font-mono tabular-nums leading-none"
@@ -429,7 +429,7 @@ function AnalyticsStat({
         {value}
       </div>
       {sub && (
-        <div className="mt-1.5 text-[8.5px] text-[#2a2a3a] font-mono">{sub}</div>
+        <div className="mt-1.5 text-[8.5px] text-[#5a5a6a] font-mono">{sub}</div>
       )}
     </div>
   );
@@ -470,7 +470,7 @@ function PnLBars({ rows }: {
               style={{ color: col(r.pnlPct) }}>
               {fmtPct(r.pnlPct)}
             </span>
-            <span className="text-[9px] font-mono w-20 text-right shrink-0 text-[#2a2a3a] tabular-nums">
+            <span className="text-[9px] font-mono w-20 text-right shrink-0 text-[#5a5a6a] tabular-nums">
               {r.pnl >= 0 ? "+" : ""}{fmt$(r.pnl)}
             </span>
           </div>
@@ -519,7 +519,7 @@ function MiniSparkline({ bars }: { bars: Bar[] }) {
 //  Reusable labelled input — defined at MODULE level so React never remounts it
 // ─────────────────────────────────────────────────────────────────────────────
 const INP = "w-full bg-[#080810] border border-[#1a1a26] rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#f0f0f0] placeholder-[#252535] outline-none focus:border-[#34d39960] transition-colors disabled:opacity-40";
-const LBL = "block text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold mb-1.5";
+const LBL = "block text-[9px] uppercase tracking-widest text-[#5a5a6a] font-semibold mb-1.5";
 
 function ModalField({
   label, value, onChange, placeholder, type = "text",
@@ -629,7 +629,7 @@ function PositionModal({
             {initial ? "Edit Position" : "Add Position"}
           </span>
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#2a2a3a] hover:text-[#767676] hover:bg-[#161620] transition-colors">
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#5a5a6a] hover:text-[#767676] hover:bg-[#161620] transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -691,14 +691,14 @@ function PositionModal({
                 <button type="button" onClick={() => switchMode("per-share")}
                   className={cn(
                     "px-2 py-0.5 rounded text-[8px] font-semibold tracking-wide transition-colors",
-                    costMode === "per-share" ? "bg-[#1a1a26] text-[#c0c0cc]" : "text-[#2a2a3a] hover:text-[#767676]"
+                    costMode === "per-share" ? "bg-[#1a1a26] text-[#c0c0cc]" : "text-[#5a5a6a] hover:text-[#767676]"
                   )}>
                   Per share
                 </button>
                 <button type="button" onClick={() => switchMode("total")}
                   className={cn(
                     "px-2 py-0.5 rounded text-[8px] font-semibold tracking-wide transition-colors",
-                    costMode === "total" ? "bg-[#1a1a26] text-[#c0c0cc]" : "text-[#2a2a3a] hover:text-[#767676]"
+                    costMode === "total" ? "bg-[#1a1a26] text-[#c0c0cc]" : "text-[#5a5a6a] hover:text-[#767676]"
                   )}>
                   Total invested
                 </button>
@@ -717,12 +717,12 @@ function PositionModal({
               style={{ background: "#080810" }}>
               {costMode === "per-share" ? (
                 <>
-                  <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">Total invested</span>
+                  <span className="text-[9px] uppercase tracking-widest text-[#5a5a6a] font-semibold">Total invested</span>
                   <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">{fmt$(totalInvested)}</span>
                 </>
               ) : (
                 <>
-                  <span className="text-[9px] uppercase tracking-widest text-[#2a2a3a] font-semibold">Avg buy price / share</span>
+                  <span className="text-[9px] uppercase tracking-widest text-[#5a5a6a] font-semibold">Avg buy price / share</span>
                   <span className="text-[12px] font-mono font-semibold text-[#c0c0cc]">
                     {avgBuyPrice > 0 ? fmt$(avgBuyPrice) : "—"}
                   </span>
@@ -735,7 +735,7 @@ function PositionModal({
         {/* footer */}
         <div className="px-5 pb-5 flex gap-2.5">
           <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-[#1a1a26] text-[11px] font-medium text-[#2a2a3a] hover:text-[#767676] hover:border-[#252535] transition-colors">
+            className="flex-1 py-2.5 rounded-xl border border-[#1a1a26] text-[11px] font-medium text-[#5a5a6a] hover:text-[#767676] hover:border-[#252535] transition-colors">
             Cancel
           </button>
           <button onClick={save} disabled={!valid}
@@ -776,7 +776,7 @@ function StatCard({
   return (
     <div className="rounded-xl border border-[#1a1a22] px-4 py-4"
       style={{ background: "#0c0c10" }}>
-      <div className="text-[8px] uppercase tracking-widest text-[#252535] font-semibold mb-2">
+      <div className="text-[8px] uppercase tracking-widest text-[#5a5a6a] font-semibold mb-2">
         {label}
       </div>
       <div className="text-[19px] font-bold font-mono tabular-nums leading-none"
@@ -802,7 +802,7 @@ function PageHeader({ onAdd }: { onAdd: () => void }) {
       style={{ background: "rgba(8,8,8,0.94)", backdropFilter: "blur(14px)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
         <a href="/"
-          className="flex items-center gap-1.5 text-[#2a2a3a] hover:text-[#767676] transition-colors shrink-0">
+          className="flex items-center gap-1.5 text-[#5a5a6a] hover:text-[#767676] transition-colors shrink-0">
           <ArrowLeft className="w-3.5 h-3.5" />
           <span className="text-[11px] font-medium hidden sm:block">Home</span>
         </a>
@@ -1252,7 +1252,7 @@ export default function PortfolioPage() {
               <p className="text-[15px] font-semibold text-[#e0e0f0] mb-2">
                 Your portfolio is empty
               </p>
-              <p className="text-[12px] text-[#3a3a4a] leading-relaxed">
+              <p className="text-[12px] text-[#68687a] leading-relaxed">
                 Add your positions to track P&amp;L, allocation, and performance
                 vs the market in real time.
               </p>
@@ -1350,7 +1350,7 @@ export default function PortfolioPage() {
                         "px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all",
                         chartMode === m
                           ? "bg-[#1a1a26] text-[#c0c0cc]"
-                          : "text-[#282838] hover:text-[#585870]"
+                          : "text-[#5a5a6a] hover:text-[#585870]"
                       )}>{m}</button>
                   ))}
                 </div>
@@ -1362,7 +1362,7 @@ export default function PortfolioPage() {
                         "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
                         chartTf === t
                           ? "text-[#ddddf0] bg-[#ffffff0d] border border-[#ffffff18]"
-                          : "text-[#282838] hover:text-[#585870]"
+                          : "text-[#5a5a6a] hover:text-[#585870]"
                       )}>{t}</button>
                   ))}
                 </div>
@@ -1374,11 +1374,11 @@ export default function PortfolioPage() {
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-0.5 rounded"
                   style={{ background: portfolioSeries.length && portfolioSeries.at(-1)!.value >= metrics.totalInvested ? "#34d399" : "#f87171" }} />
-                <span className="text-[8px] text-[#3a3a4a]">Portfolio</span>
+                <span className="text-[8px] text-[#68687a]">Portfolio</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-0 border-t border-dashed border-[#4a5568]" />
-                <span className="text-[8px] text-[#3a3a4a]">SPY</span>
+                <span className="text-[8px] text-[#68687a]">SPY</span>
               </div>
             </div>
 
@@ -1413,10 +1413,10 @@ export default function PortfolioPage() {
                       <div className="h-full rounded-full transition-all duration-700"
                         style={{ width: `${s.pct}%`, background: s.color, opacity: 0.65 }} />
                     </div>
-                    <span className="text-[9px] font-mono text-[#2a2a3a] w-14 text-right shrink-0 tabular-nums">
+                    <span className="text-[9px] font-mono text-[#5a5a6a] w-14 text-right shrink-0 tabular-nums">
                       {fmt$(s.value)}
                     </span>
-                    <span className="text-[9px] font-mono text-[#3a3a4a] w-9 text-right shrink-0 tabular-nums">
+                    <span className="text-[9px] font-mono text-[#68687a] w-9 text-right shrink-0 tabular-nums">
                       {s.pct.toFixed(1)}%
                     </span>
                   </div>
@@ -1507,7 +1507,7 @@ export default function PortfolioPage() {
               <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
                 Monthly Returns
               </span>
-              <span className="text-[8.5px] text-[#252535] font-mono uppercase tracking-wider">
+              <span className="text-[8.5px] text-[#5a5a6a] font-mono uppercase tracking-wider">
                 Portfolio performance by month
               </span>
             </div>
@@ -1538,7 +1538,7 @@ export default function PortfolioPage() {
                         <span className="text-[7px] font-mono leading-none mt-0.5"
                           style={{ color: textCol, opacity: 0.65 }}>%</span>
                       </div>
-                      <span className="text-[7.5px] font-mono text-[#252535] uppercase tracking-wide">
+                      <span className="text-[7.5px] font-mono text-[#5a5a6a] uppercase tracking-wide">
                         {label}
                       </span>
                     </div>
@@ -1558,14 +1558,14 @@ export default function PortfolioPage() {
               <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
                 Position Returns
               </span>
-              <span className="text-[8.5px] text-[#252535] font-mono uppercase tracking-wider">
+              <span className="text-[8.5px] text-[#5a5a6a] font-mono uppercase tracking-wider">
                 Unrealized P&amp;L
               </span>
             </div>
             <div className="p-4 sm:p-5">
               {quotesLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <span className="text-[10px] text-[#2a2a3a]">Loading prices…</span>
+                  <span className="text-[10px] text-[#5a5a6a]">Loading prices…</span>
                 </div>
               ) : (
                 <PnLBars rows={metrics.rows} />
@@ -1581,7 +1581,7 @@ export default function PortfolioPage() {
               </span>
               {portfolioGrade.grade !== "F" && (
                 <div className="flex items-center gap-2">
-                  <span className="text-[8px] uppercase tracking-widest text-[#252535] font-semibold">
+                  <span className="text-[8px] uppercase tracking-widest text-[#5a5a6a] font-semibold">
                     Health
                   </span>
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg border font-bold text-[13px] font-mono"
@@ -1598,8 +1598,8 @@ export default function PortfolioPage() {
             <div className="p-4 flex flex-col gap-2">
               {insights.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-8 text-center">
-                  <Shield className="w-5 h-5 text-[#1e1e2a]" />
-                  <p className="text-[10px] text-[#2a2a3a]">
+                  <Shield className="w-5 h-5 text-[#585868]" />
+                  <p className="text-[10px] text-[#5a5a6a]">
                     Waiting for market data…
                   </p>
                 </div>
@@ -1649,7 +1649,7 @@ export default function PortfolioPage() {
             <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">
               Positions
             </span>
-            <span className="text-[9px] text-[#252535]">
+            <span className="text-[9px] text-[#5a5a6a]">
               {positions.length} holding{positions.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -1671,7 +1671,7 @@ export default function PortfolioPage() {
                     { label: "",              align: "right" },
                   ].map(({ label, align }, i) => (
                     <th key={i}
-                      className="px-4 py-2.5 text-[8px] font-semibold uppercase tracking-widest text-[#222232]"
+                      className="px-4 py-2.5 text-[8px] font-semibold uppercase tracking-widest text-[#585868]"
                       style={{ textAlign: align as "left" | "right" }}>
                       {label}
                     </th>
@@ -1692,7 +1692,7 @@ export default function PortfolioPage() {
                           <div className="text-[11px] font-mono font-bold text-[#e0e0f0]">
                             {row.ticker}
                           </div>
-                          <div className="text-[8.5px] text-[#2a2a3a] truncate max-w-[96px]">
+                          <div className="text-[8.5px] text-[#5a5a6a] truncate max-w-[96px]">
                             {row.name}
                           </div>
                         </div>
@@ -1716,7 +1716,7 @@ export default function PortfolioPage() {
                     {/* price */}
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-[11px] font-mono font-medium text-[#e0e0f0]">
-                        {quotesLoading ? <span className="text-[#3a3a4a]">—</span> : fmt$(row.price)}
+                        {quotesLoading ? <span className="text-[#68687a]">—</span> : fmt$(row.price)}
                       </span>
                     </td>
 
@@ -1730,14 +1730,14 @@ export default function PortfolioPage() {
                     {/* market value */}
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-[11px] font-mono text-[#c0c0cc]">
-                        {quotesLoading ? <span className="text-[#3a3a4a]">—</span> : fmt$(row.mktVal)}
+                        {quotesLoading ? <span className="text-[#68687a]">—</span> : fmt$(row.mktVal)}
                       </span>
                     </td>
 
                     {/* day change */}
                     <td className="px-4 py-3.5 text-right">
                       {quotesLoading ? (
-                        <span className="text-[10px] font-mono text-[#3a3a4a]">—</span>
+                        <span className="text-[10px] font-mono text-[#68687a]">—</span>
                       ) : (
                         <div style={{ color: col(row.dayChg) }}>
                           <div className="text-[10px] font-mono">
@@ -1753,7 +1753,7 @@ export default function PortfolioPage() {
                     {/* total P&L */}
                     <td className="px-4 py-3.5 text-right">
                       {quotesLoading ? (
-                        <span className="text-[10px] font-mono text-[#3a3a4a]">—</span>
+                        <span className="text-[10px] font-mono text-[#68687a]">—</span>
                       ) : (
                         <div style={{ color: col(row.pnl) }}>
                           <div className="text-[10px] font-mono font-medium">
@@ -1788,12 +1788,12 @@ export default function PortfolioPage() {
                       <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => { setEditPos({ id: row.id, ticker: row.ticker, shares: row.shares, avgBuyPrice: row.avgBuyPrice, name: row.name }); setShowModal(true); }}
-                          className="w-6 h-6 rounded flex items-center justify-center text-[#2a2a3a] hover:text-[#767676] hover:bg-[#161620] transition-colors">
+                          className="w-6 h-6 rounded flex items-center justify-center text-[#5a5a6a] hover:text-[#767676] hover:bg-[#161620] transition-colors">
                           <Pencil className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => removePosition(row.id)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-[#2a2a3a] hover:text-[#f87171] hover:bg-[rgba(248,113,113,0.10)] transition-colors">
+                          className="w-6 h-6 rounded flex items-center justify-center text-[#5a5a6a] hover:text-[#f87171] hover:bg-[rgba(248,113,113,0.10)] transition-colors">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
@@ -1805,7 +1805,7 @@ export default function PortfolioPage() {
               {/* totals footer */}
               <tfoot>
                 <tr className="border-t border-[#181820]">
-                  <td colSpan={5} className="px-4 py-3 text-[9px] uppercase tracking-widest text-[#252535] font-semibold">
+                  <td colSpan={5} className="px-4 py-3 text-[9px] uppercase tracking-widest text-[#5a5a6a] font-semibold">
                     Total
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-[11px] text-[#c0c0cc]">
@@ -1827,7 +1827,7 @@ export default function PortfolioPage() {
                       </div>
                     </div>
                   </td>
-                  <td colSpan={2} className="px-4 py-3 text-right font-mono text-[10px] text-[#2a2a3a]">
+                  <td colSpan={2} className="px-4 py-3 text-right font-mono text-[10px] text-[#5a5a6a]">
                     100%
                   </td>
                 </tr>

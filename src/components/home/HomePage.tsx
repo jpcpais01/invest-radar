@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useRef } from "react";
 import { useTickerStore } from "@/store/tickerStore";
 import { cn } from "@/lib/utils";
@@ -82,7 +82,7 @@ export default function HomePage() {
             </a>
             <button onClick={() => setPaletteOpen(true)}
               className="flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors text-left">
-              <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
+              <Search className="w-3.5 h-3.5 text-[#686868] shrink-0" />
               <span className="text-sm font-semibold text-[#f0f0f0] truncate font-mono">{activeTicker}</span>
             </button>
             <div className="flex items-center border border-[#1e1e1e] rounded-md p-0.5 shrink-0 bg-[#101010]">
@@ -116,9 +116,9 @@ export default function HomePage() {
 
           <button onClick={() => setPaletteOpen(true)}
             className="flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md border border-[#1e1e1e] bg-[#101010] hover:border-[#2c2c2c] transition-colors text-left">
-            <Search className="w-3.5 h-3.5 text-[#3a3a3a] shrink-0" />
+            <Search className="w-3.5 h-3.5 text-[#686868] shrink-0" />
             <span className="text-sm font-semibold text-[#f0f0f0] truncate font-mono">{activeTicker}</span>
-            <kbd className="ml-auto text-[10px] text-[#3a3a3a] font-mono">⌘K</kbd>
+            <kbd className="ml-auto text-[10px] text-[#686868] font-mono">⌘K</kbd>
           </button>
 
           <div className="flex items-center border border-[#1e1e1e] rounded-md p-0.5 shrink-0 bg-[#101010]">

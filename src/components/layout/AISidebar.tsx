@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { Send, Square, X, Trash2, ChevronRight, Bot, Sparkles, TrendingUp, BarChart2, Newspaper } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
@@ -266,13 +266,13 @@ export default function AISidebar() {
                 ? "bg-[#f8514922] text-[#f85149] hover:bg-[#f8514933]"
                 : input.trim()
                 ? "bg-[#1f6feb] text-white hover:bg-[#388bfd] shadow-md shadow-[#1f6feb33]"
-                : "text-[#30363d] cursor-not-allowed"
+                : "text-[#6a7480] cursor-not-allowed"
             )}
           >
             {isStreaming ? <Square className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
           </button>
         </div>
-        <p className="text-[10px] text-[#30363d] mt-1.5 text-center">
+        <p className="text-[10px] text-[#6a7480] mt-1.5 text-center">
           Enter to send · Shift+Enter for new line
         </p>
       </div>

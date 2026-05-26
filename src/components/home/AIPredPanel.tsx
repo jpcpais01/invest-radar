@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useRef, useState, useEffect, useCallback, useMemo, useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -252,7 +252,7 @@ function PriceChart({ bars, tf }: ChartProps) {
           return (
             <text key={i}
               x={w - MG.right + 5} y={py}
-              fill="rgba(255,255,255,0.13)" fontSize="8.5"
+              fill="rgba(255,255,255,0.36)" fontSize="8.5"
               fontFamily="ui-monospace,monospace" dominantBaseline="middle"
             >{fmtPrice(p)}</text>
           );
@@ -262,7 +262,7 @@ function PriceChart({ bars, tf }: ChartProps) {
         {xTickIdxs.map(i => (
           <text key={i}
             x={xS(i).toFixed(1)} y={h - 5}
-            fill="rgba(255,255,255,0.17)" fontSize="8.5"
+            fill="rgba(255,255,255,0.38)" fontSize="8.5"
             fontFamily="ui-sans-serif,sans-serif" textAnchor="middle"
           >{fmtDateTick(bars[i]?.time ?? 0, tf)}</text>
         ))}
@@ -284,7 +284,7 @@ function PriceChart({ bars, tf }: ChartProps) {
                 <rect rx="7" width={tipW} height={tipH}
                   fill="rgba(5,6,16,0.94)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
                 />
-                <text x="10" y="14" fill="rgba(255,255,255,0.30)" fontSize="8"
+                <text x="10" y="14" fill="rgba(255,255,255,0.48)" fontSize="8"
                   fontFamily="ui-sans-serif,sans-serif">
                   {fmtTooltipDate(bar.time, tf)}
                 </text>
@@ -297,14 +297,14 @@ function PriceChart({ bars, tf }: ChartProps) {
                   <text key={label} x="10" y={31 + i2 * 14}
                     fontSize="9.5" fontFamily="ui-monospace,monospace"
                   >
-                    <tspan fill="rgba(255,255,255,0.22)">{label} </tspan>
+                    <tspan fill="rgba(255,255,255,0.44)">{label} </tspan>
                     <tspan fill={label === "C" ? lineColor : "rgba(220,228,255,0.82)"}>
                       {fmtPrice(val)}
                     </tspan>
                   </text>
                 ))}
                 <text x="10" y={31 + 4 * 14} fontSize="9" fontFamily="ui-monospace,monospace">
-                  <tspan fill="rgba(255,255,255,0.22)">V </tspan>
+                  <tspan fill="rgba(255,255,255,0.44)">V </tspan>
                   <tspan fill="rgba(180,190,230,0.55)">{fmtVol(bar.volume)}</tspan>
                 </text>
               </g>
@@ -367,10 +367,10 @@ export default function AIPredPanel({ ticker }: Props) {
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-[#181820]">
         <div className="flex items-center gap-2">
-          <span className="text-[#2e2e42] text-[9px]">◆</span>
+          <span className="text-[#5c5c72] text-[9px]">◆</span>
           <span className="text-[11px] font-semibold text-[#e0e0f0] tracking-wide">Price</span>
-          <span className="text-[9px] text-[#2a2a3a] mx-0.5">·</span>
-          <span className="text-[10px] text-[#383850] font-mono">{ticker}</span>
+          <span className="text-[9px] text-[#5a5a6a] mx-0.5">·</span>
+          <span className="text-[10px] text-[#686878] font-mono">{ticker}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div
@@ -396,7 +396,7 @@ export default function AIPredPanel({ ticker }: Props) {
               "px-2 py-0.5 rounded text-[10px] font-medium transition-all tracking-wide",
               tf === t
                 ? "text-[#ddddf0] bg-[#ffffff0d] border border-[#ffffff1a]"
-                : "text-[#282838] hover:text-[#585870]"
+                : "text-[#5a5a6a] hover:text-[#585870]"
             )}
           >{t}</button>
         ))}
@@ -409,13 +409,13 @@ export default function AIPredPanel({ ticker }: Props) {
           style={{ height: CHART_H, background: "#0c0c10" }}
         >
           <div className="w-6 h-6 rounded-full border border-[#22223a] border-t-[#505068] animate-spin" />
-          <p className="text-[9px] text-[#252535]">Loading…</p>
+          <p className="text-[9px] text-[#5a5a6a]">Loading…</p>
         </div>
       ) : bars.length > 0 ? (
         <PriceChart bars={bars} tf={tf} />
       ) : (
         <div className="flex items-center justify-center" style={{ height: CHART_H }}>
-          <p className="text-[9px] text-[#252535]">No data</p>
+          <p className="text-[9px] text-[#5a5a6a]">No data</p>
         </div>
       )}
 
@@ -426,7 +426,7 @@ export default function AIPredPanel({ ticker }: Props) {
           style={{ gap: 0 }}
         >
           <div className="flex flex-col items-start flex-1 min-w-0">
-            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">Period</span>
+            <span className="text-[7.5px] uppercase tracking-widest text-[#585868] mb-0.5 font-medium">Period</span>
             <span
               className="text-[13px] font-bold tabular-nums font-mono leading-none"
               style={{ color: isUp ? "#4ade80" : "#f87171" }}
@@ -459,7 +459,7 @@ export default function AIPredPanel({ ticker }: Props) {
           <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
 
           <div className="flex flex-col items-start">
-            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">High</span>
+            <span className="text-[7.5px] uppercase tracking-widest text-[#585868] mb-0.5 font-medium">High</span>
             <span className="text-[11px] font-semibold tabular-nums font-mono text-[#c8c8e0]">
               {fmtPrice(periodHigh)}
             </span>
@@ -468,7 +468,7 @@ export default function AIPredPanel({ ticker }: Props) {
           <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
 
           <div className="flex flex-col items-start">
-            <span className="text-[7.5px] uppercase tracking-widest text-[#232335] mb-0.5 font-medium">Low</span>
+            <span className="text-[7.5px] uppercase tracking-widest text-[#585868] mb-0.5 font-medium">Low</span>
             <span className="text-[11px] font-semibold tabular-nums font-mono text-[#c8c8e0]">
               {fmtPrice(periodLow)}
             </span>

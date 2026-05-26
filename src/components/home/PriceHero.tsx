@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { OHLCVBar } from "@/types/market";
@@ -125,7 +125,7 @@ export default function PriceHero({ ticker }: Props) {
               "w-7 h-7 rounded-md border flex items-center justify-center transition-all",
               isWatchlisted
                 ? "text-[#c0c0cc] bg-[#c0c0cc15] border-[#c0c0cc33] hover:bg-[#c0c0cc22]"
-                : "text-[#3a3a3a] bg-transparent border-[#1e1e1e] hover:text-[#767676] hover:border-[#2c2c2c]"
+                : "text-[#686868] bg-transparent border-[#1e1e1e] hover:text-[#767676] hover:border-[#2c2c2c]"
             )}
             title={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
           >
@@ -147,7 +147,7 @@ export default function PriceHero({ ticker }: Props) {
                 <span className="font-mono tabular-nums">{isUp ? "+" : ""}{change.toFixed(2)}</span>
                 <span className="font-mono tabular-nums opacity-60">({isUp ? "+" : ""}{pct.toFixed(2)}%)</span>
               </div>
-              <div className="flex items-center gap-1 text-[10px] text-[#3a3a3a]">
+              <div className="flex items-center gap-1 text-[10px] text-[#686868]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#c0c0cc] animate-pulse inline-block" />
                 {marketState === "REGULAR" ? "Live" : "Close"}
               </div>

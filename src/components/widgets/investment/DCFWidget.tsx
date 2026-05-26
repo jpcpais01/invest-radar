@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -42,7 +42,7 @@ function pctColor(pct: number) {
 function Row({ label, value, dim }: { label: string; value: React.ReactNode; dim?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className={`text-[10px] ${dim ? "text-[#30363d]" : "text-[#484f58]"}`}>{label}</span>
+      <span className={`text-[10px] ${dim ? "text-[#6a7480]" : "text-[#484f58]"}`}>{label}</span>
       <span className={`text-[11px] font-mono ${dim ? "text-[#484f58]" : "text-[#e6edf3]"}`}>{value}</span>
     </div>
   );
@@ -151,7 +151,7 @@ export default function DCFWidget({ ticker, id }: Props) {
             </div>
             <div className="flex justify-between text-[9px] font-mono text-[#484f58]">
               <span>Bear ${fmt(data.bearValue, 0)}</span>
-              <span className="text-[#30363d]">Base ${fmt(data.intrinsicValue, 0)}</span>
+              <span className="text-[#6a7480]">Base ${fmt(data.intrinsicValue, 0)}</span>
               <span>Bull ${fmt(data.bullValue, 0)}</span>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function DCFWidget({ ticker, id }: Props) {
             <Row label={`Beta`}                          value={fmt(data.beta, 2)} dim />
             <Row label={`Cost of Equity (CAPM)`}         value={`${fmt(data.costOfEquity, 1)}%`} dim />
             <Row label={`Cost of Debt`}                  value={`${fmt(data.costOfDebt, 1)}%`} dim />
-            <p className="text-[9px] text-[#30363d] pt-0.5">
+            <p className="text-[9px] text-[#6a7480] pt-0.5">
               WACC = Ke × E/(D+E) + Kd × (1–t) × D/(D+E)
             </p>
           </div>

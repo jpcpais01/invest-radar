@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   createChart,
@@ -232,7 +232,7 @@ export default function PricePredictionWidget({ ticker, id }: Props) {
             <span className="text-[10px] text-[#484f58] font-medium uppercase tracking-wide">Now</span>
             <span className="text-sm font-bold text-white">${lastClose.toFixed(2)}</span>
           </div>
-          <span className="text-[#30363d]">→</span>
+          <span className="text-[#6a7480]">→</span>
           <div className="flex items-baseline gap-1.5">
             <span className="text-[10px] text-[#484f58] font-medium uppercase tracking-wide">{data.n}d</span>
             <span className={cn("text-sm font-bold", isUp ? "text-[#3fb950]" : "text-[#f85149]")}>

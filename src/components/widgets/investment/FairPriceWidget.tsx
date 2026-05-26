@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -153,7 +153,7 @@ export default function FairPriceWidget({ ticker, id }: Props) {
               </div>
               <div className="flex justify-between text-[9px] text-[#484f58] font-mono">
                 <span>${fmt(barMin / 0.95)}</span>
-                <span className="text-[#30363d]">● avg  | current</span>
+                <span className="text-[#6a7480]">● avg  | current</span>
                 <span>${fmt(barMax / 1.05)}</span>
               </div>
             </div>
@@ -180,7 +180,7 @@ export default function FairPriceWidget({ ticker, id }: Props) {
                       )}
                     </>
                   ) : (
-                    <span className="text-[10px] text-[#30363d]">N/A</span>
+                    <span className="text-[10px] text-[#6a7480]">N/A</span>
                   )}
                 </div>
               );
@@ -188,7 +188,7 @@ export default function FairPriceWidget({ ticker, id }: Props) {
           </div>
 
           {valid.length < 3 && (
-            <p className="text-[9px] text-[#30363d]">
+            <p className="text-[9px] text-[#6a7480]">
               {3 - valid.length} model{3 - valid.length > 1 ? "s" : ""} unavailable (negative FCF or missing data)
             </p>
           )}

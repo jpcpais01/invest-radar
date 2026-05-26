@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useRef, useState, useEffect, useMemo, useId } from "react";
 
 interface Props {
@@ -247,7 +247,7 @@ export default function ForecastChart({
         {yTicks.map((p, i) => (
           <text key={i}
             x={w - M.right + 8} y={yS(p)}
-            fill="rgba(255,255,255,0.18)" fontSize="10.5"
+            fill="rgba(255,255,255,0.40)" fontSize="10.5"
             fontFamily="'Geist Mono','ui-monospace','Courier New',monospace"
             dominantBaseline="middle"
           >
@@ -259,7 +259,7 @@ export default function ForecastChart({
         {xTicks.map((ts, i) => (
           <text key={i}
             x={xS(ts).toFixed(2)} y={h - 10}
-            fill="rgba(255,255,255,0.18)" fontSize="10"
+            fill="rgba(255,255,255,0.40)" fontSize="10"
             fontFamily="'Inter','ui-sans-serif',sans-serif"
             textAnchor="middle"
           >
@@ -438,7 +438,7 @@ export default function ForecastChart({
                   />
 
                   {/* date */}
-                  <text x="10" y="15" fill="rgba(255,255,255,0.28)" fontSize="9"
+                  <text x="10" y="15" fill="rgba(255,255,255,0.48)" fontSize="9"
                     fontFamily="'Inter','ui-sans-serif',sans-serif">
                     {fmtDateShort(crosshair.time)}
                   </text>

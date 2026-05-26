@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { NewsItem } from "@/types/market";
@@ -31,7 +31,7 @@ export default function NewsPanel({ ticker }: Props) {
         {articles.length > 0 && (
           <div className="flex items-center gap-2.5 text-[10px]">
             <span className="text-[#c0c0cc]">{pos} pos</span>
-            <span className="text-[#3a3a3a]">{neu} neu</span>
+            <span className="text-[#686868]">{neu} neu</span>
             <span className="text-[#ef4444]">{neg} neg</span>
           </div>
         )}
@@ -48,7 +48,7 @@ export default function NewsPanel({ ticker }: Props) {
         </div>
       ) : articles.length === 0 ? (
         <div className="flex items-center justify-center py-8">
-          <p className="text-[11px] text-[#3a3a3a]">No news available</p>
+          <p className="text-[11px] text-[#686868]">No news available</p>
         </div>
       ) : (
         <div
@@ -72,7 +72,7 @@ export default function NewsPanel({ ticker }: Props) {
                 <p className="text-xs text-[#f0f0f0] group-hover:text-white leading-snug line-clamp-2 transition-colors">
                   {a.title}
                 </p>
-                <div className="flex items-center gap-2 mt-1 text-[9px] text-[#3a3a3a]">
+                <div className="flex items-center gap-2 mt-1 text-[9px] text-[#686868]">
                   {a.source && <span>{a.source}</span>}
                   {a.publishedAt && (
                     <><span>·</span><span>{new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>
@@ -84,7 +84,7 @@ export default function NewsPanel({ ticker }: Props) {
                   })}>{a.sentiment}</span>
                 </div>
               </div>
-              <ExternalLink className="w-3 h-3 text-[#1e1e1e] group-hover:text-[#3a3a3a] shrink-0 mt-1 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-[#585858] group-hover:text-[#686868] shrink-0 mt-1 transition-colors" />
             </a>
           ))}
         </div>

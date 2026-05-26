@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
@@ -350,7 +350,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
             <h2 className="text-sm font-semibold text-[#f0f0f0] tracking-wide">
               {mode === "technical" ? "Signal Scanner" : "Fair Price Scanner"}
             </h2>
-            <p className="text-[9px] text-[#3a3a3a] mt-0.5">
+            <p className="text-[9px] text-[#686868] mt-0.5">
               {mode === "technical"
                 ? techResults.length > 0 ? `${techResults.length} stocks · Technical consensus` : "Technical indicator screening"
                 : fpResults.length > 0  ? `${fpResults.length} stocks · Ranked by upside to fair price` : "Valuation screening"}
@@ -417,7 +417,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                   "px-2.5 py-1 rounded-full border text-[9px] font-semibold tracking-wide transition-colors",
                   techFilter === tab.id
                     ? FILTER_ACTIVE[tab.id]
-                    : "text-[#3a3a3a] border-[#1e1e1e] hover:border-[#2c2c2c] hover:text-[#767676] bg-transparent"
+                    : "text-[#686868] border-[#1e1e1e] hover:border-[#2c2c2c] hover:text-[#767676] bg-transparent"
                 )}
               >
                 {tab.label}
@@ -458,7 +458,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                           <td className="px-4 py-2.5">
                             <div className="flex flex-col gap-0.5">
                               <span className="font-mono text-xs font-bold text-[#f0f0f0] group-hover:text-[#c0c0cc] transition-colors">{r.ticker}</span>
-                              {r.name && <span className="text-[8px] text-[#3a3a3a] truncate max-w-[130px]">{r.name}</span>}
+                              {r.name && <span className="text-[8px] text-[#686868] truncate max-w-[130px]">{r.name}</span>}
                             </div>
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs text-[#f0f0f0] tabular-nums">
@@ -476,7 +476,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                             <div className="flex flex-col gap-1 items-center w-20 mx-auto">
                               <div className="flex items-center gap-1 text-[8px]">
                                 <span className="text-[#c0c0cc] font-bold">{s.strongBuys + s.buys}B</span>
-                                <span className="text-[#3a3a3a]">{s.neutrals}N</span>
+                                <span className="text-[#686868]">{s.neutrals}N</span>
                                 <span className="text-[#ef4444] font-bold">{s.sells + s.strongSells}S</span>
                               </div>
                               <div className="flex h-1 w-full rounded-sm overflow-hidden bg-[#161616]">
@@ -518,7 +518,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                     "px-2.5 py-1 rounded-full border text-[9px] font-semibold tracking-wide transition-colors",
                     fpFilter === tab.id
                       ? FP_FILTER_ACTIVE[tab.id]
-                      : "text-[#3a3a3a] border-[#1e1e1e] hover:border-[#2c2c2c] hover:text-[#767676] bg-transparent"
+                      : "text-[#686868] border-[#1e1e1e] hover:border-[#2c2c2c] hover:text-[#767676] bg-transparent"
                   )}
                 >
                   {tab.label}
@@ -529,7 +529,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
 
             {/* Market cap toggle */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] text-[#3a3a3a] uppercase tracking-widest shrink-0">Mkt cap</span>
+              <span className="text-[9px] text-[#686868] uppercase tracking-widest shrink-0">Mkt cap</span>
               <div className="flex items-center border border-[#1e1e1e] rounded-md overflow-hidden">
                 {MCAP_FILTERS.map(f => (
                   <button
@@ -575,7 +575,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                           <td className="px-4 py-2.5">
                             <div className="flex flex-col gap-0.5">
                               <span className="font-mono text-xs font-bold text-[#f0f0f0] group-hover:text-[#c0c0cc] transition-colors">{r.ticker}</span>
-                              {r.name && <span className="text-[8px] text-[#3a3a3a] truncate max-w-[130px]">{r.name}</span>}
+                              {r.name && <span className="text-[8px] text-[#686868] truncate max-w-[130px]">{r.name}</span>}
                             </div>
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs text-[#f0f0f0] tabular-nums">
@@ -611,7 +611,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       )}
 
       {!loading && (techResults.length > 0 || fpResults.length > 0) && scannedAt && (
-        <p className="text-[9px] text-[#3a3a3a] text-center">
+        <p className="text-[9px] text-[#686868] text-center">
           {mode === "technical"
             ? `${techResults.length} stocks · ${tf} timeframe · Scanned ${new Date(scannedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Click row to open`
             : `${fpResults.length} stocks · Lynch + P/E + DCF avg · Scanned ${new Date(scannedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Click row to open`
@@ -628,7 +628,7 @@ function Th({ children, right, center, onClick }: {
   children: React.ReactNode; right?: boolean; center?: boolean; onClick?: () => void
 }) {
   const cls = cn(
-    "px-3 py-2.5 text-[9px] font-semibold text-[#3a3a3a] uppercase tracking-widest",
+    "px-3 py-2.5 text-[9px] font-semibold text-[#686868] uppercase tracking-widest",
     right ? "text-right" : center ? "text-center" : "text-left"
   );
   return onClick ? (
@@ -646,7 +646,7 @@ function ModelDot({ label, active }: { label: string; active: boolean }) {
   return (
     <span className={cn(
       "w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold",
-      active ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc30]" : "bg-transparent text-[#2c2c2c] border border-[#1e1e1e]"
+      active ? "bg-[#c0c0cc15] text-[#c0c0cc] border border-[#c0c0cc30]" : "bg-transparent text-[#5a5a5a] border border-[#1e1e1e]"
     )}>{label}</span>
   );
 }
@@ -669,7 +669,7 @@ function SkeletonRows({ cols }: { cols: number }) {
 function EmptyState() {
   return (
     <div className="flex items-center justify-center py-12">
-      <p className="text-xs text-[#3a3a3a]">No results for this filter</p>
+      <p className="text-xs text-[#686868]">No results for this filter</p>
     </div>
   );
 }

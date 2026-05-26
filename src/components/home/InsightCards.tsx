@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { OHLCVBar, TechnicalIndicators } from "@/types/market";
@@ -70,7 +70,7 @@ export function SignalCard({ ticker }: Props) {
       {isLoading ? <Skeleton /> : summary ? (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-[#3a3a3a] uppercase tracking-widest">Consensus</span>
+            <span className="text-[10px] text-[#686868] uppercase tracking-widest">Consensus</span>
             <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", cfg.text, cfg.bg, cfg.border)}>
               {cfg.label}
             </span>
@@ -86,7 +86,7 @@ export function SignalCard({ ticker }: Props) {
           </div>
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-[#c0c0cc]">{summary.strongBuys + summary.buys} Buy</span>
-            <span className="text-[#3a3a3a]">{summary.neutrals} Neutral</span>
+            <span className="text-[#686868]">{summary.neutrals} Neutral</span>
             <span className="text-[#ef4444]">{summary.sells + summary.strongSells} Sell</span>
           </div>
           <div className="flex flex-wrap gap-1 pt-2 border-t border-[#1e1e1e]">
@@ -100,7 +100,7 @@ export function SignalCard({ ticker }: Props) {
             })}
           </div>
         </div>
-      ) : <p className="text-[11px] text-[#3a3a3a]">No data available</p>}
+      ) : <p className="text-[11px] text-[#686868]">No data available</p>}
     </CardShell>
   );
 }
@@ -139,7 +139,7 @@ export function QualityCard({ ticker }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <span className="font-mono text-2xl font-bold tabular-nums" style={{ color }}>{data.overall}</span>
-              <span className="text-[10px] text-[#3a3a3a] ml-1">/100</span>
+              <span className="text-[10px] text-[#686868] ml-1">/100</span>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded-full border" style={{ color, background: `${color}0a`, borderColor: `${color}28` }}>
               {qLabel(data.overall)}
@@ -152,7 +152,7 @@ export function QualityCard({ ticker }: Props) {
             <MiniBar label="Efficiency" value={data.efficiency} />
           </div>
         </div>
-      ) : <p className="text-[11px] text-[#3a3a3a]">No data available</p>}
+      ) : <p className="text-[11px] text-[#686868]">No data available</p>}
     </CardShell>
   );
 }
@@ -188,9 +188,9 @@ export function NarrativeCard({ ticker }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm font-semibold" style={{ color: cfg.color }}>{cfg.label}</span>
-              <p className="text-[10px] text-[#3a3a3a] mt-0.5">{cfg.desc}</p>
+              <p className="text-[10px] text-[#686868] mt-0.5">{cfg.desc}</p>
             </div>
-            <span className="text-[10px] text-[#3a3a3a]">{data.totalArticles} articles</span>
+            <span className="text-[10px] text-[#686868]">{data.totalArticles} articles</span>
           </div>
           <div className="relative py-1">
             <div className="h-0.5 rounded-full bg-[#1e1e1e]" />
@@ -199,7 +199,7 @@ export function NarrativeCard({ ticker }: Props) {
               style={{ left: `calc(${cfg.pos * 100}% - 5px)`, backgroundColor: cfg.color }}
             />
           </div>
-          <div className="flex items-center justify-between text-[9px] text-[#3a3a3a]">
+          <div className="flex items-center justify-between text-[9px] text-[#686868]">
             <span>Emerging</span><span>Building</span><span>Consensus</span><span>Fading</span>
           </div>
           {total > 0 && (
@@ -213,13 +213,13 @@ export function NarrativeCard({ ticker }: Props) {
               </div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-[#c0c0cc]">{data.positive} pos</span>
-                <span className="text-[#3a3a3a]">{data.neutral} neu</span>
+                <span className="text-[#686868]">{data.neutral} neu</span>
                 <span className="text-[#ef4444]">{data.negative} neg</span>
               </div>
             </div>
           )}
         </div>
-      ) : <p className="text-[11px] text-[#3a3a3a]">No data available</p>}
+      ) : <p className="text-[11px] text-[#686868]">No data available</p>}
     </CardShell>
   );
 }
@@ -276,9 +276,9 @@ export function ValuationCard({ ticker }: Props) {
       {isLoading ? <Skeleton lines={4} /> : rows.length > 0 ? (
         <div className="flex flex-col gap-2.5 overflow-y-auto" style={{ maxHeight: 220, scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}>
           {rows.map(r => <ValRow key={r.label} {...r} />)}
-          <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">Position within 5-year historical range</p>
+          <p className="text-[9px] text-[#585858] pt-1 border-t border-[#1e1e1e]">Position within 5-year historical range</p>
         </div>
-      ) : <p className="text-[11px] text-[#3a3a3a]">No valuation data</p>}
+      ) : <p className="text-[11px] text-[#686868]">No valuation data</p>}
     </CardShell>
   );
 }
@@ -335,12 +335,12 @@ export function FairValueCard({ ticker }: Props) {
           {/* Prices row */}
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-[9px] text-[#3a3a3a] mb-0.5">Fair Value</p>
+              <p className="text-[9px] text-[#686868] mb-0.5">Fair Value</p>
               <span className="text-lg font-mono font-bold text-[#f0f0f0]">${fvFmt(data.fairValue)}</span>
             </div>
             {data.currentPrice != null && (
               <div className="text-right">
-                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                <p className="text-[9px] text-[#686868] mb-0.5">Current</p>
                 <span className="text-sm font-mono text-[#767676]">${fvFmt(data.currentPrice)}</span>
               </div>
             )}
@@ -349,7 +349,7 @@ export function FairValueCard({ ticker }: Props) {
           {/* Upside badge */}
           {data.upside != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#3a3a3a]">
+              <span className="text-[10px] text-[#686868]">
                 {data.upside >= 0 ? "Upside" : "Downside"}
               </span>
               <span className="text-[11px] font-semibold font-mono" style={{ color: upsideColor }}>
@@ -376,7 +376,7 @@ export function FairValueCard({ ticker }: Props) {
                 {/* Fair value marker at PEG=1 */}
                 <div className="absolute top-0 bottom-0 w-px bg-[#3a3a3a]" style={{ left: "33.3%" }} />
               </div>
-              <div className="flex justify-between text-[9px] text-[#3a3a3a]">
+              <div className="flex justify-between text-[9px] text-[#686868]">
                 <span>0</span><span>PEG 0–3x</span><span>3x</span>
               </div>
             </div>
@@ -385,17 +385,17 @@ export function FairValueCard({ ticker }: Props) {
           {/* Inputs */}
           <div className="flex flex-col gap-1 pt-1 border-t border-[#1e1e1e]">
             <div className="flex justify-between text-[10px]">
-              <span className="text-[#3a3a3a]">EPS (TTM)</span>
+              <span className="text-[#686868]">EPS (TTM)</span>
               <span className="font-mono text-[#f0f0f0]">${fvFmt(data.trailingEps)}</span>
             </div>
             <div className="flex justify-between text-[10px]">
-              <span className="text-[#3a3a3a]">Growth ({data.growthSource})</span>
+              <span className="text-[#686868]">Growth ({data.growthSource})</span>
               <span className="font-mono text-[#f0f0f0]">{data.growthRate.toFixed(1)}%</span>
             </div>
-            <p className="text-[9px] text-[#1e1e1e] pt-0.5">EPS × Growth Rate · Lynch PEG Model</p>
+            <p className="text-[9px] text-[#585858] pt-0.5">EPS × Growth Rate · Lynch PEG Model</p>
           </div>
         </div>
-      ) : <p className="text-[11px] text-[#3a3a3a]">Insufficient data</p>}
+      ) : <p className="text-[11px] text-[#686868]">Insufficient data</p>}
     </CardShell>
   );
 }
@@ -467,12 +467,12 @@ export function FairPriceCard({ ticker }: Props) {
           {/* Hero row — fair price big, current price small */}
           <div className="flex items-end justify-between gap-2">
             <div>
-              <p className="text-[9px] uppercase tracking-widest text-[#3a3a3a] mb-1">Fair Price</p>
+              <p className="text-[9px] uppercase tracking-widest text-[#686868] mb-1">Fair Price</p>
               <span className="text-3xl font-mono font-bold text-[#f0f0f0] leading-none">${fpFmt(avg)}</span>
             </div>
             {currentPrice != null && (
               <div className="text-right pb-0.5">
-                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                <p className="text-[9px] text-[#686868] mb-0.5">Current</p>
                 <span className="text-base font-mono text-[#767676]">${fpFmt(currentPrice)}</span>
               </div>
             )}
@@ -501,7 +501,7 @@ export function FairPriceCard({ ticker }: Props) {
                 ? ((val - currentPrice) / currentPrice) * 100 : null;
               return (
                 <div key={key} className="flex items-center justify-between">
-                  <span className="text-[10px] text-[#3a3a3a]">{label}</span>
+                  <span className="text-[10px] text-[#686868]">{label}</span>
                   {val != null ? (
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono text-[#f0f0f0]">${fpFmt(val)}</span>
@@ -512,7 +512,7 @@ export function FairPriceCard({ ticker }: Props) {
                       )}
                     </div>
                   ) : (
-                    <span className="text-[9px] text-[#3a3a3a]">N/A</span>
+                    <span className="text-[9px] text-[#686868]">N/A</span>
                   )}
                 </div>
               );
@@ -521,7 +521,7 @@ export function FairPriceCard({ ticker }: Props) {
 
         </div>
       ) : !isLoading ? (
-        <p className="text-[11px] text-[#3a3a3a]">No valuation data available</p>
+        <p className="text-[11px] text-[#686868]">No valuation data available</p>
       ) : null}
     </CardShell>
   );
@@ -584,12 +584,12 @@ export function DCFCard({ ticker }: Props) {
           {/* Intrinsic value vs current */}
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-[9px] text-[#3a3a3a] mb-0.5">Intrinsic Value</p>
+              <p className="text-[9px] text-[#686868] mb-0.5">Intrinsic Value</p>
               <span className="text-lg font-mono font-bold text-[#f0f0f0]">${dcfFmt(data.intrinsicValue)}</span>
             </div>
             {data.currentPrice != null && (
               <div className="text-right">
-                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                <p className="text-[9px] text-[#686868] mb-0.5">Current</p>
                 <span className="text-sm font-mono text-[#767676]">${dcfFmt(data.currentPrice)}</span>
               </div>
             )}
@@ -598,7 +598,7 @@ export function DCFCard({ ticker }: Props) {
           {/* Upside */}
           {data.upside != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#3a3a3a]">
+              <span className="text-[10px] text-[#686868]">
                 {data.upside >= 0 ? "Margin of safety" : "Downside"}
               </span>
               <span className="text-[11px] font-semibold font-mono" style={{ color: dcfUpsideColor(data.upside) }}>
@@ -619,9 +619,9 @@ export function DCFCard({ ticker }: Props) {
                   style={{ left: `calc(${curPct}% - 4px)` }} />
               )}
             </div>
-            <div className="flex justify-between text-[9px] text-[#3a3a3a] font-mono">
+            <div className="flex justify-between text-[9px] text-[#686868] font-mono">
               <span>${dcfFmt(data.bearValue, 0)}</span>
-              <span className="text-[#1e1e1e]">bear · base · bull</span>
+              <span className="text-[#585858]">bear · base · bull</span>
               <span>${dcfFmt(data.bullValue, 0)}</span>
             </div>
           </div>
@@ -633,7 +633,7 @@ export function DCFCard({ ticker }: Props) {
               <div style={{ width: `${fadePct}%`, background: "#3a3a3a" }} />
               <div className="rounded-r-full" style={{ width: `${terminalPct}%`, background: "#252525" }} />
             </div>
-            <div className="flex justify-between text-[9px] text-[#3a3a3a]">
+            <div className="flex justify-between text-[9px] text-[#686868]">
               <span>Yrs 1–5 ({highPct.toFixed(0)}%)</span>
               <span>Terminal ({terminalPct.toFixed(0)}%)</span>
             </div>
@@ -642,22 +642,22 @@ export function DCFCard({ ticker }: Props) {
           {/* Key inputs */}
           <div className="flex flex-col gap-1 pt-2 border-t border-[#1e1e1e]">
             <div className="flex justify-between text-[10px]">
-              <span className="text-[#3a3a3a]">FCF / Share</span>
+              <span className="text-[#686868]">FCF / Share</span>
               <span className="font-mono text-[#f0f0f0]">${dcfFmt(data.fcfPerShare)}</span>
             </div>
             <div className="flex justify-between text-[10px]">
-              <span className="text-[#3a3a3a]">Growth ({data.growthSource})</span>
+              <span className="text-[#686868]">Growth ({data.growthSource})</span>
               <span className="font-mono text-[#f0f0f0]">{dcfFmt(data.growthRate, 1)}%</span>
             </div>
             <div className="flex justify-between text-[10px]">
-              <span className="text-[#3a3a3a]">WACC</span>
+              <span className="text-[#686868]">WACC</span>
               <span className="font-mono text-[#f0f0f0]">{dcfFmt(data.wacc, 1)}%</span>
             </div>
-            <p className="text-[9px] text-[#1e1e1e] pt-0.5">10Y DCF · CAPM · Gordon Growth terminal</p>
+            <p className="text-[9px] text-[#585858] pt-0.5">10Y DCF · CAPM · Gordon Growth terminal</p>
           </div>
         </div>
       ) : (
-        <p className="text-[11px] text-[#3a3a3a]">
+        <p className="text-[11px] text-[#686868]">
           {data?.error === "Insufficient data" ? "Requires positive FCF" : "No data available"}
         </p>
       )}
@@ -731,12 +731,12 @@ export function PEValuationCard({ ticker }: Props) {
           {data.fairValueTrailing != null && (
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-[9px] text-[#3a3a3a] mb-0.5">Fair Value</p>
+                <p className="text-[9px] text-[#686868] mb-0.5">Fair Value</p>
                 <span className="text-lg font-mono font-bold text-[#f0f0f0]">${peFmt(data.fairValueTrailing)}</span>
               </div>
               {data.currentPrice != null && (
                 <div className="text-right">
-                  <p className="text-[9px] text-[#3a3a3a] mb-0.5">Current</p>
+                  <p className="text-[9px] text-[#686868] mb-0.5">Current</p>
                   <span className="text-sm font-mono text-[#767676]">${peFmt(data.currentPrice)}</span>
                 </div>
               )}
@@ -746,7 +746,7 @@ export function PEValuationCard({ ticker }: Props) {
           {/* Upside */}
           {data.upsideTrailing != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#3a3a3a]">
+              <span className="text-[10px] text-[#686868]">
                 {data.upsideTrailing >= 0 ? "Upside" : "Downside"}
               </span>
               <span className="text-[11px] font-semibold font-mono" style={{ color: peUpsideColor(data.upsideTrailing) }}>
@@ -758,16 +758,16 @@ export function PEValuationCard({ ticker }: Props) {
           {/* P/E rows */}
           <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
             <div className="flex justify-between text-[10px]">
-              <span className="text-[#3a3a3a]">{ticker} P/E (TTM)</span>
+              <span className="text-[#686868]">{ticker} P/E (TTM)</span>
               <span className="font-mono text-[#f0f0f0]">{data.trailingPE != null ? `${data.trailingPE.toFixed(1)}x` : "—"}</span>
             </div>
             <div className="flex justify-between text-[10px]">
-              <span className="text-[#3a3a3a]">{data.sectorLabel} P/E ({data.etfTicker})</span>
+              <span className="text-[#686868]">{data.sectorLabel} P/E ({data.etfTicker})</span>
               <span className="font-mono text-[#f0f0f0]">{data.sectorPE != null ? `${data.sectorPE.toFixed(1)}x` : "—"}</span>
             </div>
             {data.premiumDiscount != null && (
               <div className="flex justify-between text-[10px]">
-                <span className="text-[#3a3a3a]">{data.premiumDiscount >= 0 ? "Premium" : "Discount"}</span>
+                <span className="text-[#686868]">{data.premiumDiscount >= 0 ? "Premium" : "Discount"}</span>
                 <span className="font-mono font-semibold" style={{ color: pePremColor(data.premiumDiscount) }}>
                   {data.premiumDiscount >= 0 ? "+" : ""}{data.premiumDiscount.toFixed(1)}%
                 </span>
@@ -779,7 +779,7 @@ export function PEValuationCard({ ticker }: Props) {
           {data.analystTarget != null && (
             <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e1e1e]">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[#3a3a3a]">Analyst Target</span>
+                <span className="text-[10px] text-[#686868]">Analyst Target</span>
                 <div className="flex items-center gap-1.5">
                   {recCfg && (
                     <span className="text-[9px] px-1 py-0.5 rounded" style={{ color: recCfg.color, background: `${recCfg.color}0a` }}>
@@ -807,14 +807,14 @@ export function PEValuationCard({ ticker }: Props) {
                 );
               })()}
               {data.analystCount != null && (
-                <p className="text-[9px] text-[#3a3a3a]">{data.analystCount} analysts</p>
+                <p className="text-[9px] text-[#686868]">{data.analystCount} analysts</p>
               )}
             </div>
           )}
 
-          <p className="text-[9px] text-[#1e1e1e] pt-1 border-t border-[#1e1e1e]">EPS × Sector Median P/E · Comparable Method</p>
+          <p className="text-[9px] text-[#585858] pt-1 border-t border-[#1e1e1e]">EPS × Sector Median P/E · Comparable Method</p>
         </div>
-      ) : <p className="text-[11px] text-[#3a3a3a]">Insufficient data</p>}
+      ) : <p className="text-[11px] text-[#686868]">Insufficient data</p>}
     </CardShell>
   );
 }
@@ -878,7 +878,7 @@ function ColMetric({
   const color = colored === "up" ? "#4ade80" : colored === "down" ? "#ef4444" : "#f0f0f0";
   return (
     <div className="py-1.5 border-b border-[#0d0d0d] last:border-0">
-      <div className="text-[8px] text-[#3a3a3a] leading-none mb-0.5 truncate">{label}</div>
+      <div className="text-[8px] text-[#686868] leading-none mb-0.5 truncate">{label}</div>
       <div className="text-[10px] font-mono font-medium tabular-nums truncate" style={{ color }}>{value}</div>
     </div>
   );
@@ -886,7 +886,7 @@ function ColMetric({
 
 function ColHeader({ label }: { label: string }) {
   return (
-    <div className="text-[8px] font-semibold uppercase tracking-widest text-[#2c2c2c] pb-1 mb-0.5 border-b border-[#1a1a1a]">
+    <div className="text-[8px] font-semibold uppercase tracking-widest text-[#5a5a5a] pb-1 mb-0.5 border-b border-[#1a1a1a]">
       {label}
     </div>
   );
@@ -989,11 +989,11 @@ export function EarningsCard({ ticker }: Props) {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="border-b border-[#161616]">
-                <th className="pb-1.5 text-left text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Quarter</th>
-                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Est EPS</th>
-                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Actual</th>
-                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Surprise</th>
-                <th className="pb-1.5 text-center text-[9px] font-semibold uppercase tracking-widest text-[#3a3a3a] px-1">Result</th>
+                <th className="pb-1.5 text-left text-[9px] font-semibold uppercase tracking-widest text-[#686868] px-1">Quarter</th>
+                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#686868] px-1">Est EPS</th>
+                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#686868] px-1">Actual</th>
+                <th className="pb-1.5 text-right text-[9px] font-semibold uppercase tracking-widest text-[#686868] px-1">Surprise</th>
+                <th className="pb-1.5 text-center text-[9px] font-semibold uppercase tracking-widest text-[#686868] px-1">Result</th>
               </tr>
             </thead>
             <tbody>
@@ -1005,7 +1005,7 @@ export function EarningsCard({ ticker }: Props) {
                 return (
                   <tr key={i} className="border-b border-[#0d0d0d] last:border-0">
                     <td className="py-2 px-1 font-mono text-[10px] text-[#767676]">{fmtQuarter(e.date)}</td>
-                    <td className="py-2 px-1 text-right font-mono text-[10px] text-[#3a3a3a] tabular-nums">{fmtEps(e.epsEstimate)}</td>
+                    <td className="py-2 px-1 text-right font-mono text-[10px] text-[#686868] tabular-nums">{fmtEps(e.epsEstimate)}</td>
                     <td className="py-2 px-1 text-right font-mono text-[10px] text-[#f0f0f0] tabular-nums font-medium">{fmtEps(e.epsActual)}</td>
                     <td className="py-2 px-1 text-right font-mono text-[10px] tabular-nums" style={{
                       color: surprisePct == null ? "#3a3a3a" : surprisePct >= 0 ? "#4ade80" : "#ef4444"
@@ -1024,7 +1024,7 @@ export function EarningsCard({ ticker }: Props) {
                         )}>
                           {e.beat ? "Beat" : "Miss"}
                         </span>
-                      ) : <span className="text-[#2c2c2c]">—</span>}
+                      ) : <span className="text-[#5a5a5a]">—</span>}
                     </td>
                   </tr>
                 );
@@ -1033,7 +1033,7 @@ export function EarningsCard({ ticker }: Props) {
           </table>
         </div>
       ) : (
-        <p className="text-[11px] text-[#3a3a3a]">No earnings data available</p>
+        <p className="text-[11px] text-[#686868]">No earnings data available</p>
       )}
     </CardShell>
   );
@@ -1053,7 +1053,7 @@ export function InsiderCard({ ticker }: Props) {
       {isLoading ? <Skeleton lines={3} /> : txns.length > 0 ? (
         <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 280, scrollbarWidth: "thin", scrollbarColor: "#2c2c2c transparent" }}>
           <div className="flex items-center justify-between pb-2 border-b border-[#1e1e1e]">
-            <span className="text-[10px] text-[#3a3a3a]">Net {isNetBuy ? "buying" : "selling"}</span>
+            <span className="text-[10px] text-[#686868]">Net {isNetBuy ? "buying" : "selling"}</span>
             <span className={cn("text-xs font-semibold font-mono flex items-center gap-1", isNetBuy ? "text-[#c0c0cc]" : "text-[#ef4444]")}>
               {isNetBuy ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {isNetBuy ? "+" : ""}{fmtNum(net)}
@@ -1069,7 +1069,7 @@ export function InsiderCard({ ticker }: Props) {
                     {t.isBuy ? "Buy" : "Sell"}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[9px] text-[#3a3a3a]">
+                <div className="flex items-center gap-1.5 text-[9px] text-[#686868]">
                   <span className="font-mono">{fmtNum(Math.abs(t.shares))} sh</span>
                   {t.date && <><span>·</span><span>{new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></>}
                 </div>
@@ -1077,7 +1077,7 @@ export function InsiderCard({ ticker }: Props) {
             </div>
           ))}
         </div>
-      ) : <p className="text-[11px] text-[#3a3a3a]">No recent activity</p>}
+      ) : <p className="text-[11px] text-[#686868]">No recent activity</p>}
     </CardShell>
   );
 }

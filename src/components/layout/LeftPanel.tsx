@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { X, Plus, LayoutGrid, Layers, Trash2, GripVertical } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -214,7 +214,7 @@ export default function LeftPanel() {
           </button>
         </div>
         {customLayouts.length === 0 ? (
-          <p className="text-[10px] text-[#30363d] leading-relaxed px-1">
+          <p className="text-[10px] text-[#6a7480] leading-relaxed px-1">
             No custom layouts yet. Click + to create one.
           </p>
         ) : (
@@ -279,7 +279,7 @@ export default function LeftPanel() {
               )}
             >
               <div className="flex items-center gap-1 group/row">
-                <GripVertical className="w-3 h-3 text-[#30363d] group-hover/row:text-[#484f58] shrink-0 cursor-grab active:cursor-grabbing ml-0.5 transition-colors" />
+                <GripVertical className="w-3 h-3 text-[#6a7480] group-hover/row:text-[#484f58] shrink-0 cursor-grab active:cursor-grabbing ml-0.5 transition-colors" />
                 <div className="flex-1 min-w-0">
                 <WatchlistItem
                   ticker={t}

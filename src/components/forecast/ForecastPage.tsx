@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Sparkles, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -103,7 +103,7 @@ function TechnicalsToggle({ active, onChange }: { active: boolean; onChange: (v:
       style={{
         background: active ? "rgba(192,192,204,0.12)" : "rgba(255,255,255,0.04)",
         border: `1px solid ${active ? "rgba(192,192,204,0.28)" : "rgba(255,255,255,0.07)"}`,
-        color: active ? "rgba(210,210,220,0.90)" : "rgba(255,255,255,0.28)",
+        color: active ? "rgba(210,210,220,0.90)" : "rgba(255,255,255,0.48)",
       }}
     >
       Technicals
@@ -119,7 +119,7 @@ function BacktestToggle({ active, onChange }: { active: boolean; onChange: (v: b
       style={{
         background: active ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.04)",
         border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.07)"}`,
-        color: active ? "rgba(251,191,36,0.95)" : "rgba(255,255,255,0.28)",
+        color: active ? "rgba(251,191,36,0.95)" : "rgba(255,255,255,0.48)",
       }}
     >
       Backtest
@@ -322,9 +322,9 @@ export default function ForecastPage() {
           const backBtn = (
             <button onClick={() => router.push("/")}
               className="flex items-center gap-1.5 group transition-colors shrink-0"
-              style={{ color: "rgba(255,255,255,0.28)" }}
+              style={{ color: "rgba(255,255,255,0.48)" }}
               onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.48)")}
             >
               <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
               <span className="text-xs">Home</span>
@@ -356,7 +356,7 @@ export default function ForecastPage() {
               style={{
                 background: loading ? "rgba(255,255,255,0.04)" : "rgba(192,192,204,0.10)",
                 border: `1px solid ${loading ? "rgba(255,255,255,0.06)" : "rgba(192,192,204,0.22)"}`,
-                color: loading ? "rgba(255,255,255,0.25)" : "rgba(192,192,204,0.90)",
+                color: loading ? "rgba(255,255,255,0.46)" : "rgba(192,192,204,0.90)",
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
@@ -568,8 +568,8 @@ export default function ForecastPage() {
             <div className="ml-auto flex items-center gap-4 shrink-0">
               <ConfidenceRing value={data.confidence} />
               <div className="hidden lg:block text-right">
-                <div className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.15)" }}>Model</div>
-                <div className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>claude-sonnet-4-6</div>
+                <div className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.38)" }}>Model</div>
+                <div className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.46)" }}>claude-sonnet-4-6</div>
               </div>
             </div>
           </div>

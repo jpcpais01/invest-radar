@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import WidgetShell from "@/components/widgets/_base/WidgetShell";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -25,7 +25,7 @@ const CELL_STYLES: Record<Cell, string> = {
   bullish:      "bg-[#3fb95022] text-[#3fb950] border-[#3fb95040]",
   bearish:      "bg-[#f8514922] text-[#f85149] border-[#f8514940]",
   neutral:      "bg-[#21262d] text-[#484f58] border-[#21262d]",
-  insufficient: "bg-transparent text-[#30363d] border-[#21262d]",
+  insufficient: "bg-transparent text-[#6a7480] border-[#21262d]",
 };
 
 const CELL_TEXT: Record<Cell, string> = {
