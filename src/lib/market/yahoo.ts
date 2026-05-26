@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import YahooFinanceClass from "yahoo-finance2";
-import { OHLCVBar, Quote, Fundamentals, EarningsEvent } from "@/types/market";
+import { OHLCVBar, Quote, Fundamentals, EarningsEvent, EtfProfile, EtfHolding, EtfSectorWeight } from "@/types/market";
 
 // v3: must instantiate the class
 const yf = new (YahooFinanceClass as any)({ suppressNotices: ["yahooSurvey"] });
@@ -83,6 +83,7 @@ export async function getFundamentals(ticker: string): Promise<Fundamentals> {
     website: typeof profile?.website === "string" ? profile.website : undefined,
     country: typeof profile?.country === "string" ? profile.country : undefined,
     exchange: typeof quote.exchange === "string" ? quote.exchange : undefined,
+    quoteType: typeof quote.quoteType === "string" ? quote.quoteType : undefined,
     pe: safeNum(detail?.trailingPE),
     forwardPE: safeNum(detail?.forwardPE),
     ps: safeNum(stats?.priceToSalesTrailing12Months),
@@ -274,6 +275,74 @@ export async function getValuationHistory(ticker: string) {
       return calcRange(bvPerShare);
     })(),
     evEbitda: { current: safeNum(ks?.enterpriseToEbitda) },
+  };
+}
+
+// Map Yahoo's lowercase sector keys to display labels
+const SECTOR_LABELS: Record<string, string> = {
+  realestate:             "Real Estate",
+  consumer_cyclical:      "Consumer Cyclical",
+  basic_materials:        "Basic Materials",
+  consumer_defensive:     "Consumer Defensive",
+  technology:             "Technology",
+  communication_services: "Communication Services",
+  financial_services:     "Financial Services",
+  utilities:              "Utilities",
+  industrials:            "Industrials",
+  energy:                 "Energy",
+  healthcare:             "Healthcare",
+};
+
+export async function getEtfProfile(ticker: string): Promise<EtfProfile> {
+  const [quote, summary] = await Promise.all([
+    yf.quote(ticker) as Promise<any>,
+    yf.quoteSummary(ticker, {
+      modules: ["topHoldings", "defaultKeyStatistics", "assetProfile"] as any,
+    }).catch(() => null),
+  ]);
+
+  const th = summary?.topHoldings;
+  const ks = summary?.defaultKeyStatistics;
+  const profile = summary?.assetProfile;
+
+  const safeNum = (val: any): number | undefined => {
+    if (val == null) return undefined;
+    if (typeof val === "number") return val;
+    if (typeof val === "object" && "raw" in val) return val.raw as number;
+    return undefined;
+  };
+
+  // Holdings
+  const holdings: EtfHolding[] = ((th?.holdings ?? []) as any[]).map((h: any) => ({
+    symbol: h.symbol ?? undefined,
+    name: h.holdingName ?? h.symbol ?? "Unknown",
+    weight: typeof h.holdingPercent === "number" ? h.holdingPercent : 0,
+  }));
+
+  // Sector weights — Yahoo returns an array of single-key objects
+  const sectorWeights: EtfSectorWeight[] = ((th?.sectorWeightings ?? []) as any[])
+    .flatMap((obj: any) =>
+      Object.entries(obj).map(([key, val]) => ({
+        sector: SECTOR_LABELS[key] ?? key,
+        weight: typeof val === "number" ? val : 0,
+      }))
+    )
+    .filter(s => s.weight > 0)
+    .sort((a, b) => b.weight - a.weight);
+
+  return {
+    ticker,
+    name: quote.longName ?? quote.shortName ?? ticker,
+    description: profile?.longBusinessSummary ?? undefined,
+    stockPct: typeof th?.stockPosition === "number" ? th.stockPosition : undefined,
+    bondPct:  typeof th?.bondPosition  === "number" ? th.bondPosition  : undefined,
+    cashPct:  typeof th?.cashPosition  === "number" ? th.cashPosition  : undefined,
+    holdings,
+    sectorWeights,
+    expenseRatio: safeNum(ks?.annualReportExpenseRatio) ?? safeNum((th as any)?.expenseRatio),
+    aum: safeNum(ks?.totalAssets),
+    exchange: typeof quote.exchange === "string" ? quote.exchange : undefined,
+    country: typeof profile?.country === "string" ? profile.country : undefined,
   };
 }
 

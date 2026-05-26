@@ -55,6 +55,37 @@ export interface Fundamentals {
   website?: string;
   country?: string;
   exchange?: string;
+  quoteType?: string; // "EQUITY" | "ETF" | "MUTUALFUND" | etc.
+}
+
+export interface EtfHolding {
+  symbol?: string;
+  name: string;
+  weight: number; // 0–1
+}
+
+export interface EtfSectorWeight {
+  sector: string;
+  weight: number; // 0–1
+}
+
+export interface EtfProfile {
+  ticker: string;
+  name: string;
+  description?: string;
+  // Allocation breakdown
+  stockPct?: number;
+  bondPct?: number;
+  cashPct?: number;
+  // Top holdings
+  holdings: EtfHolding[];
+  // Sector weights
+  sectorWeights: EtfSectorWeight[];
+  // Key stats
+  expenseRatio?: number;
+  aum?: number; // total assets
+  exchange?: string;
+  country?: string;
 }
 
 export interface NewsItem {
