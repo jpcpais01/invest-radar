@@ -223,9 +223,26 @@ export default function ScreenerPage() {
 
   /* summary stats */
   const loadedRows = rows.filter((r) => !r.isLoading && r.price > 0);
-  const gainers = loadedRows.filter((r) => r.day > 0).length;
-  const losers  = loadedRows.filter((r) => r.day < 0).length;
-  const avgDay  = loadedRows.length ? loadedRows.reduce((s, r) => s + r.day, 0) / loadedRows.length : 0;
+
+  // Determine dominant session across all loaded rows
+  const sessionCounts = { PRE: 0, REGULAR: 0, POST: 0, POSTPOST: 0 };
+  for (const r of loadedRows) {
+    const ms = r.marketState as keyof typeof sessionCounts | undefined;
+    if (ms && ms in sessionCounts) sessionCounts[ms]++;
+  }
+  const dominantMs =
+    sessionCounts.PRE      > 0 ? "PRE"      :
+    sessionCounts.REGULAR  > 0 ? "REGULAR"  :
+    sessionCounts.POST     > 0 || sessionCounts.POSTPOST > 0 ? "POST" : null;
+  const isExtendedHours = dominantMs === "PRE" || dominantMs === "POST";
+
+  // Use ext % for gainers/losers/avg when in extended hours
+  const effectivePct = (r: RowData) =>
+    isExtendedHours && r.extChangePercent != null ? r.extChangePercent : r.day;
+
+  const gainers = loadedRows.filter((r) => effectivePct(r) > 0).length;
+  const losers  = loadedRows.filter((r) => effectivePct(r) < 0).length;
+  const avgDay  = loadedRows.length ? loadedRows.reduce((s, r) => s + effectivePct(r), 0) / loadedRows.length : 0;
 
   const isAllLoaded = rows.every((r) => !r.isLoading);
 
@@ -308,6 +325,20 @@ export default function ScreenerPage() {
             <div className="flex items-center gap-2 ml-auto text-[10px] font-semibold flex-wrap justify-end">
               <span className="text-[#3a3a3a]">{watchlist.length} tickers</span>
               <span className="w-px h-3 bg-[#2c2c2c]" />
+              {isExtendedHours && (
+                <>
+                  <span
+                    className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide"
+                    style={{
+                      background: dominantMs === "PRE" ? "rgba(96,165,250,0.12)" : "rgba(192,132,252,0.12)",
+                      color:      dominantMs === "PRE" ? "#60a5fa"               : "#c084fc",
+                    }}
+                  >
+                    {dominantMs === "PRE" ? "Pre-market" : "After-hours"}
+                  </span>
+                  <span className="w-px h-3 bg-[#2c2c2c]" />
+                </>
+              )}
               <span className="text-[#4ade80]">▲ {gainers} up</span>
               <span className="text-[#f87171]">▼ {losers} down</span>
               <span className="w-px h-3 bg-[#2c2c2c]" />
@@ -326,19 +357,39 @@ export default function ScreenerPage() {
         {isAllLoaded && loadedRows.length > 0 && (
           <div className="mb-6 grid grid-cols-5 gap-2">
             {sorted.map((row) => {
-              const abs = Math.abs(row.day);
-              const intensity = Math.min(abs / 5, 1); // 5% = max intensity
-              const bg = row.day > 0
+              const hasExt = row.extChangePercent != null;
+              const isPre  = row.marketState === "PRE";
+              const isPost = row.marketState === "POST" || row.marketState === "POSTPOST";
+              const inExt  = hasExt && (isPre || isPost);
+
+              // Color driver: ext % during extended hours, regular day % otherwise
+              const pct = inExt ? row.extChangePercent! : row.day;
+              const abs = Math.abs(pct);
+              const intensity = Math.min(abs / 5, 1);
+
+              // During extended hours tint the hue toward blue/purple
+              const bg = inExt
+                ? isPre
+                  ? `rgba(96,165,250,${0.06 + intensity * 0.18})`
+                  : `rgba(192,132,252,${0.06 + intensity * 0.18})`
+                : pct > 0
                 ? `rgba(74,222,128,${0.06 + intensity * 0.18})`
-                : row.day < 0
+                : pct < 0
                 ? `rgba(248,113,113,${0.06 + intensity * 0.18})`
                 : "rgba(255,255,255,0.03)";
-              const border = row.day > 0
+
+              const border = inExt
+                ? isPre
+                  ? `rgba(96,165,250,${0.15 + intensity * 0.3})`
+                  : `rgba(192,132,252,${0.15 + intensity * 0.3})`
+                : pct > 0
                 ? `rgba(74,222,128,${0.15 + intensity * 0.3})`
-                : row.day < 0
+                : pct < 0
                 ? `rgba(248,113,113,${0.15 + intensity * 0.3})`
                 : "#2c2c2c";
-              const color = row.day > 0 ? "#4ade80" : row.day < 0 ? "#f87171" : "#767676";
+
+              const extColor = isPre ? "#60a5fa" : "#c084fc";
+              const regColor = row.day > 0 ? "#4ade80" : row.day < 0 ? "#f87171" : "#767676";
 
               return (
                 <div
@@ -350,10 +401,31 @@ export default function ScreenerPage() {
                     window.location.href = "/";
                   }}
                 >
-                  <span className="text-[10px] font-bold text-[#f0f0f0] tracking-wide">{row.ticker}</span>
-                  <span className="text-[10px] font-semibold font-mono" style={{ color }}>
-                    {row.day >= 0 ? "+" : ""}{row.day.toFixed(2)}%
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-[#f0f0f0] tracking-wide">{row.ticker}</span>
+                    {inExt && (
+                      <span className="text-[6px] font-bold uppercase px-1 py-px rounded"
+                        style={{ background: isPre ? "rgba(96,165,250,0.18)" : "rgba(192,132,252,0.18)", color: extColor }}>
+                        {isPre ? "PRE" : "AH"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Extended-hours % — primary during pre/AH */}
+                  {inExt ? (
+                    <>
+                      <span className="text-[11px] font-bold font-mono tabular-nums" style={{ color: extColor }}>
+                        {row.extChangePercent! >= 0 ? "+" : ""}{row.extChangePercent!.toFixed(2)}%
+                      </span>
+                      <span className="text-[8px] font-mono tabular-nums opacity-40" style={{ color: regColor }}>
+                        {row.day >= 0 ? "+" : ""}{row.day.toFixed(2)}% reg
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-[10px] font-semibold font-mono tabular-nums" style={{ color: regColor }}>
+                      {row.day >= 0 ? "+" : ""}{row.day.toFixed(2)}%
+                    </span>
+                  )}
                 </div>
               );
             })}
