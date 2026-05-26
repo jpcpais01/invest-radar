@@ -18,7 +18,8 @@ type PrebuiltStrategy =
   | "firstofmonth" | "lastofmonth"
   | "rsi50orless"
   | "rsi40orless"
-  | "gapup";
+  | "gapup"
+  | "last5minsentiment";
 
 interface ActivePrebuilt { strategy: PrebuiltStrategy; weight: number; }
 
@@ -64,7 +65,8 @@ const PREBUILT_META: Record<PrebuiltStrategy, { label: string; description: stri
   lastofmonth:  { label: "LastOfMonth",   description: "Buy on the last trading day of each month"           },
   rsi50orless:  { label: "BuyOnRSI50−",  description: "Buy every candle where RSI ≤ 50"                     },
   rsi40orless:  { label: "BuyOnRSI40−",  description: "Buy every candle where RSI ≤ 40"                     },
-  gapup:        { label: "GAP+",         description: "Buy when today's open gaps above yesterday's close"    },
+  gapup:             { label: "GAP+",              description: "Buy when today's open gaps above yesterday's close"                        },
+  last5minsentiment: { label: "Last5MinSentiment", description: "Buy at close when the last candle of the day is bullish (close > open)"   },
 };
 
 const COND_META: Record<ConditionType, {
@@ -126,6 +128,14 @@ function evalPrebuiltBuy(s: PrebuiltStrategy, c: EnrichedCandle, prev: EnrichedC
     case "firstofmonth": return !prev || new Date(prev.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
     case "lastofmonth":  return !next || new Date(next.time * 1000).getUTCMonth() !== new Date(c.time * 1000).getUTCMonth();
     case "gapup":        return prev != null && c.open > prev.close;
+    case "last5minsentiment": {
+      // On intraday tf: fires only on the last candle of each trading day when bullish.
+      // On daily tf: every candle is "last of day" → fires on any green (close > open) session,
+      // which is the natural proxy for bullish end-of-day price action.
+      const dayOf  = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 10);
+      const isLastCandleOfDay = !next || dayOf(next.time) !== dayOf(c.time);
+      return isLastCandleOfDay && c.close > c.open;
+    }
   }
 }
 
