@@ -22,6 +22,14 @@ export async function getQuote(ticker: string): Promise<Quote> {
     regularMarketTime: q.regularMarketTime
       ? new Date(q.regularMarketTime).getTime() / 1000
       : undefined,
+    // Extended-hours fields
+    marketState:             q.marketState             ?? undefined,
+    preMarketPrice:          q.preMarketPrice          ?? undefined,
+    preMarketChange:         q.preMarketChange         ?? undefined,
+    preMarketChangePercent:  q.preMarketChangePercent  ?? undefined,
+    postMarketPrice:         q.postMarketPrice         ?? undefined,
+    postMarketChange:        q.postMarketChange        ?? undefined,
+    postMarketChangePercent: q.postMarketChangePercent ?? undefined,
   };
 }
 

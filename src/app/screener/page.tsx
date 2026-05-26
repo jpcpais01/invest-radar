@@ -19,6 +19,10 @@ interface RowData {
   month: number;    // 1-month % change
   sparkline: number[]; // 1M close prices for sparkline
   isLoading: boolean;
+  // Extended-hours
+  marketState?: string;
+  extPrice?: number;
+  extChangePercent?: number;
 }
 
 /* ─── sparkline SVG ─────────────────────────────────────────── */
@@ -175,6 +179,10 @@ export default function ScreenerPage() {
           ? ((bars[bars.length - 1].close - bars[0].open) / bars[0].open) * 100
           : 0;
 
+      const ms = quote?.marketState as string | undefined;
+      const isPre  = ms === "PRE"  && quote?.preMarketPrice  != null;
+      const isPost = (ms === "POST" || ms === "POSTPOST") && quote?.postMarketPrice != null;
+
       return {
         ticker,
         name: quote?.name,
@@ -184,6 +192,11 @@ export default function ScreenerPage() {
         month: monthChange,
         sparkline: closes,
         isLoading,
+        marketState: ms,
+        extPrice:         isPre  ? quote?.preMarketPrice  as number
+                        : isPost ? quote?.postMarketPrice as number : undefined,
+        extChangePercent: isPre  ? quote?.preMarketChangePercent  as number
+                        : isPost ? quote?.postMarketChangePercent as number : undefined,
       };
     });
   }, [watchlist, quoteResults, histResults]);
@@ -394,9 +407,31 @@ export default function ScreenerPage() {
 
                     {/* price */}
                     <td className="px-4 py-3.5">
-                      <span className="font-mono text-sm font-semibold text-[#f0f0f0] tabular-nums">
-                        ${row.price.toFixed(row.price < 10 ? 3 : 2)}
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-mono text-sm font-semibold text-[#f0f0f0] tabular-nums">
+                          ${row.price.toFixed(row.price < 10 ? 3 : 2)}
+                        </span>
+                        {row.extPrice != null && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-bold uppercase px-1 py-px rounded"
+                              style={{
+                                background: row.marketState === "PRE" ? "rgba(96,165,250,0.12)" : "rgba(192,132,252,0.12)",
+                                color:      row.marketState === "PRE" ? "#60a5fa"               : "#c084fc",
+                              }}>
+                              {row.marketState === "PRE" ? "PRE" : "AH"}
+                            </span>
+                            <span className="font-mono text-[10px] tabular-nums"
+                              style={{ color: row.marketState === "PRE" ? "#60a5fa" : "#c084fc" }}>
+                              ${row.extPrice.toFixed(row.extPrice < 10 ? 3 : 2)}
+                            </span>
+                            {row.extChangePercent != null && (
+                              <span className="font-mono text-[9px] tabular-nums text-[#3a3a4a]">
+                                {row.extChangePercent >= 0 ? "+" : ""}{row.extChangePercent.toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* day % */}

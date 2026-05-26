@@ -79,6 +79,14 @@ export default function PriceHero({ ticker }: Props) {
   const name   = (quote?.name ?? ticker) as string;
   const isUp   = (change ?? 0) >= 0;
 
+  const marketState = quote?.marketState as string | undefined;
+  const isPre  = marketState === "PRE"  && quote?.preMarketPrice  != null;
+  const isPost = (marketState === "POST" || marketState === "POSTPOST") && quote?.postMarketPrice != null;
+  const extPrice  = isPre  ? (quote?.preMarketPrice  as number) : isPost ? (quote?.postMarketPrice  as number) : null;
+  const extChange = isPre  ? (quote?.preMarketChange as number) : isPost ? (quote?.postMarketChange as number) : null;
+  const extPct    = isPre  ? (quote?.preMarketChangePercent  as number) : isPost ? (quote?.postMarketChangePercent  as number) : null;
+  const extLabel  = isPre  ? "Pre-market" : "After-hours";
+
   return (
     <div
       className="relative rounded-xl border border-[#1e1e1e] overflow-hidden px-6 py-5"
@@ -131,7 +139,7 @@ export default function PriceHero({ ticker }: Props) {
         )}
 
         {/* Row 3: change + live dot */}
-        <div className="mt-2.5 flex items-center gap-2">
+        <div className="mt-2.5 flex items-center gap-2 flex-wrap">
           {price != null && change != null && pct != null ? (
             <>
               <div className={cn("flex items-center gap-1 text-sm font-medium", isUp ? "text-[#4ade80]" : "text-[#ef4444]")}>
@@ -141,13 +149,35 @@ export default function PriceHero({ ticker }: Props) {
               </div>
               <div className="flex items-center gap-1 text-[10px] text-[#3a3a3a]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#c0c0cc] animate-pulse inline-block" />
-                Live
+                {marketState === "REGULAR" ? "Live" : "Close"}
               </div>
             </>
           ) : (
             <div className="h-4 w-32 rounded bg-[#1e1e1e] animate-pulse" />
           )}
         </div>
+
+        {/* Row 4: extended-hours pill */}
+        {(isPre || isPost) && extPrice != null && extChange != null && extPct != null && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[9px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded"
+              style={{
+                background: isPre ? "rgba(96,165,250,0.10)" : "rgba(192,132,252,0.10)",
+                color:      isPre ? "#60a5fa"               : "#c084fc",
+                border:     `1px solid ${isPre ? "rgba(96,165,250,0.25)" : "rgba(192,132,252,0.25)"}`,
+              }}>
+              {extLabel}
+            </span>
+            <span className="text-sm font-bold font-mono tabular-nums text-[#e0e0f0]">
+              ${extPrice.toFixed(2)}
+            </span>
+            <span className="text-xs font-mono tabular-nums"
+              style={{ color: extChange >= 0 ? "#4ade80" : "#f87171" }}>
+              {extChange >= 0 ? "+" : ""}{extChange.toFixed(2)}
+              <span className="opacity-60 ml-1">({extChange >= 0 ? "+" : ""}{extPct.toFixed(2)}%)</span>
+            </span>
+          </div>
+        )}
 
       </div>
     </div>

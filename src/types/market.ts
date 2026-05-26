@@ -11,6 +11,14 @@ export interface Quote {
   volume: number;
   marketCap?: number;
   regularMarketTime?: number;
+  // Extended-hours data
+  marketState?: "PRE" | "REGULAR" | "POST" | "POSTPOST" | "PREPRE" | "CLOSED";
+  preMarketPrice?: number;
+  preMarketChange?: number;
+  preMarketChangePercent?: number;
+  postMarketPrice?: number;
+  postMarketChange?: number;
+  postMarketChangePercent?: number;
 }
 
 export interface OHLCVBar {

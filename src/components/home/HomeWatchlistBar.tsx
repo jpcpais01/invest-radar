@@ -24,8 +24,18 @@ function WatchlistChip({
   });
 
   const price = data?.price as number | undefined;
-  const pct = data?.changePercent as number | undefined;
-  const isUp = (pct ?? 0) >= 0;
+  const pct   = data?.changePercent as number | undefined;
+  const isUp  = (pct ?? 0) >= 0;
+
+  // Extended-hours
+  const marketState = data?.marketState as string | undefined;
+  const isPre  = marketState === "PRE"  && data?.preMarketPrice  != null;
+  const isPost = (marketState === "POST" || marketState === "POSTPOST") && data?.postMarketPrice != null;
+  const extPrice = isPre  ? (data?.preMarketPrice  as number)
+                : isPost ? (data?.postMarketPrice  as number) : null;
+  const extPct   = isPre  ? (data?.preMarketChangePercent  as number)
+                : isPost ? (data?.postMarketChangePercent  as number) : null;
+  const extIsUp  = (extPct ?? 0) >= 0;
 
   return (
     <button
@@ -40,10 +50,28 @@ function WatchlistChip({
       <span className="text-xs font-semibold font-mono">{ticker}</span>
       {price != null ? (
         <>
-          <span className="text-xs text-[#f0f0f0]">${price.toFixed(2)}</span>
-          <span className={cn("text-xs font-medium tabular-nums", isUp ? "text-[#4ade80]" : "text-[#ef4444]")}>
-            {isUp ? "+" : ""}{pct?.toFixed(2)}%
+          {/* Show ext-hours price if available, otherwise regular */}
+          <span className="text-xs text-[#f0f0f0] tabular-nums font-mono">
+            ${(extPrice ?? price).toFixed(2)}
           </span>
+          <span className={cn("text-xs font-medium tabular-nums",
+            extPrice != null
+              ? (extIsUp ? "text-[#60a5fa]" : "text-[#c084fc]")
+              : (isUp    ? "text-[#4ade80]"  : "text-[#ef4444]"))}>
+            {(extPct ?? pct) != null
+              ? `${(extPct ?? pct)! >= 0 ? "+" : ""}${(extPct ?? pct)!.toFixed(2)}%`
+              : null}
+          </span>
+          {/* tiny PRE / AH badge */}
+          {(isPre || isPost) && (
+            <span className="text-[7px] font-bold uppercase px-1 py-0.5 rounded"
+              style={{
+                background: isPre ? "rgba(96,165,250,0.12)" : "rgba(192,132,252,0.12)",
+                color:      isPre ? "#60a5fa"               : "#c084fc",
+              }}>
+              {isPre ? "PRE" : "AH"}
+            </span>
+          )}
         </>
       ) : (
         <span className="w-16 h-3 rounded bg-[#1e1e1e] animate-pulse" />
