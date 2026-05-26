@@ -38,13 +38,34 @@ function fmtTooltipDate(ts: number, tf: TFOption): string {
   }
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
-function isMarketOpen(): boolean {
-  const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const day = ny.getDay();
-  if (day === 0 || day === 6) return false;
-  const mins = ny.getHours() * 60 + ny.getMinutes();
-  return mins >= 570 && mins < 960; // 9:30–16:00
+type MarketSession = "pre" | "open" | "post" | "closed";
+
+function sessionFromState(marketState?: string): MarketSession {
+  if (!marketState) return "closed";
+  if (marketState === "REGULAR") return "open";
+  if (marketState === "PRE" || marketState === "PREPRE") return "pre";
+  if (marketState === "POST" || marketState === "POSTPOST") return "post";
+  return "closed";
 }
+
+const SESSION_LABEL: Record<MarketSession, string> = {
+  pre:    "Pre-market",
+  open:   "Market open",
+  post:   "After-hours",
+  closed: "Market closed",
+};
+const SESSION_COLOR: Record<MarketSession, string> = {
+  pre:    "#60a5fa",
+  open:   "#4ade80",
+  post:   "#c084fc",
+  closed: "#252535",
+};
+const SESSION_DOT_GLOW: Record<MarketSession, string> = {
+  pre:    "0 0 6px rgba(96,165,250,0.55)",
+  open:   "0 0 6px rgba(74,222,128,0.55)",
+  post:   "0 0 6px rgba(192,132,252,0.55)",
+  closed: "none",
+};
 function evenIdxs(total: number, n: number): number[] {
   if (total <= n) return Array.from({ length: total }, (_, i) => i);
   const out = new Set([0, total - 1]);
@@ -301,12 +322,23 @@ export default function AIPredPanel({ ticker }: Props) {
   const [tf, setTf] = useState<TFOption>("1Y");
   const isIntraday  = INTRADAY_TFS.has(tf);
 
+  // Quote — shared cache with PriceHero, so no extra network cost
+  const { data: quote } = useQuery({
+    queryKey:        ["quote", ticker],
+    queryFn:         () => fetch(`/api/market/quote/${encodeURIComponent(ticker)}`).then(r => r.json()),
+    staleTime:       30_000,
+    refetchInterval: 30_000,
+  });
+
+  const session = sessionFromState(quote?.marketState as string | undefined);
+  const isOpen  = session === "open";
+
   const { data, isLoading } = useQuery<{ bars: OHLCVBar[] }>({
     queryKey: ["price-panel", ticker, tf],
     queryFn:  () =>
       fetch(`/api/market/history/${encodeURIComponent(ticker)}?tf=${tf}`).then(r => r.json()),
     staleTime: 5 * 60_000,
-    refetchInterval: () => isIntraday && isMarketOpen() ? 60_000 : false,
+    refetchInterval: () => isIntraday && isOpen ? 60_000 : false,
   });
 
   const bars = data?.bars ?? [];
@@ -318,7 +350,14 @@ export default function AIPredPanel({ ticker }: Props) {
   const periodHigh = bars.length ? Math.max(...bars.map(b => b.high)) : 0;
   const periodLow  = bars.length ? Math.min(...bars.map(b => b.low))  : 0;
   const isUp       = periodPct >= 0;
-  const marketOpen = isMarketOpen();
+
+  // Extended-hours price for the stats strip
+  const extPrice  = session === "pre"  ? quote?.preMarketPrice  as number | undefined
+                  : session === "post" ? quote?.postMarketPrice as number | undefined
+                  : undefined;
+  const extPct    = session === "pre"  ? quote?.preMarketChangePercent  as number | undefined
+                  : session === "post" ? quote?.postMarketChangePercent as number | undefined
+                  : undefined;
 
   return (
     <div
@@ -335,14 +374,14 @@ export default function AIPredPanel({ ticker }: Props) {
         </div>
         <div className="flex items-center gap-1.5">
           <div
-            className={cn("w-1.5 h-1.5 rounded-full transition-colors", marketOpen ? "bg-green-400" : "bg-[#252535]")}
-            style={marketOpen ? { boxShadow: "0 0 6px rgba(74,222,128,0.55)" } : {}}
+            className="w-1.5 h-1.5 rounded-full transition-colors"
+            style={{ background: SESSION_COLOR[session], boxShadow: SESSION_DOT_GLOW[session] }}
           />
           <span
             className="text-[9px] transition-colors"
-            style={{ color: marketOpen ? "rgba(74,222,128,0.65)" : "#252535" }}
+            style={{ color: session === "closed" ? "#252535" : SESSION_COLOR[session] }}
           >
-            {marketOpen ? "Market open" : "Market closed"}
+            {SESSION_LABEL[session]}
           </span>
         </div>
       </div>
@@ -395,6 +434,27 @@ export default function AIPredPanel({ ticker }: Props) {
               {isUp ? "+" : ""}{periodPct.toFixed(2)}%
             </span>
           </div>
+
+          {extPrice != null && (
+            <>
+              <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
+              <div className="flex flex-col items-start">
+                <span className="text-[7.5px] uppercase tracking-widest mb-0.5 font-medium"
+                  style={{ color: session === "pre" ? "rgba(96,165,250,0.45)" : "rgba(192,132,252,0.45)" }}>
+                  {session === "pre" ? "Pre" : "AH"}
+                </span>
+                <span className="text-[11px] font-semibold tabular-nums font-mono leading-none"
+                  style={{ color: session === "pre" ? "#60a5fa" : "#c084fc" }}>
+                  ${extPrice.toFixed(2)}
+                  {extPct != null && (
+                    <span className="text-[9px] ml-1 opacity-70">
+                      {extPct >= 0 ? "+" : ""}{extPct.toFixed(2)}%
+                    </span>
+                  )}
+                </span>
+              </div>
+            </>
+          )}
 
           <div className="w-px h-7 bg-[#1c1c28] mx-3 shrink-0" />
 
