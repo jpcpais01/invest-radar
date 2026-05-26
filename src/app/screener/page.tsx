@@ -244,6 +244,13 @@ export default function ScreenerPage() {
   const losers  = loadedRows.filter((r) => effectivePct(r) < 0).length;
   const avgDay  = loadedRows.length ? loadedRows.reduce((s, r) => s + effectivePct(r), 0) / loadedRows.length : 0;
 
+  // Heatmap boxes always sorted by effective % (highest → lowest)
+  const heatmapSorted = useMemo(
+    () => [...loadedRows].sort((a, b) => effectivePct(b) - effectivePct(a)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loadedRows, isExtendedHours]
+  );
+
   const isAllLoaded = rows.every((r) => !r.isLoading);
 
   return (
@@ -356,7 +363,7 @@ export default function ScreenerPage() {
         {/* ── market heatmap strip ── */}
         {isAllLoaded && loadedRows.length > 0 && (
           <div className="mb-6 grid grid-cols-5 gap-2">
-            {sorted.map((row) => {
+            {heatmapSorted.map((row) => {
               const hasExt = row.extChangePercent != null;
               const isPre  = row.marketState === "PRE";
               const isPost = row.marketState === "POST" || row.marketState === "POSTPOST";
