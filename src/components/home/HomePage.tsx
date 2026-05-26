@@ -9,6 +9,7 @@ import AIPredPanel from "./AIPredPanel";
 import TechnicalsStrip from "./TechnicalsStrip";
 import { SignalCard, QualityCard, ValuationCard, FairPriceCard, KeyMetricsCard, EarningsCard } from "./InsightCards";
 import NewsPanel from "./NewsPanel";
+import CompanyAboutCard from "./CompanyAboutCard";
 import HomeDiscover from "./HomeDiscover";
 import HomeChat from "./HomeChat";
 import CommandPalette from "@/components/search/CommandPalette";
@@ -151,6 +152,7 @@ export default function HomePage() {
 
           {/* ── Mobile layout (single column, custom order) ── */}
           <div className="mt-6 flex flex-col gap-5 lg:hidden">
+            <CompanyAboutCard ticker={activeTicker} />
             <AIPredPanel ticker={activeTicker} />
             <FairPriceCard ticker={activeTicker} />
             <QualityCard ticker={activeTicker} />
@@ -165,6 +167,7 @@ export default function HomePage() {
           {/* ── Desktop layout (two-column) ── */}
           <div className="mt-6 hidden lg:grid lg:grid-cols-[1fr_380px] gap-6">
             <div className="flex flex-col gap-5">
+              <CompanyAboutCard ticker={activeTicker} />
               <AIPredPanel ticker={activeTicker} />
               <KeyMetricsCard ticker={activeTicker} />
               <EarningsCard ticker={activeTicker} />

@@ -50,6 +50,11 @@ export interface Fundamentals {
   fiftyTwoWeekHigh?: number;
   fiftyTwoWeekLow?: number;
   description?: string;
+  // Company profile extras
+  employees?: number;
+  website?: string;
+  country?: string;
+  exchange?: string;
 }
 
 export interface NewsItem {
