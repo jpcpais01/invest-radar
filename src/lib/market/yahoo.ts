@@ -347,7 +347,7 @@ export async function getEtfProfile(ticker: string): Promise<EtfProfile> {
 }
 
 export async function searchTickers(query: string) {
-  const results: any = await yf.search(query);
+  const results: any = await yf.search(query, {}, { validateResult: false });
   return ((results.quotes ?? []) as any[])
     .filter((r: any) => r.quoteType === "EQUITY" || r.quoteType === "ETF")
     .slice(0, 10)
