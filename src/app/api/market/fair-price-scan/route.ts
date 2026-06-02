@@ -185,6 +185,8 @@ export async function POST(req: NextRequest) {
         dcfVal:     dcfC,
         modelsUsed: validVals.length,
         marketCap,
+        sector:     sector ?? undefined,
+        industry:   profile?.industry as string | undefined,
       };
     } catch {
       return { ticker, error: true };

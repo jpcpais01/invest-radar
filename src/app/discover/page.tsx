@@ -35,20 +35,24 @@ interface ScanResult {
 
 type FPFilter   = "all" | "undervalued" | "fair" | "overvalued";
 type FPSortKey  = "upside" | "ticker" | "price" | "change";
-type McapFilter = "none" | "20b" | "50b" | "100b";
+type McapFilter = "none" | "lt5b" | "lt10b" | "lt20b" | "ge20b" | "ge50b" | "ge100b";
 
 interface FPResult {
   ticker: string; name?: string; price: number; changePercent?: number;
   fairPrice: number; upside: number;
   lynchVal: number | null; peVal: number | null; dcfVal: number | null;
   modelsUsed: number; marketCap?: number;
+  sector?: string; industry?: string;
 }
 
-const MCAP_FILTERS: { id: McapFilter; label: string; min: number }[] = [
-  { id: "none", label: "Any",    min: 0 },
-  { id: "20b",  label: "≥ 20B", min: 20e9 },
-  { id: "50b",  label: "≥ 50B", min: 50e9 },
-  { id: "100b", label: "≥ 100B", min: 100e9 },
+const MCAP_FILTERS: { id: McapFilter; label: string; min?: number; max?: number }[] = [
+  { id: "none",   label: "Any" },
+  { id: "lt5b",   label: "< 5B",   max: 5e9 },
+  { id: "lt10b",  label: "< 10B",  max: 10e9 },
+  { id: "lt20b",  label: "< 20B",  max: 20e9 },
+  { id: "ge20b",  label: "≥ 20B",  min: 20e9 },
+  { id: "ge50b",  label: "≥ 50B",  min: 50e9 },
+  { id: "ge100b", label: "≥ 100B", min: 100e9 },
 ];
 
 function fpCategory(upside: number): FPFilter {
@@ -197,7 +201,9 @@ export default function DiscoverPage() {
   const [fpFilter, setFpFilter] = useState<FPFilter>("all");
   const [fpSortKey, setFpSortKey] = useState<FPSortKey>("upside");
   const [fpSortDir, setFpSortDir] = useState<SortDir>("desc");
-  const [mcapFilter, setMcapFilter] = useState<McapFilter>("50b");
+  const [mcapFilter, setMcapFilter] = useState<McapFilter>("none");
+  const [sectorFilter, setSectorFilter] = useState<string>("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
 
   useEffect(() => {
     const saved = localStorage.getItem("discover-custom-tickers");
@@ -338,10 +344,19 @@ export default function DiscoverPage() {
     { all: 0, undervalued: 0, fair: 0, overvalued: 0 }
   );
 
-  const mcapMin = MCAP_FILTERS.find(f => f.id === mcapFilter)?.min ?? 0;
+  const activeMcap = MCAP_FILTERS.find(f => f.id === mcapFilter);
   const fpFiltered = fpResults
     .filter(r => fpFilter === "all" || fpCategory(r.upside) === fpFilter)
-    .filter(r => mcapMin === 0 || (r.marketCap != null && r.marketCap >= mcapMin));
+    .filter(r => {
+      if (!activeMcap || mcapFilter === "none") return true;
+      const mc = r.marketCap;
+      if (mc == null) return false;
+      if (activeMcap.max != null && activeMcap.min == null) return mc < activeMcap.max;
+      if (activeMcap.min != null && activeMcap.max == null) return mc >= activeMcap.min;
+      return true;
+    })
+    .filter(r => sectorFilter === "all" || r.sector === sectorFilter)
+    .filter(r => industryFilter === "all" || r.industry === industryFilter);
 
   const fpSorted = [...fpFiltered].sort((a, b) => {
     let v = 0;
@@ -351,6 +366,13 @@ export default function DiscoverPage() {
     if (fpSortKey === "change")  v = (a.changePercent ?? 0) - (b.changePercent ?? 0);
     return fpSortDir === "asc" ? v : -v;
   });
+
+  const allSectors = [...new Set(fpResults.map(r => r.sector).filter(Boolean) as string[])].sort();
+  const allIndustries = [...new Set(
+    fpResults
+      .filter(r => sectorFilter === "all" || r.sector === sectorFilter)
+      .map(r => r.industry).filter(Boolean) as string[]
+  )].sort();
 
   const indicatorNames = results[0]?.summary?.signals.map((s) => s.name) ?? [];
   const isLoading = mode === "technical" ? loading : fpLoading;
@@ -423,6 +445,30 @@ export default function DiscoverPage() {
                   >{f.label}</button>
                 ))}
               </div>
+            )}
+
+            {/* Sector filter — fair price only */}
+            {mode === "fairprice" && allSectors.length > 0 && (
+              <select
+                value={sectorFilter}
+                onChange={(e) => { setSectorFilter(e.target.value); setIndustryFilter("all"); }}
+                className="px-2.5 py-1.5 text-xs rounded-lg bg-[#161b22] border border-[#21262d] text-[#8b949e] hover:text-white focus:outline-none focus:border-[#388bfd] transition-colors cursor-pointer"
+              >
+                <option value="all">All Sectors</option>
+                {allSectors.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+
+            {/* Industry filter — fair price only, visible when sector is selected */}
+            {mode === "fairprice" && sectorFilter !== "all" && allIndustries.length > 0 && (
+              <select
+                value={industryFilter}
+                onChange={(e) => setIndustryFilter(e.target.value)}
+                className="px-2.5 py-1.5 text-xs rounded-lg bg-[#161b22] border border-[#21262d] text-[#8b949e] hover:text-white focus:outline-none focus:border-[#388bfd] transition-colors cursor-pointer"
+              >
+                <option value="all">All Industries</option>
+                {allIndustries.map(i => <option key={i} value={i}>{i}</option>)}
+              </select>
             )}
 
             {/* Add ticker */}
@@ -680,6 +726,7 @@ export default function DiscoverPage() {
                               )}
                             </div>
                             {r.name && <span className="text-[10px] text-[#484f58] truncate max-w-[140px] leading-tight">{r.name}</span>}
+                            {r.industry && <span className="text-[9px] text-[#3a404a] truncate max-w-[140px] leading-tight">{r.industry}</span>}
                           </div>
                         </td>
                         <td className="px-3 py-2.5 text-right font-mono text-white">
