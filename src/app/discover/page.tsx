@@ -249,22 +249,44 @@ export default function DiscoverPage() {
     }
   }, []);
 
-  const scanFairPrice = useCallback(async (tickers: string[]) => {
+  const scanFairPrice = useCallback(async (
+    tickers: string[],
+    filters?: { sector?: string; industry?: string; mcapMin?: number; mcapMax?: number }
+  ) => {
     setFpLoading(true);
     try {
+      let pool = tickers;
+      if (filters?.mcapMin != null || filters?.mcapMax != null) {
+        const params = new URLSearchParams();
+        if (filters.mcapMin != null) params.set("mcapMin", String(filters.mcapMin));
+        if (filters.mcapMax != null) params.set("mcapMax", String(filters.mcapMax));
+        try {
+          const r = await fetch(`/api/market/tickers?${params}`);
+          const { tickers: filtered } = await r.json();
+          pool = [...new Set([...customTickers, ...filtered])];
+        } catch { /* fallback */ }
+      }
       const res = await fetch("/api/market/fair-price-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tickers }),
+        body: JSON.stringify({
+          tickers: pool,
+          filters: {
+            sector:   filters?.sector   || undefined,
+            industry: filters?.industry || undefined,
+          },
+        }),
       });
       const data: FPResult[] = await res.json();
       setFpResults(data);
       setFpScannedAt(Date.now());
-      writeCache("terminal-discover-fp-v2", data);
+      if (!filters?.sector && !filters?.industry && !filters?.mcapMin && !filters?.mcapMax) {
+        writeCache("terminal-discover-fp-v2", data);
+      }
     } finally {
       setFpLoading(false);
     }
-  }, []);
+  }, [customTickers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!hydrated) return;
@@ -283,14 +305,60 @@ export default function DiscoverPage() {
       .finally(() => setTickersLoading(false));
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const activeFpFilters = () => {
+    const f = MCAP_FILTERS.find(x => x.id === mcapFilter);
+    return {
+      mcapMin:  f?.min,
+      mcapMax:  f?.max,
+      sector:   sectorFilter   !== "all" ? sectorFilter   : undefined,
+      industry: industryFilter !== "all" ? industryFilter : undefined,
+    };
+  };
+
   const handleModeSwitch = (next: "technical" | "fairprice") => {
     setMode(next);
     if (next === "fairprice" && fpResults.length === 0 && !fpLoading) {
-      const cached = readCache<FPResult>("terminal-discover-fp-v2");
-      if (cached) { setFpResults(cached.results); setFpScannedAt(cached.scannedAt); }
-      else scanFairPrice(allTickers());
-
+      const hasFilters = mcapFilter !== "none" || sectorFilter !== "all" || industryFilter !== "all";
+      if (!hasFilters) {
+        const cached = readCache<FPResult>("terminal-discover-fp-v2");
+        if (cached) { setFpResults(cached.results); setFpScannedAt(cached.scannedAt); return; }
+      }
+      scanFairPrice(allTickers(), activeFpFilters());
     }
+  };
+
+  const handleFpMcapFilter = (id: McapFilter) => {
+    setMcapFilter(id);
+    const f = MCAP_FILTERS.find(x => x.id === id);
+    scanFairPrice(allTickers(), {
+      mcapMin:  f?.min,
+      mcapMax:  f?.max,
+      sector:   sectorFilter   !== "all" ? sectorFilter   : undefined,
+      industry: industryFilter !== "all" ? industryFilter : undefined,
+    });
+  };
+
+  const handleFpSectorFilter = (sector: string) => {
+    setSectorFilter(sector);
+    setIndustryFilter("all");
+    const f = MCAP_FILTERS.find(x => x.id === mcapFilter);
+    scanFairPrice(allTickers(), {
+      mcapMin:  f?.min,
+      mcapMax:  f?.max,
+      sector:   sector !== "all" ? sector : undefined,
+      industry: undefined,
+    });
+  };
+
+  const handleFpIndustryFilter = (industry: string) => {
+    setIndustryFilter(industry);
+    const f = MCAP_FILTERS.find(x => x.id === mcapFilter);
+    scanFairPrice(allTickers(), {
+      mcapMin:  f?.min,
+      mcapMax:  f?.max,
+      sector:   sectorFilter !== "all" ? sectorFilter : undefined,
+      industry: industry     !== "all" ? industry     : undefined,
+    });
   };
 
   const addCustomTicker = () => {
@@ -326,7 +394,7 @@ export default function DiscoverPage() {
 
   const handleRescan = () => {
     if (mode === "technical") scan(allTickers(), tf);
-    else scanFairPrice(allTickers());
+    else scanFairPrice(allTickers(), activeFpFilters());
   };
 
   const handleTfChange = (newTf: string) => {
@@ -465,7 +533,7 @@ export default function DiscoverPage() {
                 {MCAP_FILTERS.map((f) => (
                   <button
                     key={f.id}
-                    onClick={() => setMcapFilter(f.id)}
+                    onClick={() => handleFpMcapFilter(f.id)}
                     className={cn(
                       "px-3 py-1.5 text-xs font-medium transition-colors",
                       mcapFilter === f.id ? "bg-[#1f6feb22] text-[#388bfd]" : "text-[#8b949e] hover:text-white"
@@ -479,7 +547,7 @@ export default function DiscoverPage() {
             {mode === "fairprice" && allSectors.length > 0 && (
               <select
                 value={sectorFilter}
-                onChange={(e) => { setSectorFilter(e.target.value); setIndustryFilter("all"); }}
+                onChange={(e) => handleFpSectorFilter(e.target.value)}
                 className="px-2.5 py-1.5 text-xs rounded-lg bg-[#161b22] border border-[#21262d] text-[#8b949e] hover:text-white focus:outline-none focus:border-[#388bfd] transition-colors cursor-pointer"
               >
                 <option value="all">All Sectors</option>
@@ -491,7 +559,7 @@ export default function DiscoverPage() {
             {mode === "fairprice" && allIndustries.length > 0 && (
               <select
                 value={industryFilter}
-                onChange={(e) => setIndustryFilter(e.target.value)}
+                onChange={(e) => handleFpIndustryFilter(e.target.value)}
                 className="px-2.5 py-1.5 text-xs rounded-lg bg-[#161b22] border border-[#21262d] text-[#8b949e] hover:text-white focus:outline-none focus:border-[#388bfd] transition-colors cursor-pointer"
               >
                 <option value="all">All Industries</option>

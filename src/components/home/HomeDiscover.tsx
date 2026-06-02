@@ -221,22 +221,49 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
     }
   }, []);
 
-  const scanFairPrice = useCallback(async (tickers: string[]) => {
+  const scanFairPrice = useCallback(async (
+    tickers: string[],
+    filters?: { sector?: string; industry?: string; mcapMin?: number; mcapMax?: number }
+  ) => {
     setFpLoading(true);
     try {
-      const res  = await fetch("/api/market/fair-price-scan", {
+      let pool = tickers;
+
+      // If market cap filter is active, fetch a fresh mcap-filtered ticker list from screeners
+      if (filters?.mcapMin != null || filters?.mcapMax != null) {
+        const params = new URLSearchParams();
+        if (filters.mcapMin != null) params.set("mcapMin", String(filters.mcapMin));
+        if (filters.mcapMax != null) params.set("mcapMax", String(filters.mcapMax));
+        try {
+          const r = await fetch(`/api/market/tickers?${params}`);
+          const { tickers: filtered } = await r.json();
+          // Merge with watchlist tickers (always included)
+          pool = [...new Set([...watchlist, ...filtered])];
+        } catch { /* fallback to full pool */ }
+      }
+
+      const res = await fetch("/api/market/fair-price-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tickers }),
+        body: JSON.stringify({
+          tickers: pool,
+          filters: {
+            sector:   filters?.sector   || undefined,
+            industry: filters?.industry || undefined,
+          },
+        }),
       });
       const data: FPResult[] = await res.json();
       setFpResults(data);
       setFpScannedAt(Date.now());
-      writeCache("discover-fp-v2", data);
+      // Only cache unfiltered scans — filtered results are ephemeral
+      if (!filters?.sector && !filters?.industry && !filters?.mcapMin && !filters?.mcapMax) {
+        writeCache("discover-fp-v2", data);
+      }
     } finally {
       setFpLoading(false);
     }
-  }, []);
+  }, [watchlist]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -272,12 +299,67 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       .finally(() => setTickersLoading(false));
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Build filter args from active UI state
+  const activeFpFilters = () => {
+    const f = MCAP_FILTERS.find(x => x.id === mcapFilter);
+    return {
+      mcapMin:  f?.min,
+      mcapMax:  f?.max,
+      sector:   sectorFilter   !== "all" ? sectorFilter   : undefined,
+      industry: industryFilter !== "all" ? industryFilter : undefined,
+    };
+  };
+
   const handleModeSwitch = (next: "technical" | "fairprice") => {
     setMode(next);
     if (next === "fairprice" && fpResults.length === 0 && !fpLoading) {
-      const cached = readCache<FPResult>("discover-fp-v2");
-      if (cached) { setFpResults(cached.results); setFpScannedAt(cached.scannedAt); }
-      else scanFairPrice(allTickers);
+      const hasFilters = mcapFilter !== "none" || sectorFilter !== "all" || industryFilter !== "all";
+      if (!hasFilters) {
+        const cached = readCache<FPResult>("discover-fp-v2");
+        if (cached) { setFpResults(cached.results); setFpScannedAt(cached.scannedAt); return; }
+      }
+      scanFairPrice(allTickers, activeFpFilters());
+    }
+  };
+
+  // Re-scan when market cap, sector, or industry filter changes (fair price mode only)
+  const handleFpMcapFilter = (id: McapFilter) => {
+    setMcapFilter(id);
+    if (mode === "fairprice") {
+      const f = MCAP_FILTERS.find(x => x.id === id);
+      scanFairPrice(allTickers, {
+        mcapMin:  f?.min,
+        mcapMax:  f?.max,
+        sector:   sectorFilter   !== "all" ? sectorFilter   : undefined,
+        industry: industryFilter !== "all" ? industryFilter : undefined,
+      });
+    }
+  };
+
+  const handleFpSectorFilter = (sector: string) => {
+    setSectorFilter(sector);
+    setIndustryFilter("all");
+    if (mode === "fairprice") {
+      const f = MCAP_FILTERS.find(x => x.id === mcapFilter);
+      scanFairPrice(allTickers, {
+        mcapMin:  f?.min,
+        mcapMax:  f?.max,
+        sector:   sector !== "all" ? sector : undefined,
+        industry: undefined,
+      });
+    }
+  };
+
+  const handleFpIndustryFilter = (industry: string) => {
+    setIndustryFilter(industry);
+    if (mode === "fairprice") {
+      const f = MCAP_FILTERS.find(x => x.id === mcapFilter);
+      scanFairPrice(allTickers, {
+        mcapMin:  f?.min,
+        mcapMax:  f?.max,
+        sector:   sectorFilter !== "all" ? sectorFilter : undefined,
+        industry: industry     !== "all" ? industry     : undefined,
+      });
     }
   };
 
@@ -420,7 +502,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
 
           {/* Rescan */}
           <button
-            onClick={() => mode === "technical" ? scanTech(allTickers, tf) : scanFairPrice(allTickers)}
+            onClick={() => mode === "technical" ? scanTech(allTickers, tf) : scanFairPrice(allTickers, activeFpFilters())}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold tracking-wide rounded-md border border-[#1e1e1e] text-[#767676] hover:text-[#f0f0f0] hover:border-[#2c2c2c] disabled:opacity-40 transition-colors"
           >
@@ -559,7 +641,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                 {MCAP_FILTERS.map(f => (
                   <button
                     key={f.id}
-                    onClick={() => setMcapFilter(f.id)}
+                    onClick={() => handleFpMcapFilter(f.id)}
                     className={cn(
                       "px-2.5 py-1 text-[9px] font-semibold tracking-wide transition-colors",
                       mcapFilter === f.id
@@ -570,27 +652,23 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                 ))}
               </div>
 
-              {allSectors.length > 0 && (
-                <select
-                  value={sectorFilter}
-                  onChange={e => { setSectorFilter(e.target.value); setIndustryFilter("all"); }}
-                  className="px-2 py-1 text-[9px] font-semibold rounded-md bg-[#101010] border border-[#1e1e1e] text-[#767676] hover:text-[#f0f0f0] focus:outline-none focus:border-[#2c2c2c] transition-colors cursor-pointer"
-                >
-                  <option value="all">All Sectors</option>
-                  {allSectors.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              )}
+              <select
+                value={sectorFilter}
+                onChange={e => handleFpSectorFilter(e.target.value)}
+                className="px-2 py-1 text-[9px] font-semibold rounded-md bg-[#101010] border border-[#1e1e1e] text-[#767676] hover:text-[#f0f0f0] focus:outline-none focus:border-[#2c2c2c] transition-colors cursor-pointer"
+              >
+                <option value="all">All Sectors</option>
+                {allSectors.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
 
-              {allIndustries.length > 0 && (
-                <select
-                  value={industryFilter}
-                  onChange={e => setIndustryFilter(e.target.value)}
-                  className="px-2 py-1 text-[9px] font-semibold rounded-md bg-[#101010] border border-[#1e1e1e] text-[#767676] hover:text-[#f0f0f0] focus:outline-none focus:border-[#2c2c2c] transition-colors cursor-pointer"
-                >
-                  <option value="all">All Industries</option>
-                  {allIndustries.map(i => <option key={i} value={i}>{i}</option>)}
-                </select>
-              )}
+              <select
+                value={industryFilter}
+                onChange={e => handleFpIndustryFilter(e.target.value)}
+                className="px-2 py-1 text-[9px] font-semibold rounded-md bg-[#101010] border border-[#1e1e1e] text-[#767676] hover:text-[#f0f0f0] focus:outline-none focus:border-[#2c2c2c] transition-colors cursor-pointer"
+              >
+                <option value="all">All Industries</option>
+                {allIndustries.map(i => <option key={i} value={i}>{i}</option>)}
+              </select>
             </div>
           </div>
 

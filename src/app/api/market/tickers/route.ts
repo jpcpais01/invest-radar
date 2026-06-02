@@ -1,69 +1,77 @@
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import YahooFinanceClass from "yahoo-finance2";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const yf = new (YahooFinanceClass as any)({ suppressNotices: ["yahooSurvey"] });
 
-// Screeners to pull from — each returns up to 50 tickers
-const SCREENS = [
-  { id: "most_actives",           label: "Most Active" },
-  { id: "day_gainers",            label: "Day Gainers" },
-  { id: "day_losers",             label: "Day Losers" },
-  { id: "undervalued_large_caps", label: "Undervalued Large Cap" },
-  { id: "growth_technology_stocks", label: "Growth Tech" },
-  { id: "undervalued_growth_stocks", label: "Undervalued Growth" },
-  { id: "aggressive_small_caps",  label: "Aggressive Small Cap" },
-  { id: "small_cap_gainers",      label: "Small Cap Gainers" },
+// All available screeners — market cap is included in their results
+const ALL_SCREENS = [
+  "most_actives",
+  "day_gainers",
+  "day_losers",
+  "undervalued_large_caps",
+  "growth_technology_stocks",
+  "undervalued_growth_stocks",
+  "aggressive_small_caps",
+  "small_cap_gainers",
 ];
 
-// Anchor tickers always included (major indices / mega-caps)
-const ANCHORS = [
-  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "UNH",
-  "MA", "HD", "PG", "JNJ", "COST", "AVGO", "LLY", "KO", "WMT", "NFLX",
-  "AMD", "QCOM", "INTC", "CSCO", "ORCL", "IBM", "TXN", "ADBE", "CRM", "NOW",
-  "GS", "MS", "BAC", "C", "WFC", "JPM", "AXP", "BLK", "SPGI", "MCO",
-  "XOM", "CVX", "COP", "EOG", "SLB", "OXY", "PSX", "VLO", "MPC",
-  "LMT", "RTX", "NOC", "GD", "BA", "HON", "GE", "CAT", "DE", "MMM",
-  "UNH", "LLY", "JNJ", "MRK", "ABBV", "TMO", "ABT", "BMY", "AMGN", "GILD",
-  "SHOP", "UBER", "ABNB", "DASH", "COIN", "PYPL", "SQ", "MELI", "NU",
-  "SPY", "QQQ", "IWM", "DIA", "GLD", "TLT",
-];
+// When a market cap filter is active, bias toward relevant screeners
+function screensForMcap(mcapMin?: number, mcapMax?: number): string[] {
+  if (mcapMax != null && mcapMax <= 20e9)
+    return ["aggressive_small_caps", "small_cap_gainers", "day_gainers", "day_losers", "most_actives"];
+  if (mcapMin != null && mcapMin >= 50e9)
+    return ["undervalued_large_caps", "undervalued_growth_stocks", "growth_technology_stocks", "most_actives", "day_gainers"];
+  return ALL_SCREENS;
+}
 
-export async function GET() {
-  // Fetch all screeners in parallel
+export async function GET(req: NextRequest) {
+  const sp      = req.nextUrl.searchParams;
+  const mcapMin = sp.has("mcapMin") ? Number(sp.get("mcapMin")) : undefined;
+  const mcapMax = sp.has("mcapMax") ? Number(sp.get("mcapMax")) : undefined;
+
+  const screens = screensForMcap(mcapMin, mcapMax);
+
+  // Fetch screeners in parallel — each result includes marketCap
   const screenResults = await Promise.all(
-    SCREENS.map(async (screen) => {
+    screens.map(async (id) => {
       try {
         const result: any = await yf.screener(
-          { scrIds: screen.id, count: 50 },
+          { scrIds: id, count: 250 },
           {},
           { validateResult: false }
         );
-        const tickers: string[] = (result.quotes ?? [])
-          .map((q: any) => q.symbol as string)
-          .filter((s: string) => s && !s.includes(".") && !s.includes("^") && s.length <= 5);
-        return { label: screen.label, tickers };
-      } catch {
-        return { label: screen.label, tickers: [] };
-      }
+        return (result.quotes ?? []) as any[];
+      } catch { return []; }
     })
   );
 
-  // Merge: anchors first, then screener results
-  const seen = new Set<string>(ANCHORS);
-  const all: string[] = [...ANCHORS];
-
-  for (const { tickers } of screenResults) {
-    for (const t of tickers) {
-      if (!seen.has(t)) { seen.add(t); all.push(t); }
+  // Flatten + deduplicate, keeping quote objects for mcap filtering
+  const seen = new Set<string>();
+  const quotes: any[] = [];
+  for (const batch of screenResults) {
+    for (const q of batch) {
+      const sym: string = q.symbol ?? "";
+      if (!sym || sym.includes(".") || sym.includes("^") || sym.length > 5) continue;
+      if (seen.has(sym)) continue;
+      seen.add(sym);
+      quotes.push(q);
     }
   }
 
-  // Build a breakdown for debugging / UI use
-  const breakdown = screenResults.map(r => ({ label: r.label, count: r.tickers.length }));
+  // Apply market cap filter (marketCap is present in screener quotes)
+  const filtered = quotes.filter((q) => {
+    const mc: number | undefined = q.marketCap;
+    if (mc == null) return true; // keep if unknown — scan will decide
+    if (mcapMin != null && mc < mcapMin) return false;
+    if (mcapMax != null && mc >= mcapMax) return false;
+    return true;
+  });
 
-  return NextResponse.json({ tickers: all, total: all.length, breakdown });
+  const tickers = filtered.map((q) => q.symbol as string);
+
+  return NextResponse.json({ tickers, total: tickers.length });
 }

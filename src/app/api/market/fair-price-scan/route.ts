@@ -71,6 +71,10 @@ export async function POST(req: NextRequest) {
   const tickers: string[] = body.tickers ?? [];
   if (!tickers.length) return NextResponse.json({ error: "No tickers" }, { status: 400 });
 
+  // Optional server-side filters — applied early to skip valuation work
+  const filterSector:   string | undefined = body.filters?.sector   || undefined;
+  const filterIndustry: string | undefined = body.filters?.industry || undefined;
+
   // ── Pre-fetch: sector ETF P/Es + risk-free rate ──────────────────────────
   const etfSymbols = [...new Set(Object.values(SECTOR_ETF)), "SPY", "^TNX"];
   const etfQuotes = await withConcurrency(etfSymbols, 8, async (sym) => {
@@ -115,8 +119,13 @@ export async function POST(req: NextRequest) {
       const sharesOutstanding = safeNum(ks?.sharesOutstanding);
       const beta              = safeNum(sd?.beta) ?? 1.0;
       const debtToEquityPct   = safeNum(fd?.debtToEquity);
-      const sector            = profile?.sector as string | undefined;
+      const sector            = profile?.sector   as string | undefined;
+      const industry          = profile?.industry as string | undefined;
       const marketCap         = safeNum(sd?.marketCap);
+
+      // Early exit if server-side sector/industry filter doesn't match
+      if (filterSector   && sector   !== filterSector)   return { ticker, error: true };
+      if (filterIndustry && industry !== filterIndustry) return { ticker, error: true };
 
       // Growth rate (shared between Lynch + DCF)
       let growthDecimal: number | undefined;
