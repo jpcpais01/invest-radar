@@ -259,7 +259,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
       const data: FPResult[] = await res.json();
       setFpResults(data);
       setFpScannedAt(Date.now());
-      writeCache("discover-fp", data);
+      writeCache("discover-fp-v2", data);
     } finally {
       setFpLoading(false);
     }
@@ -279,7 +279,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
   const handleModeSwitch = (next: "technical" | "fairprice") => {
     setMode(next);
     if (next === "fairprice" && fpResults.length === 0 && !fpLoading) {
-      const cached = readCache<FPResult>("discover-fp");
+      const cached = readCache<FPResult>("discover-fp-v2");
       if (cached) { setFpResults(cached.results); setFpScannedAt(cached.scannedAt); }
       else scanFairPrice(allTickers);
     }
@@ -579,7 +579,7 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
                 </select>
               )}
 
-              {sectorFilter !== "all" && allIndustries.length > 0 && (
+              {allIndustries.length > 0 && (
                 <select
                   value={industryFilter}
                   onChange={e => setIndustryFilter(e.target.value)}

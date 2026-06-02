@@ -247,7 +247,7 @@ export default function DiscoverPage() {
       const data: FPResult[] = await res.json();
       setFpResults(data);
       setFpScannedAt(Date.now());
-      writeCache("terminal-discover-fp", data);
+      writeCache("terminal-discover-fp-v2", data);
     } finally {
       setFpLoading(false);
     }
@@ -263,9 +263,10 @@ export default function DiscoverPage() {
   const handleModeSwitch = (next: "technical" | "fairprice") => {
     setMode(next);
     if (next === "fairprice" && fpResults.length === 0 && !fpLoading) {
-      const cached = readCache<FPResult>("terminal-discover-fp");
+      const cached = readCache<FPResult>("terminal-discover-fp-v2");
       if (cached) { setFpResults(cached.results); setFpScannedAt(cached.scannedAt); }
       else scanFairPrice(allTickers());
+
     }
   };
 
@@ -295,7 +296,7 @@ export default function DiscoverPage() {
     });
     setFpResults((prev) => {
       const next = prev.filter((r) => r.ticker !== t);
-      writeCache("terminal-discover-fp", next);
+      writeCache("terminal-discover-fp-v2", next);
       return next;
     });
   };
@@ -459,8 +460,8 @@ export default function DiscoverPage() {
               </select>
             )}
 
-            {/* Industry filter — fair price only, visible when sector is selected */}
-            {mode === "fairprice" && sectorFilter !== "all" && allIndustries.length > 0 && (
+            {/* Industry filter — fair price only */}
+            {mode === "fairprice" && allIndustries.length > 0 && (
               <select
                 value={industryFilter}
                 onChange={(e) => setIndustryFilter(e.target.value)}
