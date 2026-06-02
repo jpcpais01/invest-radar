@@ -5,13 +5,23 @@ import TopBar from "@/components/layout/TopBar";
 import { cn } from "@/lib/utils";
 import { RefreshCw, Plus, X, ChevronUp, ChevronDown } from "lucide-react";
 
-const PRESET_TICKERS = [
-  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "UNH",
-  "MA", "HD", "PG", "JNJ", "COST", "AVGO", "MRK", "CVX", "ABBV", "KO",
-  "PEP", "WMT", "LLY", "TMO", "MCD", "CSCO", "ACN", "ABT", "BAC", "NEE",
-  "DIS", "VZ", "ORCL", "PM", "INTC", "AMGN", "RTX", "HON", "IBM", "CAT",
-  "GS", "BA", "NKE", "ADBE", "PYPL", "NFLX", "AMD", "QCOM", "SBUX", "GE",
-];
+const TICKER_CACHE_KEY = "discover-tickers-v1";
+const TICKER_CACHE_TTL = 12 * 60 * 60 * 1000;
+
+function readTickerCache(): string[] | null {
+  try {
+    const raw = localStorage.getItem(TICKER_CACHE_KEY);
+    if (!raw) return null;
+    const { tickers, ts } = JSON.parse(raw);
+    if (Date.now() - ts < TICKER_CACHE_TTL) return tickers;
+    return null;
+  } catch { return null; }
+}
+
+function writeTickerCache(tickers: string[]) {
+  try { localStorage.setItem(TICKER_CACHE_KEY, JSON.stringify({ tickers, ts: Date.now() })); }
+  catch { /* quota */ }
+}
 
 // ── Technical scanner types ───────────────────────────────────────────────────
 
@@ -205,6 +215,9 @@ export default function DiscoverPage() {
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
 
+  const [dynamicTickers, setDynamicTickers] = useState<string[]>([]);
+  const [tickersLoading, setTickersLoading] = useState(false);
+
   useEffect(() => {
     const saved = localStorage.getItem("discover-custom-tickers");
     if (saved) {
@@ -214,7 +227,7 @@ export default function DiscoverPage() {
   }, []);
 
   const allTickers = (extra: string[] = []) =>
-    [...new Set([...PRESET_TICKERS, ...customTickers, ...extra])];
+    [...new Set([...dynamicTickers, ...customTickers, ...extra])];
 
   // ── Scan functions ────────────────────────────────────────────────────────
 
@@ -255,9 +268,19 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    const cached = readCache<ScanResult>(`discover-cache-${tf}`);
-    if (cached) { setResults(cached.results); setScannedAt(cached.scannedAt); return; }
-    scan(allTickers(), tf);
+    const tickerCached = readTickerCache();
+    const doScan = (tickers: string[]) => {
+      const scanCached = readCache<ScanResult>(`discover-cache-${tf}`);
+      if (scanCached) { setResults(scanCached.results); setScannedAt(scanCached.scannedAt); return; }
+      scan([...new Set([...tickers, ...customTickers])], tf);
+    };
+    if (tickerCached) { setDynamicTickers(tickerCached); doScan(tickerCached); return; }
+    setTickersLoading(true);
+    fetch("/api/market/tickers")
+      .then(r => r.json())
+      .then(({ tickers }: { tickers: string[] }) => { writeTickerCache(tickers); setDynamicTickers(tickers); doScan(tickers); })
+      .catch(() => doScan(["AAPL","MSFT","GOOGL","NVDA","AMZN","META","TSLA"]))
+      .finally(() => setTickersLoading(false));
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleModeSwitch = (next: "technical" | "fairprice") => {
@@ -276,7 +299,7 @@ export default function DiscoverPage() {
     setAddInput("");
     const isPresent = results.some((r) => r.ticker === t) || fpResults.some((r) => r.ticker === t);
     if (isPresent) return;
-    if (!customTickers.includes(t) && !PRESET_TICKERS.includes(t)) {
+    if (!customTickers.includes(t) && !dynamicTickers.includes(t)) {
       const updated = [...customTickers, t];
       setCustomTickers(updated);
       localStorage.setItem("discover-custom-tickers", JSON.stringify(updated));
@@ -392,7 +415,11 @@ export default function DiscoverPage() {
             </h1>
             <p className="text-xs text-[#484f58] mt-0.5">
               {mode === "technical"
-                ? `${results.length} stocks ranked by technical indicator consensus`
+                ? results.length > 0
+                  ? `${results.length} stocks ranked by technical indicator consensus`
+                  : tickersLoading
+                    ? "Fetching universe from market screeners…"
+                    : `${allTickers().length} stocks queued`
                 : `${fpResults.length} stocks ranked by upside to fair price`}
             </p>
           </div>

@@ -6,54 +6,23 @@ import { useTickerStore } from "@/store/tickerStore";
 
 interface Props { onSelectTicker: (t: string) => void }
 
-const PRESET_TICKERS = [
-  // Mega-cap tech
-  "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","AVGO","ORCL","CRM",
-  "ADBE","NOW","INTU","PANW","CSCO","IBM","TXN","AMAT","LRCX","KLAC",
-  "MU","INTC","QCOM","AMD","NFLX","ACN","FTNT","SNOW","PLTR","NET",
-  // More tech
-  "DELL","HPQ","CRWD","ZS","DDOG","MNDY","GTLB","MDB","TTD","APP",
-  "MCHP","ON","SWKS","CRUS","MRVL","ARM","SMCI","KEYS","ANSS","CDNS",
-  "SNPS","EPAM","OKTA","TWLO","ZM","DOCN","CFLT","HUBS","SMAR","BOX",
-  // Consumer internet / fintech
-  "UBER","SHOP","PYPL","COIN","SQ","ABNB","DASH","RBLX","SNAP","PINS",
-  "LYFT","BKNG","EXPE","ETSY","EBAY","CHWY","W","DKNG","HOOD","SOFI",
-  "AFRM","UPST","CPNG","MELI","NU","GRAB","SE","BILL","SSNC","FIS",
-  // Large-cap finance
-  "JPM","V","MA","GS","MS","BAC","WFC","C","AXP","BLK",
-  "SCHW","COF","USB","PNC","TFC","SPGI","MCO","ICE","CME","CB",
-  "AIG","PRU","MET","AFL","ALL","PGR","TRV","DFS","SYF","ALLY",
-  "FITB","HBAN","KEY","RF","ZION","LNC","EQH","FNF","RJF","WRB",
-  // Healthcare / biotech
-  "UNH","LLY","JNJ","MRK","ABBV","TMO","ABT","BMY","AMGN","ISRG",
-  "ELV","BIIB","REGN","VRTX","ZTS","DXCM","ILMN","MRNA","GILD","CVS",
-  "CI","HUM","MCK","CAH","CNC","MOH","WBA","RMD","HOLX","ALGN",
-  "STE","WAT","A","IQV","IDXX","EXAS","VEEV","EW","PODD","BSX",
-  // Consumer staples & discretionary
-  "WMT","COST","HD","PG","KO","PEP","MCD","SBUX","NKE","TGT",
-  "LOW","TJX","YUM","CMG","DG","PM","MO","EL","CL","MNST",
-  "LULU","ROST","BURL","ULTA","BBY","GM","F","RIVN","ANF","GPS",
-  "SIG","DRI","EAT","TXRH","DINO","VFC","HBI","RL","PVH","TPR",
-  // Industrials & defense
-  "HON","GE","CAT","DE","MMM","RTX","LMT","NOC","GD","UPS",
-  "FDX","WM","RSG","EMR","ETN","PH","ITW","ROK","CARR","OTIS",
-  "BA","AXON","LDOS","BAH","CACI","KTOS","TXT","HII","ODFL","SAIA",
-  "JBHT","XPO","CHRW","IR","AME","VRSK","FAST","GWW","WAB","TDG",
-  // Energy
-  "XOM","CVX","OXY","SLB","EOG","COP","PSX","VLO","MPC","HES",
-  "HAL","BKR","DVN","FANG","MTDR","CTRA","MRO","KMI","WMB","OKE",
-  // Utilities
-  "NEE","DUK","SO","D","AEP","EXC","PEG","ED","AWK","WEC",
-  // Real estate
-  "AMT","PLD","EQIX","SPG","O","PSA","WELL","DLR","CCI","VICI",
-  "EQR","AVB","UDR","CPT","ESS","INVH","SUI","ELS","NNN","GLPI",
-  // International ADRs
-  "TSM","ASML","SAP","NVO","AZN","BABA","JD","PDD","NIO","BIDU",
-  "INFY","HDB","TTE","BP","RIO","BHP","VALE","FCX","ITUB","BBD",
-  // ETFs
-  "SPY","QQQ","IWM","GLD","TLT","VTI","ARKK","XLF","XLK","XLE",
-  "DIA","MDY","SCHD","JEPI","VEA","EEM","GDX","SLV","BND","HYG",
-];
+const TICKER_CACHE_KEY  = "discover-tickers-v1";
+const TICKER_CACHE_TTL  = 12 * 60 * 60 * 1000; // 12 h — screeners change intraday
+
+function readTickerCache(): string[] | null {
+  try {
+    const raw = localStorage.getItem(TICKER_CACHE_KEY);
+    if (!raw) return null;
+    const { tickers, ts } = JSON.parse(raw);
+    if (Date.now() - ts < TICKER_CACHE_TTL) return tickers;
+    return null;
+  } catch { return null; }
+}
+
+function writeTickerCache(tickers: string[]) {
+  try { localStorage.setItem(TICKER_CACHE_KEY, JSON.stringify({ tickers, ts: Date.now() })); }
+  catch { /* quota */ }
+}
 
 // ── Technical scanner types ───────────────────────────────────────────────────
 
@@ -199,9 +168,13 @@ function SortIcon<K extends string>({ col, sortKey, sortDir }: { col: K; sortKey
 
 export default function HomeDiscover({ onSelectTicker }: Props) {
   const { watchlist } = useTickerStore();
+
+  const [dynamicTickers, setDynamicTickers] = useState<string[]>([]);
+  const [tickersLoading, setTickersLoading] = useState(false);
+
   const allTickers = useMemo(
-    () => [...new Set([...watchlist, ...PRESET_TICKERS])],
-    [watchlist]
+    () => [...new Set([...watchlist, ...dynamicTickers])],
+    [watchlist, dynamicTickers]
   );
 
   const [mode, setMode] = useState<"technical" | "fairprice">("technical");
@@ -269,11 +242,34 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
 
   useEffect(() => { setHydrated(true); }, []);
 
+  // Fetch dynamic ticker pool on mount, then kick off technical scan
   useEffect(() => {
     if (!hydrated) return;
-    const cached = readCache<ScanResult>(`discover-tech-${tf}`);
-    if (cached) { setTechResults(cached.results); setTechScannedAt(cached.scannedAt); }
-    else scanTech(allTickers, tf);
+    const cached = readTickerCache();
+    if (cached) {
+      setDynamicTickers(cached);
+      const scanCached = readCache<ScanResult>(`discover-tech-${tf}`);
+      if (scanCached) { setTechResults(scanCached.results); setTechScannedAt(scanCached.scannedAt); }
+      else scanTech([...new Set([...watchlist, ...cached])], tf);
+      return;
+    }
+    setTickersLoading(true);
+    fetch("/api/market/tickers")
+      .then(r => r.json())
+      .then(({ tickers }: { tickers: string[] }) => {
+        writeTickerCache(tickers);
+        setDynamicTickers(tickers);
+        const scanCached = readCache<ScanResult>(`discover-tech-${tf}`);
+        if (scanCached) { setTechResults(scanCached.results); setTechScannedAt(scanCached.scannedAt); }
+        else scanTech([...new Set([...watchlist, ...tickers])], tf);
+      })
+      .catch(() => {
+        // fallback: scan with watchlist only
+        const scanCached = readCache<ScanResult>(`discover-tech-${tf}`);
+        if (scanCached) { setTechResults(scanCached.results); setTechScannedAt(scanCached.scannedAt); }
+        else scanTech(watchlist.length ? watchlist : ["AAPL","MSFT","GOOGL","NVDA","AMZN"], tf);
+      })
+      .finally(() => setTickersLoading(false));
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleModeSwitch = (next: "technical" | "fairprice") => {
@@ -375,8 +371,14 @@ export default function HomeDiscover({ onSelectTicker }: Props) {
             </h2>
             <p className="text-[9px] text-[#686868] mt-0.5">
               {mode === "technical"
-                ? techResults.length > 0 ? `${techResults.length} stocks · Technical consensus` : "Technical indicator screening"
-                : fpResults.length > 0  ? `${fpResults.length} stocks · Ranked by upside to fair price` : "Valuation screening"}
+                ? techResults.length > 0
+                  ? `${techResults.length} stocks · Technical consensus`
+                  : tickersLoading
+                    ? `Fetching universe from market screeners…`
+                    : `${allTickers.length} stocks queued · Technical indicator screening`
+                : fpResults.length > 0
+                  ? `${fpResults.length} stocks · Ranked by upside to fair price`
+                  : "Valuation screening"}
             </p>
           </div>
         </div>
